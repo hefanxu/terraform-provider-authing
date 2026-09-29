@@ -5,6 +5,7 @@ package authingapi
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -37,15 +38,17 @@ type Options struct {
 
 // Client holds credentials and a per-client, concurrency-safe token cache.
 type Client struct {
-	host         string
-	keyID        string
-	secret       string
-	tenantID     string
-	userPoolID   string
-	httpClient   *http.Client
-	mu           sync.Mutex
-	token        string
-	tokenExpires time.Time
+	host           string
+	keyID          string
+	secret         string
+	tenantID       string
+	userPoolID     string
+	configuredPool bool
+	httpClient     *http.Client
+	mu             sync.Mutex
+	token          string
+	tokenPoolID    string
+	tokenExpires   time.Time
 }
 
 // NewClient validates the host without performing network I/O. Plain HTTP is
@@ -83,7 +86,7 @@ func NewClient(o Options) (*Client, error) {
 	if pool == "" {
 		pool = o.AccessKeyID
 	}
-	return &Client{host: strings.TrimSuffix(u.String(), "/"), keyID: o.AccessKeyID, secret: o.AccessKeySecret, tenantID: o.TenantID, userPoolID: pool, httpClient: hc}, nil
+	return &Client{host: strings.TrimSuffix(u.String(), "/"), keyID: o.AccessKeyID, secret: o.AccessKeySecret, tenantID: o.TenantID, userPoolID: pool, configuredPool: o.UserPoolID != "", httpClient: hc}, nil
 }
 
 func isLoopback(host string) bool {
@@ -111,11 +114,11 @@ func (c *Client) SendHttpRequestContext(ctx context.Context, path, method string
 	if method != http.MethodGet && method != http.MethodPost && method != http.MethodPut && method != http.MethodPatch && method != http.MethodDelete {
 		return nil, errors.New("unsupported HTTP method")
 	}
-	token, err := c.getToken(ctx)
+	token, pool, err := c.getToken(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return c.send(ctx, path, method, req, token)
+	return c.send(ctx, path, method, req, token, pool)
 }
 
 func validatePath(path string) error {
@@ -130,27 +133,28 @@ func validatePath(path string) error {
 	return nil
 }
 
-func (c *Client) getToken(ctx context.Context) (string, error) {
+func (c *Client) getToken(ctx context.Context) (string, string, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.token != "" && time.Now().Before(c.tokenExpires) {
-		return c.token, nil
+		return c.token, c.tokenPoolID, nil
 	}
-	body, err := c.send(ctx, tokenPath, http.MethodPost, map[string]string{"accessKeyId": c.keyID, "accessKeySecret": c.secret}, "")
+	body, err := c.send(ctx, tokenPath, http.MethodPost, map[string]string{"accessKeyId": c.keyID, "accessKeySecret": c.secret}, "", "")
 	if err != nil {
 		if ctx.Err() != nil {
-			return "", ctx.Err()
+			return "", "", ctx.Err()
 		}
-		return "", fmt.Errorf("authing token request: %w", err)
+		return "", "", fmt.Errorf("authing token request: %w", err)
 	}
 	var response struct {
-		Data struct {
+		StatusCode int `json:"statusCode"`
+		Data       struct {
 			AccessToken string `json:"access_token"`
 			ExpiresIn   int64  `json:"expires_in"`
 		} `json:"data"`
 	}
-	if json.Unmarshal(body, &response) != nil || response.Data.AccessToken == "" || response.Data.ExpiresIn <= 0 || response.Data.ExpiresIn > math.MaxInt64/int64(time.Second) {
-		return "", errors.New("invalid authing token response")
+	if json.Unmarshal(body, &response) != nil || response.StatusCode != http.StatusOK || response.Data.AccessToken == "" || response.Data.ExpiresIn <= 0 || response.Data.ExpiresIn > math.MaxInt64/int64(time.Second) {
+		return "", "", errors.New("invalid authing token response")
 	}
 	lifetime := time.Duration(response.Data.ExpiresIn) * time.Second
 	// Keep a small safety margin while allowing short-lived tokens to be reused.
@@ -159,10 +163,36 @@ func (c *Client) getToken(ctx context.Context) (string, error) {
 		margin = 30 * time.Second
 	}
 	c.token, c.tokenExpires = response.Data.AccessToken, time.Now().Add(lifetime-margin)
-	return c.token, nil
+	c.tokenPoolID = c.userPoolID
+	if !c.configuredPool {
+		if scoped := scopedPoolID(c.token); scoped != "" {
+			c.tokenPoolID = scoped
+		}
+	}
+	return c.token, c.tokenPoolID, nil
 }
 
-func (c *Client) send(ctx context.Context, path, method string, value any, token string) ([]byte, error) {
+// The token comes from Authing over verified TLS. Decode only the documented
+// scoped_userpool_id for request routing; this does not authenticate the JWT.
+func scopedPoolID(token string) string {
+	parts := strings.Split(token, ".")
+	if len(parts) != 3 || len(parts[1]) > 8192 {
+		return ""
+	}
+	data, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return ""
+	}
+	var claims struct {
+		ScopedUserPoolID string `json:"scoped_userpool_id"`
+	}
+	if json.Unmarshal(data, &claims) != nil {
+		return ""
+	}
+	return claims.ScopedUserPoolID
+}
+
+func (c *Client) send(ctx context.Context, path, method string, value any, token, poolID string) ([]byte, error) {
 	endpoint := c.host + path
 	var body io.Reader
 	if method == http.MethodGet {
@@ -210,8 +240,8 @@ func (c *Client) send(ctx context.Context, path, method string, value any, token
 	}
 	if token != "" {
 		request.Header.Set("Authorization", "Bearer "+token)
-		if c.userPoolID != "" {
-			request.Header.Set("x-authing-userpool-id", c.userPoolID)
+		if poolID != "" {
+			request.Header.Set("x-authing-userpool-id", poolID)
 		}
 	}
 	if c.tenantID != "" {
@@ -247,8 +277,7 @@ func (c *Client) send(ctx context.Context, path, method string, value any, token
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return nil, fmt.Errorf("authing HTTP status %d", response.StatusCode)
 	}
-	if *envelope.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("authing API status %d", *envelope.StatusCode)
-	}
+	// A non-200 Authing business status is a valid API envelope, not a
+	// transport failure. Keep it available for the resource's error handling.
 	return data, nil
 }

@@ -2,6 +2,7 @@ package authingapi
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -59,6 +60,24 @@ func TestTrustedTLSTokenAndRequest(t *testing.T) {
 	}
 	if tokens != 1 || calls != 2 {
 		t.Fatalf("tokens=%d calls=%d", tokens, calls)
+	}
+}
+
+func TestCollaboratorKeyUsesScopedPoolFromManagementToken(t *testing.T) {
+	jwt := "header." + base64.RawURLEncoding.EncodeToString([]byte(`{"scoped_userpool_id":"real-pool"}`)) + ".signature"
+	client, server := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == tokenPath {
+			tokenResponse(w, jwt, 3600)
+			return
+		}
+		if got := r.Header.Get("x-authing-userpool-id"); got != "real-pool" {
+			t.Errorf("header userpool=%q, want real-pool", got)
+		}
+		_, _ = w.Write([]byte(`{"statusCode":200}`))
+	}, func(o *Options) { o.AccessKeyID = "collaborator-access-key" })
+	defer server.Close()
+	if _, err := client.SendHttpRequest("/api/v3/get-model", "GET", nil); err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -202,13 +221,12 @@ func TestBadResponsesAndFailuresNeverLeakSecrets(t *testing.T) {
 		{"token invalid JSON", true, 200, `super-secret`, "token request"},
 		{"token missing data", true, 200, `{"statusCode":200}`, "token response"},
 		{"token expiry overflow", true, 200, `{"statusCode":200,"data":{"access_token":"token","expires_in":9223372036854775807}}`, "token response"},
-		{"token failed envelope", true, 200, `{"statusCode":401,"message":"super-secret"}`, "token request"},
+		{"token failed envelope", true, 200, `{"statusCode":401,"message":"super-secret"}`, "token response"},
 		{"API 5xx", false, 503, `{"statusCode":503,"message":"super-secret"}`, "HTTP status 503"},
 		{"API 4xx not 404", false, 401, `{"statusCode":401,"message":"super-secret"}`, "HTTP status 401"},
 		{"API malformed 404", false, 404, `super-secret`, "invalid authing response"},
 		{"API malformed success", false, 200, `super-secret`, "invalid authing response"},
 		{"API missing status", false, 200, `{}`, "invalid authing response"},
-		{"API status failure", false, 200, `{"statusCode":422,"message":"super-secret"}`, "API status 422"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -229,6 +247,35 @@ func TestBadResponsesAndFailuresNeverLeakSecrets(t *testing.T) {
 				t.Fatalf("secret leaked: %v", err)
 			}
 		})
+	}
+}
+
+func TestBusinessErrorBodyRetainsStatusForResourceDiagnostics(t *testing.T) {
+	client, server := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == tokenPath {
+			tokenResponse(w, "token", 3600)
+			return
+		}
+		_, _ = w.Write([]byte(`{"statusCode":422,"message":"validation failed"}`))
+	}, nil)
+	defer server.Close()
+	body, err := client.SendHttpRequest("/api/v3/create-model", "POST", map[string]string{"name": "invalid"})
+	if err != nil || string(body) != `{"statusCode":422,"message":"validation failed"}` {
+		t.Fatalf("business status lost: body=%s err=%v", body, err)
+	}
+}
+
+func TestTokenRejectsFailedEnvelopeEvenWithTokenData(t *testing.T) {
+	client, server := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != tokenPath {
+			t.Errorf("unexpected API request %s", r.URL.Path)
+			return
+		}
+		_, _ = w.Write([]byte(`{"statusCode":401,"message":"denied","data":{"access_token":"bogus","expires_in":3600}}`))
+	}, nil)
+	defer server.Close()
+	if _, err := client.SendHttpRequest("/api/v3/get-model", "GET", nil); err == nil {
+		t.Fatal("failed token response accepted")
 	}
 }
 

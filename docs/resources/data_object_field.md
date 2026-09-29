@@ -6,7 +6,7 @@ description: |-
 
 # authing_data_object_field (Resource)
 
-Creates, reads, and deletes **basic** fields of a data object. The Authing SDK's field DTOs disagree with the current OpenAPI schema and omit several required properties; this resource sends the complete basic creation payload through the SDK's authenticated transport. Only use it for new simple fields. **Do not adopt fields with advanced validation, defaults, enumerations, or relationships**: these settings cannot be round-tripped from the list response and in-place updates are deliberately disabled. All configuration changes require replacement, which can destroy data in the field. Back up data first.
+Creates, reads, and deletes **basic** fields of a data object. The Authing SDK's field DTOs disagree with the current OpenAPI schema and omit several required properties; this resource sends the complete basic creation payload through the provider's own TLS-verified Management API client. Only use it for new simple fields. **Do not adopt fields with advanced validation, defaults, enumerations, or relationships**: these settings cannot be round-tripped from the list response and in-place updates are deliberately disabled. All configuration changes require replacement, which can destroy data in the field. Back up data first.
 
 ## Example Usage
 

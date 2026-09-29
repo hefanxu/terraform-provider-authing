@@ -2,7 +2,9 @@
 
 A Terraform / OpenTofu provider for managing [Authing](https://www.authing.cn) IAM Identity Cloud Platform resources.
 
-Built with [Terraform Plugin Framework](https://github.com/hashicorp/terraform-plugin-framework) and the [Authing Golang SDK v3](https://github.com/Authing/authing-golang-sdk).
+Built with [Terraform Plugin Framework](https://github.com/hashicorp/terraform-plugin-framework). Management API requests use this provider's own `net/http` client, **not** the Authing SDK transport. Authing SDK v3 DTO types are currently retained for request/response compatibility.
+
+The direct client obtains a management access token using AK/SK, caches it until near expiry, and sends requests over HTTPS with normal certificate verification. `host` permits plain HTTP only for a loopback development server; redirects are refused so credentials and bearer tokens are not forwarded to another host. No real Authing tenant integration test has been performed yet.
 
 ---
 
