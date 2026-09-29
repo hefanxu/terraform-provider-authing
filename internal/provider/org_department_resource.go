@@ -1,0 +1,809 @@
+package provider
+
+import (
+	"context"
+	"fmt"
+
+	"github.com/Authing/authing-golang-sdk/v3/dto"
+	"github.com/Authing/authing-golang-sdk/v3/management"
+	"github.com/hashicorp/terraform-plugin-framework/datasource"
+	dschema "github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/path"
+	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/types"
+)
+
+// --- Organization Resource ---
+
+var _ resource.Resource = &OrganizationResource{}
+var _ resource.ResourceWithImportState = &OrganizationResource{}
+
+func NewOrganizationResource() resource.Resource {
+	return &OrganizationResource{}
+}
+
+type OrganizationResource struct {
+	client *management.ManagementClient
+}
+
+type OrganizationModel struct {
+	ID               types.String `tfsdk:"id"`
+	OrganizationCode types.String `tfsdk:"organization_code"`
+	OrganizationName types.String `tfsdk:"organization_name"`
+	Description      types.String `tfsdk:"description"`
+}
+
+func (r *OrganizationResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_organization"
+}
+
+func (r *OrganizationResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
+	resp.Schema = schema.Schema{
+		Description: "Manages an Authing Organization.",
+		Attributes: map[string]schema.Attribute{
+			"id": schema.StringAttribute{
+				Computed: true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
+			},
+			"organization_code": schema.StringAttribute{
+				Optional:    true,
+				Computed:    true,
+				Description: "Unique code for the organization.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
+			},
+			"organization_name": schema.StringAttribute{
+				Required:    true,
+				Description: "Name of the organization.",
+			},
+			"description": schema.StringAttribute{
+				Optional:    true,
+				Computed:    true,
+				Description: "Description of the organization.",
+			},
+		},
+	}
+}
+
+func (r *OrganizationResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+	if req.ProviderData == nil {
+		return
+	}
+	client, ok := req.ProviderData.(*management.ManagementClient)
+	if !ok {
+		resp.Diagnostics.AddError("Unexpected Resource Configure Type", "Expected *management.ManagementClient")
+		return
+	}
+	r.client = client
+}
+
+func (r *OrganizationResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	var plan OrganizationModel
+	diags := req.Plan.Get(ctx, &plan)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	createReq := &dto.CreateOrganizationReqDto{
+		OrganizationName: plan.OrganizationName.ValueString(),
+	}
+	if !plan.OrganizationCode.IsNull() {
+		createReq.OrganizationCode = plan.OrganizationCode.ValueString()
+	}
+	if !plan.Description.IsNull() {
+		createReq.Description = plan.Description.ValueString()
+	}
+
+	res := r.client.CreateOrganization(createReq)
+	if res == nil || res.StatusCode != 200 || res.Data.OrganizationCode == "" {
+		errMsg := "Unknown error"
+		if res != nil {
+			errMsg = fmt.Sprintf("code=%d msg=%s", res.StatusCode, res.Message)
+		}
+		resp.Diagnostics.AddError("Failed to create Authing organization", errMsg)
+		return
+	}
+
+	plan.ID = types.StringValue(res.Data.OrganizationCode)
+	plan.OrganizationCode = types.StringValue(res.Data.OrganizationCode)
+	plan.OrganizationName = types.StringValue(res.Data.OrganizationName)
+	if res.Data.Description != "" {
+		plan.Description = types.StringValue(res.Data.Description)
+	}
+
+	diags = resp.State.Set(ctx, plan)
+	resp.Diagnostics.Append(diags...)
+}
+
+func (r *OrganizationResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+	var state OrganizationModel
+	diags := req.State.Get(ctx, &state)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	res := r.client.GetOrganization(&dto.GetOrganizationDto{
+		OrganizationCode: state.OrganizationCode.ValueString(),
+	})
+	if res == nil || res.StatusCode != 200 || res.Data.OrganizationCode == "" {
+		resp.State.RemoveResource(ctx)
+		return
+	}
+
+	state.ID = types.StringValue(res.Data.OrganizationCode)
+	state.OrganizationName = types.StringValue(res.Data.OrganizationName)
+	if res.Data.Description != "" {
+		state.Description = types.StringValue(res.Data.Description)
+	}
+
+	diags = resp.State.Set(ctx, &state)
+	resp.Diagnostics.Append(diags...)
+}
+
+func (r *OrganizationResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+	var plan OrganizationModel
+	diags := req.Plan.Get(ctx, &plan)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	updateReq := &dto.UpdateOrganizationReqDto{
+		OrganizationCode: plan.OrganizationCode.ValueString(),
+		OrganizationName: plan.OrganizationName.ValueString(),
+	}
+	if !plan.Description.IsNull() {
+		updateReq.Description = plan.Description.ValueString()
+	}
+
+	res := r.client.UpdateOrganization(updateReq)
+	if res == nil || res.StatusCode != 200 || res.Data.OrganizationCode == "" {
+		errMsg := "Unknown error"
+		if res != nil {
+			errMsg = fmt.Sprintf("code=%d msg=%s", res.StatusCode, res.Message)
+		}
+		resp.Diagnostics.AddError("Failed to update Authing organization", errMsg)
+		return
+	}
+
+	diags = resp.State.Set(ctx, plan)
+	resp.Diagnostics.Append(diags...)
+}
+
+func (r *OrganizationResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	var state OrganizationModel
+	diags := req.State.Get(ctx, &state)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	_ = r.client.DeleteOrganization(&dto.DeleteOrganizationReqDto{
+		OrganizationCode: state.OrganizationCode.ValueString(),
+	})
+}
+
+func (r *OrganizationResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	resource.ImportStatePassthroughID(ctx, path.Root("organization_code"), req, resp)
+}
+
+// --- Department Resource ---
+
+var _ resource.Resource = &DepartmentResource{}
+var _ resource.ResourceWithImportState = &DepartmentResource{}
+
+func NewDepartmentResource() resource.Resource {
+	return &DepartmentResource{}
+}
+
+type DepartmentResource struct {
+	client *management.ManagementClient
+}
+
+type DepartmentModel struct {
+	ID                 types.String `tfsdk:"id"`
+	OrganizationCode   types.String `tfsdk:"organization_code"`
+	Name               types.String `tfsdk:"name"`
+	ParentDepartmentId types.String `tfsdk:"parent_department_id"`
+	DepartmentId       types.String `tfsdk:"department_id"`
+	Description        types.String `tfsdk:"description"`
+}
+
+func (r *DepartmentResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_department"
+}
+
+func (r *DepartmentResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
+	resp.Schema = schema.Schema{
+		Description: "Manages an Authing Department.",
+		Attributes: map[string]schema.Attribute{
+			"id": schema.StringAttribute{
+				Computed: true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
+			},
+			"organization_code": schema.StringAttribute{
+				Required:    true,
+				Description: "Organization code this department belongs to.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
+			},
+			"name": schema.StringAttribute{
+				Required:    true,
+				Description: "Name of the department.",
+			},
+			"parent_department_id": schema.StringAttribute{
+				Required:    true,
+				Description: "Parent department ID (use 'root' for root level).",
+			},
+			"department_id": schema.StringAttribute{
+				Optional:    true,
+				Computed:    true,
+				Description: "Custom department ID.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
+			},
+			"description": schema.StringAttribute{
+				Optional:    true,
+				Computed:    true,
+				Description: "Department description.",
+			},
+		},
+	}
+}
+
+func (r *DepartmentResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+	if req.ProviderData == nil {
+		return
+	}
+	client, ok := req.ProviderData.(*management.ManagementClient)
+	if !ok {
+		resp.Diagnostics.AddError("Unexpected Resource Configure Type", "Expected *management.ManagementClient")
+		return
+	}
+	r.client = client
+}
+
+func (r *DepartmentResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	var plan DepartmentModel
+	diags := req.Plan.Get(ctx, &plan)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	createReq := &dto.CreateDepartmentReqDto{
+		OrganizationCode:   plan.OrganizationCode.ValueString(),
+		Name:               plan.Name.ValueString(),
+		ParentDepartmentId: plan.ParentDepartmentId.ValueString(),
+	}
+	if !plan.DepartmentId.IsNull() {
+		createReq.DepartmentIdType = plan.DepartmentId.ValueString()
+	}
+	if !plan.Description.IsNull() {
+		createReq.Description = plan.Description.ValueString()
+	}
+
+	res := r.client.CreateDepartment(createReq)
+	if res == nil || res.StatusCode != 200 || res.Data.DepartmentId == "" {
+		errMsg := "Unknown error"
+		if res != nil {
+			errMsg = fmt.Sprintf("code=%d msg=%s", res.StatusCode, res.Message)
+		}
+		resp.Diagnostics.AddError("Failed to create Authing department", errMsg)
+		return
+	}
+
+	plan.ID = types.StringValue(res.Data.DepartmentId)
+	plan.DepartmentId = types.StringValue(res.Data.DepartmentId)
+	plan.Name = types.StringValue(res.Data.Name)
+	plan.ParentDepartmentId = types.StringValue(res.Data.ParentDepartmentId)
+	if res.Data.Description != "" {
+		plan.Description = types.StringValue(res.Data.Description)
+	}
+
+	diags = resp.State.Set(ctx, plan)
+	resp.Diagnostics.Append(diags...)
+}
+
+func (r *DepartmentResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+	var state DepartmentModel
+	diags := req.State.Get(ctx, &state)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	res := r.client.GetDepartment(&dto.GetDepartmentDto{
+		OrganizationCode: state.OrganizationCode.ValueString(),
+		DepartmentId:     state.ID.ValueString(),
+	})
+	if res == nil || res.StatusCode != 200 || res.Data.DepartmentId == "" {
+		resp.State.RemoveResource(ctx)
+		return
+	}
+
+	state.ID = types.StringValue(res.Data.DepartmentId)
+	state.Name = types.StringValue(res.Data.Name)
+	state.ParentDepartmentId = types.StringValue(res.Data.ParentDepartmentId)
+	if res.Data.Description != "" {
+		state.Description = types.StringValue(res.Data.Description)
+	}
+
+	diags = resp.State.Set(ctx, &state)
+	resp.Diagnostics.Append(diags...)
+}
+
+func (r *DepartmentResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+	var plan DepartmentModel
+	diags := req.Plan.Get(ctx, &plan)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	updateReq := &dto.UpdateDepartmentReqDto{
+		OrganizationCode: plan.OrganizationCode.ValueString(),
+		DepartmentId:     plan.ID.ValueString(),
+		Name:             plan.Name.ValueString(),
+	}
+	if !plan.ParentDepartmentId.IsNull() {
+		updateReq.ParentDepartmentId = plan.ParentDepartmentId.ValueString()
+	}
+	if !plan.Description.IsNull() {
+		updateReq.Description = plan.Description.ValueString()
+	}
+
+	res := r.client.UpdateDepartment(updateReq)
+	if res == nil || res.StatusCode != 200 || res.Data.DepartmentId == "" {
+		errMsg := "Unknown error"
+		if res != nil {
+			errMsg = fmt.Sprintf("code=%d msg=%s", res.StatusCode, res.Message)
+		}
+		resp.Diagnostics.AddError("Failed to update Authing department", errMsg)
+		return
+	}
+
+	diags = resp.State.Set(ctx, plan)
+	resp.Diagnostics.Append(diags...)
+}
+
+func (r *DepartmentResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	var state DepartmentModel
+	diags := req.State.Get(ctx, &state)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	_ = r.client.DeleteDepartment(&dto.DeleteDepartmentReqDto{
+		OrganizationCode: state.OrganizationCode.ValueString(),
+		DepartmentId:     state.ID.ValueString(),
+	})
+}
+
+func (r *DepartmentResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
+}
+
+// --- Department Member Resource ---
+
+var _ resource.Resource = &DepartmentMemberResource{}
+
+func NewDepartmentMemberResource() resource.Resource {
+	return &DepartmentMemberResource{}
+}
+
+type DepartmentMemberResource struct {
+	client *management.ManagementClient
+}
+
+type DepartmentMemberModel struct {
+	ID               types.String `tfsdk:"id"`
+	OrganizationCode types.String `tfsdk:"organization_code"`
+	DepartmentId     types.String `tfsdk:"department_id"`
+	UserId           types.String `tfsdk:"user_id"`
+}
+
+func (r *DepartmentMemberResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_department_member"
+}
+
+func (r *DepartmentMemberResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
+	resp.Schema = schema.Schema{
+		Description: "Adds a user to an Authing department.",
+		Attributes: map[string]schema.Attribute{
+			"id": schema.StringAttribute{
+				Computed: true,
+			},
+			"organization_code": schema.StringAttribute{
+				Required: true,
+			},
+			"department_id": schema.StringAttribute{
+				Required: true,
+			},
+			"user_id": schema.StringAttribute{
+				Required: true,
+			},
+		},
+	}
+}
+
+func (r *DepartmentMemberResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+	if req.ProviderData == nil {
+		return
+	}
+	client, ok := req.ProviderData.(*management.ManagementClient)
+	if !ok {
+		resp.Diagnostics.AddError("Unexpected Resource Configure Type", "Expected *management.ManagementClient")
+		return
+	}
+	r.client = client
+}
+
+func (r *DepartmentMemberResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	var plan DepartmentMemberModel
+	diags := req.Plan.Get(ctx, &plan)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	res := r.client.AddDepartmentMembers(&dto.AddDepartmentMembersReqDto{
+		OrganizationCode: plan.OrganizationCode.ValueString(),
+		DepartmentId:     plan.DepartmentId.ValueString(),
+		UserIds:          []string{plan.UserId.ValueString()},
+	})
+	if res == nil || res.StatusCode != 200 {
+		resp.Diagnostics.AddError("Failed to add user to department", "Error response from Authing")
+		return
+	}
+
+	plan.ID = types.StringValue(fmt.Sprintf("%s:%s:%s", plan.OrganizationCode.ValueString(), plan.DepartmentId.ValueString(), plan.UserId.ValueString()))
+	diags = resp.State.Set(ctx, plan)
+	resp.Diagnostics.Append(diags...)
+}
+
+func (r *DepartmentMemberResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+	var state DepartmentMemberModel
+	diags := req.State.Get(ctx, &state)
+	resp.Diagnostics.Append(diags...)
+}
+
+func (r *DepartmentMemberResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+}
+
+func (r *DepartmentMemberResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	var state DepartmentMemberModel
+	diags := req.State.Get(ctx, &state)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	_ = r.client.RemoveDepartmentMembers(&dto.RemoveDepartmentMembersReqDto{
+		OrganizationCode: state.OrganizationCode.ValueString(),
+		DepartmentId:     state.DepartmentId.ValueString(),
+		UserIds:          []string{state.UserId.ValueString()},
+	})
+}
+
+// --- Post Resource (Job Title / Position) ---
+
+var _ resource.Resource = &PostResource{}
+
+func NewPostResource() resource.Resource {
+	return &PostResource{}
+}
+
+type PostResource struct {
+	client *management.ManagementClient
+}
+
+type PostModel struct {
+	ID          types.String `tfsdk:"id"`
+	Code        types.String `tfsdk:"code"`
+	Name        types.String `tfsdk:"name"`
+	Description types.String `tfsdk:"description"`
+}
+
+func (r *PostResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_post"
+}
+
+func (r *PostResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
+	resp.Schema = schema.Schema{
+		Description: "Manages an Authing Post / Position.",
+		Attributes: map[string]schema.Attribute{
+			"id": schema.StringAttribute{
+				Computed: true,
+			},
+			"code": schema.StringAttribute{
+				Required:    true,
+				Description: "Code for the post.",
+			},
+			"name": schema.StringAttribute{
+				Required:    true,
+				Description: "Name of the post.",
+			},
+			"description": schema.StringAttribute{
+				Optional:    true,
+				Computed:    true,
+				Description: "Description of the post.",
+			},
+		},
+	}
+}
+
+func (r *PostResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+	if req.ProviderData == nil {
+		return
+	}
+	client, ok := req.ProviderData.(*management.ManagementClient)
+	if !ok {
+		resp.Diagnostics.AddError("Unexpected Resource Configure Type", "Expected *management.ManagementClient")
+		return
+	}
+	r.client = client
+}
+
+func (r *PostResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	var plan PostModel
+	diags := req.Plan.Get(ctx, &plan)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	createReq := &dto.CreatePostDto{
+		Code: plan.Code.ValueString(),
+		Name: plan.Name.ValueString(),
+	}
+	if !plan.Description.IsNull() {
+		createReq.Description = plan.Description.ValueString()
+	}
+
+	res := r.client.CreatePost(createReq)
+	if res == nil || res.StatusCode != 200 || res.Data.Code == "" {
+		errMsg := "Unknown error"
+		if res != nil {
+			errMsg = fmt.Sprintf("code=%d msg=%s", res.StatusCode, res.Message)
+		}
+		resp.Diagnostics.AddError("Failed to create Authing post", errMsg)
+		return
+	}
+
+	plan.ID = types.StringValue(res.Data.Code)
+	diags = resp.State.Set(ctx, plan)
+	resp.Diagnostics.Append(diags...)
+}
+
+func (r *PostResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+	var state PostModel
+	diags := req.State.Get(ctx, &state)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	res := r.client.GetPost(&dto.GetPostDto{
+		Code: state.Code.ValueString(),
+	})
+	if res == nil || res.Code == "" {
+		resp.State.RemoveResource(ctx)
+		return
+	}
+
+	state.ID = types.StringValue(res.Code)
+	state.Name = types.StringValue(res.Name)
+	if res.Description != "" {
+		state.Description = types.StringValue(res.Description)
+	}
+
+	diags = resp.State.Set(ctx, &state)
+	resp.Diagnostics.Append(diags...)
+}
+
+func (r *PostResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+	var plan PostModel
+	diags := req.Plan.Get(ctx, &plan)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	updateReq := &dto.CreatePostDto{
+		Code: plan.Code.ValueString(),
+		Name: plan.Name.ValueString(),
+	}
+	if !plan.Description.IsNull() {
+		updateReq.Description = plan.Description.ValueString()
+	}
+
+	res := r.client.UpdatePost(updateReq)
+	if res == nil || res.StatusCode != 200 {
+		resp.Diagnostics.AddError("Failed to update Authing post", "Error response from Authing")
+		return
+	}
+
+	diags = resp.State.Set(ctx, plan)
+	resp.Diagnostics.Append(diags...)
+}
+
+func (r *PostResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	var state PostModel
+	diags := req.State.Get(ctx, &state)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	_ = r.client.RemovePost(&dto.RemovePostDto{
+		Code: state.Code.ValueString(),
+	})
+}
+
+// --- Data Sources for Org & Dept ---
+
+var _ datasource.DataSource = &OrganizationDataSource{}
+
+func NewOrganizationDataSource() datasource.DataSource {
+	return &OrganizationDataSource{}
+}
+
+type OrganizationDataSource struct {
+	client *management.ManagementClient
+}
+
+func (d *OrganizationDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_organization"
+}
+
+func (d *OrganizationDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+	resp.Schema = dschema.Schema{
+		Description: "Fetches organization details by code.",
+		Attributes: map[string]dschema.Attribute{
+			"id": dschema.StringAttribute{
+				Computed: true,
+			},
+			"organization_code": dschema.StringAttribute{
+				Required: true,
+			},
+			"organization_name": dschema.StringAttribute{
+				Computed: true,
+			},
+			"description": dschema.StringAttribute{
+				Computed: true,
+			},
+		},
+	}
+}
+
+func (d *OrganizationDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
+	if req.ProviderData == nil {
+		return
+	}
+	client, ok := req.ProviderData.(*management.ManagementClient)
+	if !ok {
+		resp.Diagnostics.AddError("Unexpected DataSource Configure Type", "Expected *management.ManagementClient")
+		return
+	}
+	d.client = client
+}
+
+func (d *OrganizationDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
+	var state OrganizationModel
+	diags := req.Config.Get(ctx, &state)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	res := d.client.GetOrganization(&dto.GetOrganizationDto{
+		OrganizationCode: state.OrganizationCode.ValueString(),
+	})
+	if res == nil || res.StatusCode != 200 || res.Data.OrganizationCode == "" {
+		resp.Diagnostics.AddError("Organization Not Found", "Failed to retrieve organization.")
+		return
+	}
+
+	state.ID = types.StringValue(res.Data.OrganizationCode)
+	state.OrganizationName = types.StringValue(res.Data.OrganizationName)
+	if res.Data.Description != "" {
+		state.Description = types.StringValue(res.Data.Description)
+	}
+
+	diags = resp.State.Set(ctx, &state)
+	resp.Diagnostics.Append(diags...)
+}
+
+var _ datasource.DataSource = &DepartmentDataSource{}
+
+func NewDepartmentDataSource() datasource.DataSource {
+	return &DepartmentDataSource{}
+}
+
+type DepartmentDataSource struct {
+	client *management.ManagementClient
+}
+
+func (d *DepartmentDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_department"
+}
+
+func (d *DepartmentDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+	resp.Schema = dschema.Schema{
+		Description: "Fetches department details.",
+		Attributes: map[string]dschema.Attribute{
+			"id": dschema.StringAttribute{
+				Computed: true,
+			},
+			"organization_code": dschema.StringAttribute{
+				Required: true,
+			},
+			"department_id": dschema.StringAttribute{
+				Required: true,
+			},
+			"name": dschema.StringAttribute{
+				Computed: true,
+			},
+			"parent_department_id": dschema.StringAttribute{
+				Computed: true,
+			},
+			"description": dschema.StringAttribute{
+				Computed: true,
+			},
+		},
+	}
+}
+
+func (d *DepartmentDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
+	if req.ProviderData == nil {
+		return
+	}
+	client, ok := req.ProviderData.(*management.ManagementClient)
+	if !ok {
+		resp.Diagnostics.AddError("Unexpected DataSource Configure Type", "Expected *management.ManagementClient")
+		return
+	}
+	d.client = client
+}
+
+func (d *DepartmentDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
+	var state DepartmentModel
+	diags := req.Config.Get(ctx, &state)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	res := d.client.GetDepartment(&dto.GetDepartmentDto{
+		OrganizationCode: state.OrganizationCode.ValueString(),
+		DepartmentId:     state.DepartmentId.ValueString(),
+	})
+	if res == nil || res.StatusCode != 200 || res.Data.DepartmentId == "" {
+		resp.Diagnostics.AddError("Department Not Found", "Failed to retrieve department.")
+		return
+	}
+
+	state.ID = types.StringValue(res.Data.DepartmentId)
+	state.Name = types.StringValue(res.Data.Name)
+	state.ParentDepartmentId = types.StringValue(res.Data.ParentDepartmentId)
+	if res.Data.Description != "" {
+		state.Description = types.StringValue(res.Data.Description)
+	}
+
+	diags = resp.State.Set(ctx, &state)
+	resp.Diagnostics.Append(diags...)
+}
