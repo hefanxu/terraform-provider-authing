@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/Authing/authing-golang-sdk/v3/management"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"terraform-provider-authing/internal/authingapi"
 )
 
 var _ provider.Provider = &AuthingProvider{}
@@ -109,18 +109,18 @@ func (p *AuthingProvider) Configure(ctx context.Context, req provider.ConfigureR
 		return
 	}
 
-	opts := &management.ManagementClientOptions{
-		AccessKeyId:     ak,
+	opts := authingapi.Options{
+		AccessKeyID:     ak,
 		AccessKeySecret: sk,
 		Host:            host,
-		TenantId:        tenantId,
+		TenantID:        tenantId,
 	}
 
-	client, err := management.NewManagementClient(opts)
+	client, err := authingapi.NewClient(opts)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Unable to create Authing Management Client",
-			fmt.Sprintf("Failed to initialize Authing SDK client: %s", err.Error()),
+			fmt.Sprintf("Failed to initialize Authing API client: %s", err.Error()),
 		)
 		return
 	}

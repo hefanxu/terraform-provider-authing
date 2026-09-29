@@ -10,10 +10,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Authing/authing-golang-sdk/v3/management"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"terraform-provider-authing/internal/authingapi"
 )
 
 func applicationFixture(t *testing.T, handler func(http.ResponseWriter, *http.Request)) (*ApplicationResource, tfsdk.State, tfsdk.Plan) {
@@ -27,7 +27,7 @@ func applicationFixture(t *testing.T, handler func(http.ResponseWriter, *http.Re
 		handler(w, r)
 	}))
 	t.Cleanup(server.Close)
-	client, err := management.NewManagementClient(&management.ManagementClientOptions{AccessKeyId: "application-test", AccessKeySecret: "test-secret", Host: server.URL})
+	client, err := authingapi.NewClient(authingapi.Options{AccessKeyID: "application-test", AccessKeySecret: "test-secret", Host: server.URL})
 	if err != nil {
 		t.Fatal(err)
 	}

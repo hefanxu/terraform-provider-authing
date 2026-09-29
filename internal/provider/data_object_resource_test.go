@@ -9,13 +9,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Authing/authing-golang-sdk/v3/management"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"terraform-provider-authing/internal/authingapi"
 )
 
-func objectTestClient(t *testing.T, handler func(http.ResponseWriter, *http.Request)) *management.ManagementClient {
+func objectTestClient(t *testing.T, handler func(http.ResponseWriter, *http.Request)) *authingapi.Client {
 	t.Helper()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -26,7 +26,7 @@ func objectTestClient(t *testing.T, handler func(http.ResponseWriter, *http.Requ
 		handler(w, r)
 	}))
 	t.Cleanup(server.Close)
-	c, e := management.NewManagementClient(&management.ManagementClientOptions{AccessKeyId: "objects-test", AccessKeySecret: "test", Host: server.URL})
+	c, e := authingapi.NewClient(authingapi.Options{AccessKeyID: "objects-test", AccessKeySecret: "test", Host: server.URL})
 	if e != nil {
 		t.Fatal(e)
 	}

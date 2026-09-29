@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/Authing/authing-golang-sdk/v3/dto"
-	"github.com/Authing/authing-golang-sdk/v3/management"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	dschema "github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -14,6 +13,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"terraform-provider-authing/internal/authingapi"
 )
 
 // --- Organization Resource ---
@@ -26,7 +26,7 @@ func NewOrganizationResource() resource.Resource {
 }
 
 type OrganizationResource struct {
-	client *management.ManagementClient
+	client *authingapi.Client
 }
 
 type OrganizationModel struct {
@@ -75,9 +75,9 @@ func (r *OrganizationResource) Configure(ctx context.Context, req resource.Confi
 	if req.ProviderData == nil {
 		return
 	}
-	client, ok := req.ProviderData.(*management.ManagementClient)
+	client, ok := req.ProviderData.(*authingapi.Client)
 	if !ok {
-		resp.Diagnostics.AddError("Unexpected Resource Configure Type", "Expected *management.ManagementClient")
+		resp.Diagnostics.AddError("Unexpected Resource Configure Type", "Expected *authingapi.Client")
 		return
 	}
 	r.client = client
@@ -205,7 +205,7 @@ func NewDepartmentResource() resource.Resource {
 }
 
 type DepartmentResource struct {
-	client *management.ManagementClient
+	client *authingapi.Client
 }
 
 type DepartmentModel struct {
@@ -267,9 +267,9 @@ func (r *DepartmentResource) Configure(ctx context.Context, req resource.Configu
 	if req.ProviderData == nil {
 		return
 	}
-	client, ok := req.ProviderData.(*management.ManagementClient)
+	client, ok := req.ProviderData.(*authingapi.Client)
 	if !ok {
-		resp.Diagnostics.AddError("Unexpected Resource Configure Type", "Expected *management.ManagementClient")
+		resp.Diagnostics.AddError("Unexpected Resource Configure Type", "Expected *authingapi.Client")
 		return
 	}
 	r.client = client
@@ -406,7 +406,7 @@ func NewDepartmentMemberResource() resource.Resource {
 }
 
 type DepartmentMemberResource struct {
-	client *management.ManagementClient
+	client *authingapi.Client
 }
 
 type DepartmentMemberModel struct {
@@ -444,9 +444,9 @@ func (r *DepartmentMemberResource) Configure(ctx context.Context, req resource.C
 	if req.ProviderData == nil {
 		return
 	}
-	client, ok := req.ProviderData.(*management.ManagementClient)
+	client, ok := req.ProviderData.(*authingapi.Client)
 	if !ok {
-		resp.Diagnostics.AddError("Unexpected Resource Configure Type", "Expected *management.ManagementClient")
+		resp.Diagnostics.AddError("Unexpected Resource Configure Type", "Expected *authingapi.Client")
 		return
 	}
 	r.client = client
@@ -508,7 +508,7 @@ func NewPostResource() resource.Resource {
 }
 
 type PostResource struct {
-	client *management.ManagementClient
+	client *authingapi.Client
 }
 
 type PostModel struct {
@@ -550,9 +550,9 @@ func (r *PostResource) Configure(ctx context.Context, req resource.ConfigureRequ
 	if req.ProviderData == nil {
 		return
 	}
-	client, ok := req.ProviderData.(*management.ManagementClient)
+	client, ok := req.ProviderData.(*authingapi.Client)
 	if !ok {
-		resp.Diagnostics.AddError("Unexpected Resource Configure Type", "Expected *management.ManagementClient")
+		resp.Diagnostics.AddError("Unexpected Resource Configure Type", "Expected *authingapi.Client")
 		return
 	}
 	r.client = client
@@ -663,7 +663,7 @@ func NewOrganizationDataSource() datasource.DataSource {
 }
 
 type OrganizationDataSource struct {
-	client *management.ManagementClient
+	client *authingapi.Client
 }
 
 func (d *OrganizationDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
@@ -694,9 +694,9 @@ func (d *OrganizationDataSource) Configure(ctx context.Context, req datasource.C
 	if req.ProviderData == nil {
 		return
 	}
-	client, ok := req.ProviderData.(*management.ManagementClient)
+	client, ok := req.ProviderData.(*authingapi.Client)
 	if !ok {
-		resp.Diagnostics.AddError("Unexpected DataSource Configure Type", "Expected *management.ManagementClient")
+		resp.Diagnostics.AddError("Unexpected DataSource Configure Type", "Expected *authingapi.Client")
 		return
 	}
 	d.client = client
@@ -735,7 +735,7 @@ func NewDepartmentDataSource() datasource.DataSource {
 }
 
 type DepartmentDataSource struct {
-	client *management.ManagementClient
+	client *authingapi.Client
 }
 
 func (d *DepartmentDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
@@ -772,9 +772,9 @@ func (d *DepartmentDataSource) Configure(ctx context.Context, req datasource.Con
 	if req.ProviderData == nil {
 		return
 	}
-	client, ok := req.ProviderData.(*management.ManagementClient)
+	client, ok := req.ProviderData.(*authingapi.Client)
 	if !ok {
-		resp.Diagnostics.AddError("Unexpected DataSource Configure Type", "Expected *management.ManagementClient")
+		resp.Diagnostics.AddError("Unexpected DataSource Configure Type", "Expected *authingapi.Client")
 		return
 	}
 	d.client = client

@@ -5,13 +5,13 @@ import (
 	"fmt"
 
 	"github.com/Authing/authing-golang-sdk/v3/dto"
-	"github.com/Authing/authing-golang-sdk/v3/management"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"terraform-provider-authing/internal/authingapi"
 )
 
 var _ resource.Resource = &UserResource{}
@@ -22,7 +22,7 @@ func NewUserResource() resource.Resource {
 }
 
 type UserResource struct {
-	client *management.ManagementClient
+	client *authingapi.Client
 }
 
 type UserModel struct {
@@ -112,9 +112,9 @@ func (r *UserResource) Configure(ctx context.Context, req resource.ConfigureRequ
 	if req.ProviderData == nil {
 		return
 	}
-	client, ok := req.ProviderData.(*management.ManagementClient)
+	client, ok := req.ProviderData.(*authingapi.Client)
 	if !ok {
-		resp.Diagnostics.AddError("Unexpected Resource Configure Type", "Expected *management.ManagementClient")
+		resp.Diagnostics.AddError("Unexpected Resource Configure Type", "Expected *authingapi.Client")
 		return
 	}
 	r.client = client

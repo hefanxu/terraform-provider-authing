@@ -9,12 +9,12 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/Authing/authing-golang-sdk/v3/management"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-go/tftypes"
+	"terraform-provider-authing/internal/authingapi"
 )
 
 func TestRegisteredResourceCreateCallsAuthing(t *testing.T) {
@@ -131,10 +131,10 @@ func newServiceTestServer(apiCalls *atomic.Int64) *httptest.Server {
 	}))
 }
 
-func newServiceTestClient(t *testing.T, host, serviceName string) *management.ManagementClient {
+func newServiceTestClient(t *testing.T, host, serviceName string) *authingapi.Client {
 	t.Helper()
-	client, err := management.NewManagementClient(&management.ManagementClientOptions{
-		AccessKeyId:     "service-test-" + serviceName,
+	client, err := authingapi.NewClient(authingapi.Options{
+		AccessKeyID:     "service-test-" + serviceName,
 		AccessKeySecret: "test-secret",
 		Host:            host,
 	})

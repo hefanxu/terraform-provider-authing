@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/Authing/authing-golang-sdk/v3/dto"
-	"github.com/Authing/authing-golang-sdk/v3/management"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	dschema "github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -14,6 +13,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"terraform-provider-authing/internal/authingapi"
 )
 
 // --- Permission Namespace Resource ---
@@ -26,7 +26,7 @@ func NewNamespaceResource() resource.Resource {
 }
 
 type NamespaceResource struct {
-	client *management.ManagementClient
+	client *authingapi.Client
 }
 
 type NamespaceModel struct {
@@ -74,9 +74,9 @@ func (r *NamespaceResource) Configure(ctx context.Context, req resource.Configur
 	if req.ProviderData == nil {
 		return
 	}
-	client, ok := req.ProviderData.(*management.ManagementClient)
+	client, ok := req.ProviderData.(*authingapi.Client)
 	if !ok {
-		resp.Diagnostics.AddError("Unexpected Resource Configure Type", "Expected *management.ManagementClient")
+		resp.Diagnostics.AddError("Unexpected Resource Configure Type", "Expected *authingapi.Client")
 		return
 	}
 	r.client = client
@@ -202,7 +202,7 @@ func NewRoleResource() resource.Resource {
 }
 
 type RoleResource struct {
-	client *management.ManagementClient
+	client *authingapi.Client
 }
 
 type RoleModel struct {
@@ -260,9 +260,9 @@ func (r *RoleResource) Configure(ctx context.Context, req resource.ConfigureRequ
 	if req.ProviderData == nil {
 		return
 	}
-	client, ok := req.ProviderData.(*management.ManagementClient)
+	client, ok := req.ProviderData.(*authingapi.Client)
 	if !ok {
-		resp.Diagnostics.AddError("Unexpected Resource Configure Type", "Expected *management.ManagementClient")
+		resp.Diagnostics.AddError("Unexpected Resource Configure Type", "Expected *authingapi.Client")
 		return
 	}
 	r.client = client
@@ -405,7 +405,7 @@ func NewRoleAssignmentResource() resource.Resource {
 }
 
 type RoleAssignmentResource struct {
-	client *management.ManagementClient
+	client *authingapi.Client
 }
 
 type RoleAssignmentModel struct {
@@ -464,9 +464,9 @@ func (r *RoleAssignmentResource) Configure(ctx context.Context, req resource.Con
 	if req.ProviderData == nil {
 		return
 	}
-	client, ok := req.ProviderData.(*management.ManagementClient)
+	client, ok := req.ProviderData.(*authingapi.Client)
 	if !ok {
-		resp.Diagnostics.AddError("Unexpected Resource Configure Type", "Expected *management.ManagementClient")
+		resp.Diagnostics.AddError("Unexpected Resource Configure Type", "Expected *authingapi.Client")
 		return
 	}
 	r.client = client
@@ -546,7 +546,7 @@ func NewResourceResource() resource.Resource {
 }
 
 type ResourceResource struct {
-	client *management.ManagementClient
+	client *authingapi.Client
 }
 
 type ResourceActionModel struct {
@@ -614,9 +614,9 @@ func (r *ResourceResource) Configure(ctx context.Context, req resource.Configure
 	if req.ProviderData == nil {
 		return
 	}
-	client, ok := req.ProviderData.(*management.ManagementClient)
+	client, ok := req.ProviderData.(*authingapi.Client)
 	if !ok {
-		resp.Diagnostics.AddError("Unexpected Resource Configure Type", "Expected *management.ManagementClient")
+		resp.Diagnostics.AddError("Unexpected Resource Configure Type", "Expected *authingapi.Client")
 		return
 	}
 	r.client = client
@@ -765,7 +765,7 @@ func NewDataPolicyResource() resource.Resource {
 }
 
 type DataPolicyResource struct {
-	client *management.ManagementClient
+	client *authingapi.Client
 }
 
 type StatementModel struct {
@@ -825,9 +825,9 @@ func (r *DataPolicyResource) Configure(ctx context.Context, req resource.Configu
 	if req.ProviderData == nil {
 		return
 	}
-	client, ok := req.ProviderData.(*management.ManagementClient)
+	client, ok := req.ProviderData.(*authingapi.Client)
 	if !ok {
-		resp.Diagnostics.AddError("Unexpected Resource Configure Type", "Expected *management.ManagementClient")
+		resp.Diagnostics.AddError("Unexpected Resource Configure Type", "Expected *authingapi.Client")
 		return
 	}
 	r.client = client
@@ -966,7 +966,7 @@ func NewNamespaceDataSource() datasource.DataSource {
 }
 
 type NamespaceDataSource struct {
-	client *management.ManagementClient
+	client *authingapi.Client
 }
 
 func (d *NamespaceDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
@@ -997,9 +997,9 @@ func (d *NamespaceDataSource) Configure(ctx context.Context, req datasource.Conf
 	if req.ProviderData == nil {
 		return
 	}
-	client, ok := req.ProviderData.(*management.ManagementClient)
+	client, ok := req.ProviderData.(*authingapi.Client)
 	if !ok {
-		resp.Diagnostics.AddError("Unexpected DataSource Configure Type", "Expected *management.ManagementClient")
+		resp.Diagnostics.AddError("Unexpected DataSource Configure Type", "Expected *authingapi.Client")
 		return
 	}
 	d.client = client
@@ -1038,7 +1038,7 @@ func NewRoleDataSource() datasource.DataSource {
 }
 
 type RoleDataSource struct {
-	client *management.ManagementClient
+	client *authingapi.Client
 }
 
 type RoleDataSourceModel struct {
@@ -1076,9 +1076,9 @@ func (d *RoleDataSource) Configure(ctx context.Context, req datasource.Configure
 	if req.ProviderData == nil {
 		return
 	}
-	client, ok := req.ProviderData.(*management.ManagementClient)
+	client, ok := req.ProviderData.(*authingapi.Client)
 	if !ok {
-		resp.Diagnostics.AddError("Unexpected DataSource Configure Type", "Expected *management.ManagementClient")
+		resp.Diagnostics.AddError("Unexpected DataSource Configure Type", "Expected *authingapi.Client")
 		return
 	}
 	d.client = client
@@ -1121,7 +1121,7 @@ func NewResourceDataSource() datasource.DataSource {
 }
 
 type ResourceDataSource struct {
-	client *management.ManagementClient
+	client *authingapi.Client
 }
 
 type ResourceDataSourceModel struct {
@@ -1163,9 +1163,9 @@ func (d *ResourceDataSource) Configure(ctx context.Context, req datasource.Confi
 	if req.ProviderData == nil {
 		return
 	}
-	client, ok := req.ProviderData.(*management.ManagementClient)
+	client, ok := req.ProviderData.(*authingapi.Client)
 	if !ok {
-		resp.Diagnostics.AddError("Unexpected DataSource Configure Type", "Expected *management.ManagementClient")
+		resp.Diagnostics.AddError("Unexpected DataSource Configure Type", "Expected *authingapi.Client")
 		return
 	}
 	d.client = client

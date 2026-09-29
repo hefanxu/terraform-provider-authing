@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/Authing/authing-golang-sdk/v3/dto"
-	"github.com/Authing/authing-golang-sdk/v3/management"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -16,6 +15,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/valyala/fasthttp"
+	"terraform-provider-authing/internal/authingapi"
 )
 
 var _ resource.Resource = &DataObjectFieldResource{}
@@ -23,7 +23,7 @@ var _ resource.ResourceWithImportState = &DataObjectFieldResource{}
 
 func NewDataObjectFieldResource() resource.Resource { return &DataObjectFieldResource{} }
 
-type DataObjectFieldResource struct{ client *management.ManagementClient }
+type DataObjectFieldResource struct{ client *authingapi.Client }
 type DataObjectFieldModel struct {
 	ID       types.String `tfsdk:"id"`
 	ModelID  types.String `tfsdk:"model_id"`
@@ -51,9 +51,9 @@ func (r *DataObjectFieldResource) Configure(_ context.Context, req resource.Conf
 	if req.ProviderData == nil {
 		return
 	}
-	c, ok := req.ProviderData.(*management.ManagementClient)
+	c, ok := req.ProviderData.(*authingapi.Client)
 	if !ok {
-		resp.Diagnostics.AddError("Unexpected Resource Configure Type", "Expected *management.ManagementClient")
+		resp.Diagnostics.AddError("Unexpected Resource Configure Type", "Expected *authingapi.Client")
 		return
 	}
 	r.client = c

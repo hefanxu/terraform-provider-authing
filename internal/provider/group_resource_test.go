@@ -8,10 +8,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/Authing/authing-golang-sdk/v3/management"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"terraform-provider-authing/internal/authingapi"
 )
 
 func TestGroupResourceCreate(t *testing.T) {
@@ -33,8 +33,8 @@ func TestGroupResourceCreate(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client, err := management.NewManagementClient(&management.ManagementClientOptions{
-		AccessKeyId:     "group-resource-create-test",
+	client, err := authingapi.NewClient(authingapi.Options{
+		AccessKeyID:     "group-resource-create-test",
 		AccessKeySecret: "test-secret",
 		Host:            server.URL,
 	})

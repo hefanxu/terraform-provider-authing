@@ -6,9 +6,9 @@ import (
 	"fmt"
 
 	"github.com/Authing/authing-golang-sdk/v3/dto"
-	"github.com/Authing/authing-golang-sdk/v3/management"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	dschema "github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"terraform-provider-authing/internal/authingapi"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -27,7 +27,7 @@ func NewApplicationResource() resource.Resource {
 }
 
 type ApplicationResource struct {
-	client *management.ManagementClient
+	client *authingapi.Client
 }
 
 type ApplicationModel struct {
@@ -97,9 +97,9 @@ func (r *ApplicationResource) Configure(ctx context.Context, req resource.Config
 	if req.ProviderData == nil {
 		return
 	}
-	client, ok := req.ProviderData.(*management.ManagementClient)
+	client, ok := req.ProviderData.(*authingapi.Client)
 	if !ok {
-		resp.Diagnostics.AddError("Unexpected Resource Configure Type", "Expected *management.ManagementClient")
+		resp.Diagnostics.AddError("Unexpected Resource Configure Type", "Expected *authingapi.Client")
 		return
 	}
 	r.client = client
@@ -322,7 +322,7 @@ func NewWebhookResource() resource.Resource {
 }
 
 type WebhookResource struct {
-	client *management.ManagementClient
+	client *authingapi.Client
 }
 
 type WebhookModel struct {
@@ -386,9 +386,9 @@ func (r *WebhookResource) Configure(ctx context.Context, req resource.ConfigureR
 	if req.ProviderData == nil {
 		return
 	}
-	client, ok := req.ProviderData.(*management.ManagementClient)
+	client, ok := req.ProviderData.(*authingapi.Client)
 	if !ok {
-		resp.Diagnostics.AddError("Unexpected Resource Configure Type", "Expected *management.ManagementClient")
+		resp.Diagnostics.AddError("Unexpected Resource Configure Type", "Expected *authingapi.Client")
 		return
 	}
 	r.client = client
@@ -524,7 +524,7 @@ func NewExtIdpResource() resource.Resource {
 }
 
 type ExtIdpResource struct {
-	client *management.ManagementClient
+	client *authingapi.Client
 }
 
 type ExtIdpModel struct {
@@ -573,9 +573,9 @@ func (r *ExtIdpResource) Configure(ctx context.Context, req resource.ConfigureRe
 	if req.ProviderData == nil {
 		return
 	}
-	client, ok := req.ProviderData.(*management.ManagementClient)
+	client, ok := req.ProviderData.(*authingapi.Client)
 	if !ok {
-		resp.Diagnostics.AddError("Unexpected Resource Configure Type", "Expected *management.ManagementClient")
+		resp.Diagnostics.AddError("Unexpected Resource Configure Type", "Expected *authingapi.Client")
 		return
 	}
 	r.client = client
@@ -679,7 +679,7 @@ func NewPipelineFunctionResource() resource.Resource {
 }
 
 type PipelineFunctionResource struct {
-	client *management.ManagementClient
+	client *authingapi.Client
 }
 
 type PipelineFunctionModel struct {
@@ -736,9 +736,9 @@ func (r *PipelineFunctionResource) Configure(ctx context.Context, req resource.C
 	if req.ProviderData == nil {
 		return
 	}
-	client, ok := req.ProviderData.(*management.ManagementClient)
+	client, ok := req.ProviderData.(*authingapi.Client)
 	if !ok {
-		resp.Diagnostics.AddError("Unexpected Resource Configure Type", "Expected *management.ManagementClient")
+		resp.Diagnostics.AddError("Unexpected Resource Configure Type", "Expected *authingapi.Client")
 		return
 	}
 	r.client = client
@@ -862,7 +862,7 @@ func NewApplicationDataSource() datasource.DataSource {
 }
 
 type ApplicationDataSource struct {
-	client *management.ManagementClient
+	client *authingapi.Client
 }
 
 type ApplicationDataSourceModel struct {
@@ -904,9 +904,9 @@ func (d *ApplicationDataSource) Configure(ctx context.Context, req datasource.Co
 	if req.ProviderData == nil {
 		return
 	}
-	client, ok := req.ProviderData.(*management.ManagementClient)
+	client, ok := req.ProviderData.(*authingapi.Client)
 	if !ok {
-		resp.Diagnostics.AddError("Unexpected DataSource Configure Type", "Expected *management.ManagementClient")
+		resp.Diagnostics.AddError("Unexpected DataSource Configure Type", "Expected *authingapi.Client")
 		return
 	}
 	d.client = client

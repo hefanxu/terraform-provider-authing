@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/Authing/authing-golang-sdk/v3/dto"
-	"github.com/Authing/authing-golang-sdk/v3/management"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	dschema "github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -14,6 +13,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"terraform-provider-authing/internal/authingapi"
 )
 
 // --- Group Resource ---
@@ -26,7 +26,7 @@ func NewGroupResource() resource.Resource {
 }
 
 type GroupResource struct {
-	client *management.ManagementClient
+	client *authingapi.Client
 }
 
 type GroupModel struct {
@@ -74,9 +74,9 @@ func (r *GroupResource) Configure(ctx context.Context, req resource.ConfigureReq
 	if req.ProviderData == nil {
 		return
 	}
-	client, ok := req.ProviderData.(*management.ManagementClient)
+	client, ok := req.ProviderData.(*authingapi.Client)
 	if !ok {
-		resp.Diagnostics.AddError("Unexpected Resource Configure Type", "Expected *management.ManagementClient")
+		resp.Diagnostics.AddError("Unexpected Resource Configure Type", "Expected *authingapi.Client")
 		return
 	}
 	r.client = client
@@ -212,7 +212,7 @@ func NewGroupMemberResource() resource.Resource {
 }
 
 type GroupMemberResource struct {
-	client *management.ManagementClient
+	client *authingapi.Client
 }
 
 type GroupMemberModel struct {
@@ -254,9 +254,9 @@ func (r *GroupMemberResource) Configure(ctx context.Context, req resource.Config
 	if req.ProviderData == nil {
 		return
 	}
-	client, ok := req.ProviderData.(*management.ManagementClient)
+	client, ok := req.ProviderData.(*authingapi.Client)
 	if !ok {
-		resp.Diagnostics.AddError("Unexpected Resource Configure Type", "Expected *management.ManagementClient")
+		resp.Diagnostics.AddError("Unexpected Resource Configure Type", "Expected *authingapi.Client")
 		return
 	}
 	r.client = client
@@ -343,7 +343,7 @@ func NewGroupDataSource() datasource.DataSource {
 }
 
 type GroupDataSource struct {
-	client *management.ManagementClient
+	client *authingapi.Client
 }
 
 func (d *GroupDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
@@ -377,9 +377,9 @@ func (d *GroupDataSource) Configure(ctx context.Context, req datasource.Configur
 	if req.ProviderData == nil {
 		return
 	}
-	client, ok := req.ProviderData.(*management.ManagementClient)
+	client, ok := req.ProviderData.(*authingapi.Client)
 	if !ok {
-		resp.Diagnostics.AddError("Unexpected DataSource Configure Type", "Expected *management.ManagementClient")
+		resp.Diagnostics.AddError("Unexpected DataSource Configure Type", "Expected *authingapi.Client")
 		return
 	}
 	d.client = client
