@@ -761,6 +761,14 @@ type ApplicationDataSource struct {
 	client *management.ManagementClient
 }
 
+type ApplicationDataSourceModel struct {
+	ID           types.String `tfsdk:"id"`
+	AppId        types.String `tfsdk:"app_id"`
+	AppName      types.String `tfsdk:"app_name"`
+	Description  types.String `tfsdk:"description"`
+	InitLoginUrl types.String `tfsdk:"init_login_url"`
+}
+
 func (d *ApplicationDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + "_application"
 }
@@ -801,7 +809,7 @@ func (d *ApplicationDataSource) Configure(ctx context.Context, req datasource.Co
 }
 
 func (d *ApplicationDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
-	var state ApplicationModel
+	var state ApplicationDataSourceModel
 	diags := req.Config.Get(ctx, &state)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {

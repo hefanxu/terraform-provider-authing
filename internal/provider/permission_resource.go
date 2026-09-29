@@ -1041,6 +1041,13 @@ type RoleDataSource struct {
 	client *management.ManagementClient
 }
 
+type RoleDataSourceModel struct {
+	ID          types.String `tfsdk:"id"`
+	Code        types.String `tfsdk:"code"`
+	Namespace   types.String `tfsdk:"namespace"`
+	Description types.String `tfsdk:"description"`
+}
+
 func (d *RoleDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + "_role"
 }
@@ -1078,7 +1085,7 @@ func (d *RoleDataSource) Configure(ctx context.Context, req datasource.Configure
 }
 
 func (d *RoleDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
-	var state RoleModel
+	var state RoleDataSourceModel
 	diags := req.Config.Get(ctx, &state)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -1115,6 +1122,14 @@ func NewResourceDataSource() datasource.DataSource {
 
 type ResourceDataSource struct {
 	client *management.ManagementClient
+}
+
+type ResourceDataSourceModel struct {
+	ID          types.String `tfsdk:"id"`
+	Code        types.String `tfsdk:"code"`
+	Namespace   types.String `tfsdk:"namespace"`
+	Type        types.String `tfsdk:"type"`
+	Description types.String `tfsdk:"description"`
 }
 
 func (d *ResourceDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
@@ -1157,7 +1172,7 @@ func (d *ResourceDataSource) Configure(ctx context.Context, req datasource.Confi
 }
 
 func (d *ResourceDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
-	var state ResourceModel
+	var state ResourceDataSourceModel
 	diags := req.Config.Get(ctx, &state)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
