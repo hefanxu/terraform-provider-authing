@@ -151,6 +151,7 @@ func (p *AuthingProvider) Resources(ctx context.Context) []func() resource.Resou
 		NewExtIdpResource,
 		NewWebhookResource,
 		NewPipelineFunctionResource,
+		NewDataResourceResource,
 		NewDataObjectResource,
 		NewDataObjectFieldResource,
 	}
@@ -166,6 +167,7 @@ func (p *AuthingProvider) DataSources(ctx context.Context) []func() datasource.D
 		NewNamespaceDataSource,
 		NewRoleDataSource,
 		NewResourceDataSource,
+		NewDataResourceDataSource,
 		NewApplicationDataSource,
 	}
 }

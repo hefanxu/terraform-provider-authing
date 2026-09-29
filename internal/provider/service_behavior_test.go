@@ -27,8 +27,8 @@ func TestRegisteredResourceCreateCallsAuthing(t *testing.T) {
 		service := factory()
 		metadata := resource.MetadataResponse{}
 		service.Metadata(ctx, resource.MetadataRequest{ProviderTypeName: "authing"}, &metadata)
-		// Field creation requires a correlated model ID/key response; its dedicated httptest lifecycle covers this.
-		if metadata.TypeName == "authing_data_object_field" {
+		// These require correlated or type-specific API responses; dedicated httptest lifecycles cover them.
+		if metadata.TypeName == "authing_data_object_field" || metadata.TypeName == "authing_data_resource" {
 			continue
 		}
 
@@ -81,6 +81,10 @@ func TestRegisteredDataSourceReadCallsAuthing(t *testing.T) {
 		service := factory()
 		metadata := datasource.MetadataResponse{}
 		service.Metadata(ctx, datasource.MetadataRequest{ProviderTypeName: "authing"}, &metadata)
+		// The generic fixture has no valid data-resource struct; dedicated httptest covers it.
+		if metadata.TypeName == "authing_data_resource" {
+			continue
+		}
 
 		t.Run(metadata.TypeName, func(t *testing.T) {
 			schema := datasource.SchemaResponse{}
