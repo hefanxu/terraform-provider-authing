@@ -44,7 +44,7 @@ Built with [Terraform Plugin Framework](https://github.com/hashicorp/terraform-p
 terraform {
   required_providers {
     authing = {
-      source  = "authing/authing"
+      source  = "hefanxu/authing"
       version = "~> 1.0.0"
     }
   }
@@ -119,7 +119,7 @@ Configure `.tofurc` or `terraform.rc`:
 ```hcl
 provider_installation {
   dev_overrides {
-    "authing/authing" = "D:/dev/shcgravity/terraform-provider-authing"
+    "hefanxu/authing" = "D:/dev/shcgravity/terraform-provider-authing"
   }
   direct {}
 }
