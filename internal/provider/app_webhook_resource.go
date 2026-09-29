@@ -2,13 +2,14 @@ package provider
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/Authing/authing-golang-sdk/v3/dto"
 	"github.com/Authing/authing-golang-sdk/v3/management"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	dschema "github.com/hashicorp/terraform-plugin-framework/datasource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/path"
+
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
@@ -63,9 +64,10 @@ func (r *ApplicationResource) Schema(ctx context.Context, req resource.SchemaReq
 				Description: "Application name.",
 			},
 			"app_type": schema.StringAttribute{
-				Optional:    true,
-				Computed:    true,
-				Description: "Application type (e.g. 'web', 'spa', 'native', 'api').",
+				Optional:      true,
+				Computed:      true,
+				Description:   "Application type (e.g. 'web', 'spa', 'native', 'api').",
+				PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()},
 			},
 			"redirect_uris": schema.ListAttribute{
 				ElementType: types.StringType,
@@ -112,13 +114,16 @@ func (r *ApplicationResource) Create(ctx context.Context, req resource.CreateReq
 	}
 
 	redirectUris := make([]string, 0)
-	if !plan.RedirectUris.IsNull() {
-		plan.RedirectUris.ElementsAs(ctx, &redirectUris, false)
+	if !plan.RedirectUris.IsNull() && !plan.RedirectUris.IsUnknown() {
+		resp.Diagnostics.Append(plan.RedirectUris.ElementsAs(ctx, &redirectUris, false)...)
 	}
 
 	logoutUris := make([]string, 0)
-	if !plan.LogoutRedirectUris.IsNull() {
-		plan.LogoutRedirectUris.ElementsAs(ctx, &logoutUris, false)
+	if !plan.LogoutRedirectUris.IsNull() && !plan.LogoutRedirectUris.IsUnknown() {
+		resp.Diagnostics.Append(plan.LogoutRedirectUris.ElementsAs(ctx, &logoutUris, false)...)
+	}
+	if resp.Diagnostics.HasError() {
+		return
 	}
 
 	createReq := &dto.CreateApplicationDto{
@@ -126,10 +131,13 @@ func (r *ApplicationResource) Create(ctx context.Context, req resource.CreateReq
 		RedirectUris:       redirectUris,
 		LogoutRedirectUris: logoutUris,
 	}
-	if !plan.Description.IsNull() {
+	if !plan.AppType.IsNull() && !plan.AppType.IsUnknown() {
+		createReq.AppType = plan.AppType.ValueString()
+	}
+	if !plan.Description.IsNull() && !plan.Description.IsUnknown() {
 		createReq.AppDescription = plan.Description.ValueString()
 	}
-	if !plan.InitLoginUrl.IsNull() {
+	if !plan.InitLoginUrl.IsNull() && !plan.InitLoginUrl.IsUnknown() {
 		createReq.InitLoginUri = plan.InitLoginUrl.ValueString()
 	}
 
@@ -145,9 +153,16 @@ func (r *ApplicationResource) Create(ctx context.Context, req resource.CreateReq
 
 	plan.ID = types.StringValue(res.Data.AppId)
 	plan.AppId = types.StringValue(res.Data.AppId)
-	plan.AppName = types.StringValue(res.Data.AppName)
-	if res.Data.AppDescription != "" {
+	// app_name is required configuration; do not overwrite it with a server-normalized
+	// value during Create, which would produce an inconsistent Terraform plan.
+	if plan.AppType.IsUnknown() || plan.AppType.IsNull() {
+		plan.AppType = types.StringValue(res.Data.AppType)
+	}
+	if plan.Description.IsUnknown() || plan.Description.IsNull() {
 		plan.Description = types.StringValue(res.Data.AppDescription)
+	}
+	if plan.InitLoginUrl.IsUnknown() || plan.InitLoginUrl.IsNull() {
+		plan.InitLoginUrl = types.StringValue(res.Data.InitLoginUri)
 	}
 
 	diags = resp.State.Set(ctx, plan)
@@ -165,15 +180,27 @@ func (r *ApplicationResource) Read(ctx context.Context, req resource.ReadRequest
 	res := r.client.GetApplication(&dto.GetApplicationDto{
 		AppId: state.AppId.ValueString(),
 	})
-	if res == nil || res.StatusCode != 200 || res.Data.AppId == "" {
+	if res != nil && res.StatusCode == 404 {
 		resp.State.RemoveResource(ctx)
+		return
+	}
+	if res == nil || res.StatusCode != 200 || res.Data.AppId == "" {
+		resp.Diagnostics.AddError("Failed to read Authing application", applicationResponseError(res))
 		return
 	}
 
 	state.ID = types.StringValue(res.Data.AppId)
+	state.AppId = types.StringValue(res.Data.AppId)
 	state.AppName = types.StringValue(res.Data.AppName)
-	if res.Data.AppDescription != "" {
-		state.Description = types.StringValue(res.Data.AppDescription)
+	state.AppType = types.StringValue(res.Data.AppType)
+	state.Description = types.StringValue(res.Data.AppDescription)
+	state.InitLoginUrl = types.StringValue(res.Data.InitLoginUri)
+	state.RedirectUris, diags = types.ListValueFrom(ctx, types.StringType, nonNilApplicationURIs(res.Data.RedirectUris))
+	resp.Diagnostics.Append(diags...)
+	state.LogoutRedirectUris, diags = types.ListValueFrom(ctx, types.StringType, nonNilApplicationURIs(res.Data.LogoutRedirectUris))
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
 	}
 
 	diags = resp.State.Set(ctx, &state)
@@ -182,11 +209,59 @@ func (r *ApplicationResource) Read(ctx context.Context, req resource.ReadRequest
 
 func (r *ApplicationResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	var plan ApplicationModel
+	var state ApplicationModel
 	diags := req.Plan.Get(ctx, &plan)
 	resp.Diagnostics.Append(diags...)
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
+	if !plan.AppType.IsUnknown() && !plan.AppType.IsNull() && plan.AppType != state.AppType {
+		resp.Diagnostics.AddError("Cannot update app_type", "Authing does not support changing app_type; replace the application instead.")
+		return
+	}
+	appID := state.AppId.ValueString()
+	if appID == "" {
+		appID = state.ID.ValueString()
+	}
+	// SDK v3.0.15 has no UpdateApplication method or DTO; use its authenticated
+	// transport with the official /api/v3/update-application request fields.
+	payload := map[string]interface{}{"appId": appID, "appName": plan.AppName.ValueString()}
+	if !plan.Description.IsUnknown() && !plan.Description.IsNull() {
+		payload["appDescription"] = plan.Description.ValueString()
+	}
+	if !plan.InitLoginUrl.IsUnknown() && !plan.InitLoginUrl.IsNull() {
+		payload["initLoginUri"] = plan.InitLoginUrl.ValueString()
+	}
+	if !plan.RedirectUris.IsUnknown() && !plan.RedirectUris.IsNull() {
+		var uris []string
+		resp.Diagnostics.Append(plan.RedirectUris.ElementsAs(ctx, &uris, false)...)
+		payload["redirectUris"] = nonNilApplicationURIs(uris)
+	}
+	if !plan.LogoutRedirectUris.IsUnknown() && !plan.LogoutRedirectUris.IsNull() {
+		var uris []string
+		resp.Diagnostics.Append(plan.LogoutRedirectUris.ElementsAs(ctx, &uris, false)...)
+		payload["logoutRedirectUris"] = nonNilApplicationURIs(uris)
+	}
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	body, err := r.client.SendHttpRequest("/api/v3/update-application", "POST", payload)
+	if err != nil {
+		resp.Diagnostics.AddError("Failed to update Authing application", err.Error())
+		return
+	}
+	var result dto.IsSuccessRespDto
+	if err := json.Unmarshal(body, &result); err != nil {
+		resp.Diagnostics.AddError("Failed to update Authing application", err.Error())
+		return
+	}
+	if result.StatusCode != 200 || !result.Data.Success {
+		resp.Diagnostics.AddError("Failed to update Authing application", fmt.Sprintf("code=%d msg=%s success=%t", result.StatusCode, result.Message, result.Data.Success))
+		return
+	}
+	plan.ID = types.StringValue(appID)
+	plan.AppId = types.StringValue(appID)
 
 	diags = resp.State.Set(ctx, plan)
 	resp.Diagnostics.Append(diags...)
@@ -200,13 +275,42 @@ func (r *ApplicationResource) Delete(ctx context.Context, req resource.DeleteReq
 		return
 	}
 
-	_ = r.client.DeleteApplication(&dto.DeleteApplicationDto{
+	result := r.client.DeleteApplication(&dto.DeleteApplicationDto{
 		AppId: state.AppId.ValueString(),
 	})
+	if result != nil && result.StatusCode == 404 {
+		return
+	}
+	if result == nil {
+		resp.Diagnostics.AddError("Failed to delete Authing application", "Empty or invalid API response")
+		return
+	}
+	if result.StatusCode != 200 || !result.Data.Success {
+		resp.Diagnostics.AddError("Failed to delete Authing application", fmt.Sprintf("code=%d msg=%s success=%t", result.StatusCode, result.Message, result.Data.Success))
+	}
 }
 
 func (r *ApplicationResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	resource.ImportStatePassthroughID(ctx, path.Root("app_id"), req, resp)
+	resp.Diagnostics.Append(resp.State.Set(ctx, ApplicationModel{
+		ID: types.StringValue(req.ID), AppId: types.StringValue(req.ID),
+		AppName: types.StringNull(), AppType: types.StringNull(),
+		Description: types.StringNull(), InitLoginUrl: types.StringNull(),
+		RedirectUris: types.ListNull(types.StringType), LogoutRedirectUris: types.ListNull(types.StringType),
+	})...)
+}
+
+func nonNilApplicationURIs(uris []string) []string {
+	if uris == nil {
+		return []string{}
+	}
+	return uris
+}
+
+func applicationResponseError(res *dto.ApplicationSingleRespDto) string {
+	if res == nil {
+		return "Empty or invalid API response"
+	}
+	return fmt.Sprintf("code=%d msg=%s", res.StatusCode, res.Message)
 }
 
 // --- Webhook Resource ---
