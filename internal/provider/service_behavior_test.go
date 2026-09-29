@@ -26,6 +26,10 @@ func TestRegisteredResourceCreateCallsAuthing(t *testing.T) {
 		service := factory()
 		metadata := resource.MetadataResponse{}
 		service.Metadata(ctx, resource.MetadataRequest{ProviderTypeName: "authing"}, &metadata)
+		// Field creation requires a correlated model ID/key response; its dedicated httptest lifecycle covers this.
+		if metadata.TypeName == "authing_data_object_field" {
+			continue
+		}
 
 		t.Run(metadata.TypeName, func(t *testing.T) {
 			schema := resource.SchemaResponse{}
