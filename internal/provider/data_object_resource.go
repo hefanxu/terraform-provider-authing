@@ -66,6 +66,12 @@ func (r *DataObjectResource) Create(ctx context.Context, req resource.CreateRequ
 	if resp.Diagnostics.HasError() {
 		return
 	}
+	// The create API cannot set showFieldKey. Refuse a non-empty desired value
+	// instead of persisting state that claims it was applied remotely.
+	if !p.ShowFieldKey.IsNull() && !p.ShowFieldKey.IsUnknown() && p.ShowFieldKey.ValueString() != "" {
+		resp.Diagnostics.AddError("Cannot set show_field_key during creation", "Create the model with show_field_key = \"\", create its fields, then update show_field_key in a subsequent apply.")
+		return
+	}
 	res := r.client.CreateModel(&dto.CreateFunctionModelDto{Name: p.Name.ValueString(), Description: p.Description.ValueString(), Type: p.Type.ValueString(), ParentKey: p.ParentKey.ValueString(), Enable: p.Enable.ValueBool(), DataType: p.DataType.ValueString()})
 	if res == nil {
 		resp.Diagnostics.AddError("Create data object failed", "No valid response from Authing")

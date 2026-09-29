@@ -32,7 +32,7 @@ resource "authing_data_object" "inventory" {
 - `parent_key` (String) Parent menu key; use `""` for none.
 - `enable` (Boolean) Whether the model is enabled.
 - `data_type` (String, Forces New) `list` or `tree`.
-- `show_field_key` (String) Field key to display. Use `""` if none. Authing requires this for update but does not return it from get-model; set this to the actual remote value when adopting an existing model. Drift in this setting cannot be detected during refresh.
+- `show_field_key` (String) Field key to display. **Creation requires `""`**: Authing's create-model API cannot set it. After the model and its fields exist, change it in a separate apply to invoke update-model. Authing requires this field on update but does not return it from get-model; set it to the actual remote value when adopting an existing model. Drift in this setting cannot be detected during refresh.
 
 ### Read-Only
 

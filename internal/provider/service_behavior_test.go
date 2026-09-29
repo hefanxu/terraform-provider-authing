@@ -11,6 +11,7 @@ import (
 
 	"github.com/Authing/authing-golang-sdk/v3/management"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-go/tftypes"
@@ -48,6 +49,12 @@ func TestRegisteredResourceCreateCallsAuthing(t *testing.T) {
 			}
 
 			plan := tfsdk.Plan{Schema: schema.Schema, Raw: serviceTestValue(schema.Schema.Type().TerraformType(ctx), serviceRequiredAttributes(schema.Schema.GetAttributes()))}
+			if metadata.TypeName == "authing_data_object" {
+				// Creation cannot set this update-only API field.
+				if diags := plan.SetAttribute(ctx, path.Root("show_field_key"), ""); diags.HasError() {
+					t.Fatal(diags)
+				}
+			}
 			response := resource.CreateResponse{State: tfsdk.State{Schema: schema.Schema}}
 			before := apiCalls.Load()
 			service.Create(ctx, resource.CreateRequest{Plan: plan}, &response)

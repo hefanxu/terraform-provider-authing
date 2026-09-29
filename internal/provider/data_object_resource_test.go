@@ -123,6 +123,25 @@ func TestDataObjectReadFailureDoesNotDiscardState(t *testing.T) {
 		})
 	}
 }
+func TestDataObjectCreateRejectsDisplayFieldThatCannotBeApplied(t *testing.T) {
+	calls := 0
+	c := objectTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		fmt.Fprint(w, `{"statusCode":200,"data":{"id":"model-1"}}`)
+	})
+	svc := &DataObjectResource{client: c}
+	p := objectPlan(t, svc, &DataObjectModel{
+		ID: types.StringUnknown(), Name: types.StringValue("Inventory"),
+		Description: types.StringValue("Stock"), Type: types.StringValue("custom"),
+		ParentKey: types.StringValue(""), Enable: types.BoolValue(true),
+		DataType: types.StringValue("list"), ShowFieldKey: types.StringValue("sku"),
+	})
+	out := resource.CreateResponse{State: objectState(t, svc, &DataObjectModel{})}
+	svc.Create(context.Background(), resource.CreateRequest{Plan: p}, &out)
+	if !out.Diagnostics.HasError() || calls != 0 {
+		t.Fatalf("show_field_key would be silently ignored on create: diagnostics=%v calls=%d", out.Diagnostics, calls)
+	}
+}
 func TestDataObjectUpdateAndDeleteErrors(t *testing.T) {
 	failDelete := false
 	c := objectTestClient(t, func(w http.ResponseWriter, r *http.Request) {
