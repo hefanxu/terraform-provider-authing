@@ -43,6 +43,7 @@ func TestRegisteredResourcesExposeMetadataAndSchema(t *testing.T) {
 		"authing_data_object_field",
 		"authing_data_resource",
 		"authing_data_policy",
+		"authing_data_policy_assignment",
 		"authing_department",
 		"authing_department_member",
 		"authing_ext_idp",

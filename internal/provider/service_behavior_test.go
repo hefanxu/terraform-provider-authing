@@ -28,7 +28,7 @@ func TestRegisteredResourceCreateCallsAuthing(t *testing.T) {
 		metadata := resource.MetadataResponse{}
 		service.Metadata(ctx, resource.MetadataRequest{ProviderTypeName: "authing"}, &metadata)
 		// These require correlated or type-specific API responses; dedicated httptest lifecycles cover them.
-		if metadata.TypeName == "authing_data_object_field" || metadata.TypeName == "authing_data_resource" {
+		if metadata.TypeName == "authing_data_object_field" || metadata.TypeName == "authing_data_resource" || metadata.TypeName == "authing_data_policy_assignment" {
 			continue
 		}
 
