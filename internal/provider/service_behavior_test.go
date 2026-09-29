@@ -106,6 +106,19 @@ func TestRegisteredDataSourceReadCallsAuthing(t *testing.T) {
 				Schema: schema.Schema,
 				Raw:    serviceTestValue(schema.Schema.Type().TerraformType(ctx), serviceRequiredAttributes(schema.Schema.GetAttributes())),
 			}}
+			if metadata.TypeName == "authing_application_subject_auth" {
+				objectType := schema.Schema.Type().TerraformType(ctx).(tftypes.Object)
+				attributes := make(map[string]tftypes.Value, len(objectType.AttributeTypes))
+				for name, typ := range objectType.AttributeTypes {
+					value, ok := map[string]string{"target_id": "test-value", "target_type": "USER", "app_id": "test-app"}[name]
+					if ok {
+						attributes[name] = tftypes.NewValue(typ, value)
+					} else {
+						attributes[name] = tftypes.NewValue(typ, nil)
+					}
+				}
+				request.Config.Raw = tftypes.NewValue(objectType, attributes)
+			}
 			response := datasource.ReadResponse{State: tfsdk.State{Schema: schema.Schema}}
 			before := apiCalls.Load()
 			service.Read(ctx, request, &response)
@@ -131,7 +144,11 @@ func newServiceTestServer(apiCalls *atomic.Int64) *httptest.Server {
 		}
 
 		apiCalls.Add(1)
-		fmt.Fprint(w, `{"statusCode":200,"message":"ok","data":{"id":"test-id","userId":"test-user","username":"test-user","email":"test@example.com","phone":"10000000000","nickname":"Test User","externalId":"external-user","gender":"U","emailVerified":false,"phoneVerified":false,"code":"test-code","name":"Test Name","description":"Test description","organizationCode":"test-organization","organizationName":"Test Organization","departmentId":"test-department","departmentCode":"test-department","postId":"test-post","namespace":"test-namespace","namespaceCode":"test-namespace","roleCode":"test-role","resourceCode":"test-resource","resourceId":"test-resource","policyId":"test-policy","appId":"test-app","appName":"Test Application","webhookId":"test-webhook","funcId":"test-function","functionId":"test-function","list":[]}}`)
+		if r.URL.Path == "/api/v3/device-status" {
+			fmt.Fprint(w, `{"statusCode":200,"data":{"status":"activated"}}`)
+			return
+		}
+		fmt.Fprint(w, `{"statusCode":200,"message":"ok","data":{"id":"test-id","userId":"test-user","username":"test-user","email":"test@example.com","phone":"10000000000","nickname":"Test User","externalId":"external-user","gender":"U","emailVerified":false,"phoneVerified":false,"code":"test-code","name":"Test Name","description":"Test description","organizationCode":"test-organization","organizationName":"Test Organization","departmentId":"test-department","departmentCode":"test-department","postId":"test-post","namespace":"test-namespace","namespaceCode":"test-namespace","roleCode":"test-role","resourceCode":"test-resource","resourceId":"test-resource","policyId":"test-policy","appId":"test-app","appName":"Test Application","reqTargetId":"test-value","reqTargetName":"Test Subject","reqTargetType":"USER","targetType":"USER","targetName":"Test Subject","authType":"SUBJECT","webhookId":"test-webhook","funcId":"test-function","functionId":"test-function","list":[]}}`)
 	}))
 }
 

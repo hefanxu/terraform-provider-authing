@@ -13,8 +13,8 @@ func TestRegisteredResourcesExposeMetadataAndSchema(t *testing.T) {
 	provider := &AuthingProvider{}
 	resourceFactories := provider.Resources(context.Background())
 
-	if len(resourceFactories) != 19 {
-		t.Fatalf("expected 19 registered resources, got %d", len(resourceFactories))
+	if len(resourceFactories) != 20 {
+		t.Fatalf("expected 20 registered resources, got %d", len(resourceFactories))
 	}
 
 	resourceNames := make([]string, 0, len(resourceFactories))
@@ -65,8 +65,8 @@ func TestRegisteredDataSourcesExposeMetadataAndSchema(t *testing.T) {
 	provider := &AuthingProvider{}
 	dataSourceFactories := provider.DataSources(context.Background())
 
-	if len(dataSourceFactories) != 10 {
-		t.Fatalf("expected 10 registered data sources, got %d", len(dataSourceFactories))
+	if len(dataSourceFactories) != 12 {
+		t.Fatalf("expected 12 registered data sources, got %d", len(dataSourceFactories))
 	}
 
 	dataSourceNames := make([]string, 0, len(dataSourceFactories))
@@ -91,8 +91,10 @@ func TestRegisteredDataSourcesExposeMetadataAndSchema(t *testing.T) {
 
 	assertServiceNames(t, dataSourceNames, []string{
 		"authing_application",
+		"authing_application_subject_auth",
 		"authing_data_resource",
 		"authing_department",
+		"authing_device_status",
 		"authing_group",
 		"authing_namespace",
 		"authing_organization",

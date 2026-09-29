@@ -170,5 +170,7 @@ func (p *AuthingProvider) DataSources(ctx context.Context) []func() datasource.D
 		NewResourceDataSource,
 		NewDataResourceDataSource,
 		NewApplicationDataSource,
+		NewDeviceStatusDataSource,
+		NewApplicationSubjectAuthDataSource,
 	}
 }
