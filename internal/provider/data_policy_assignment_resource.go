@@ -131,7 +131,7 @@ func (r *DataPolicyAssignmentResource) exists(ctx context.Context, m DataPolicyA
 				Type       string `json:"targetType"`
 			} `json:"list"`
 		}
-		if err = json.Unmarshal(out.Data, &data); err != nil || data.TotalCount == nil || *data.TotalCount < 0 || data.List == nil {
+		if err = json.Unmarshal(out.Data, &data); err != nil || data.List == nil || data.TotalCount != nil && *data.TotalCount < 0 {
 			return false, errors.New("invalid data policy targets response")
 		}
 		for _, v := range data.List {
@@ -140,7 +140,10 @@ func (r *DataPolicyAssignmentResource) exists(ctx context.Context, m DataPolicyA
 			}
 		}
 		seen += len(data.List)
-		if seen >= *data.TotalCount || len(data.List) == 0 {
+		if data.TotalCount != nil && seen < *data.TotalCount && len(data.List) < limit {
+			return false, errors.New("incomplete data policy targets pagination")
+		}
+		if data.TotalCount != nil && seen >= *data.TotalCount || len(data.List) == 0 || data.TotalCount == nil && len(data.List) < limit {
 			return false, nil
 		}
 	}

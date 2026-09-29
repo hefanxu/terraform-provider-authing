@@ -16,6 +16,24 @@ import (
 func assignmentModel() DataPolicyAssignmentModel {
 	return DataPolicyAssignmentModel{ID: types.StringUnknown(), PolicyID: types.StringValue("policy:one"), TargetType: types.StringValue("USER"), TargetID: types.StringValue("user/one")}
 }
+
+func TestDataPolicyAssignmentReadAcceptsOptionalTotalCount(t *testing.T) {
+	c := objectTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v3/list-data-policy-targets" {
+			t.Errorf("unexpected path %s", r.URL.Path)
+		}
+		fmt.Fprint(w, `{"statusCode":200,"data":{"list":[{"targetIdentifier":"different","targetType":"USER"}]}}`)
+	})
+	svc := &DataPolicyAssignmentResource{client: c}
+	m := assignmentModel()
+	m.ID = types.StringValue(assignmentID("policy:one", "USER", "user/one"))
+	st := objectState(t, svc, m)
+	read := resource.ReadResponse{State: st}
+	svc.Read(context.Background(), resource.ReadRequest{State: st}, &read)
+	if read.Diagnostics.HasError() || !read.State.Raw.IsNull() {
+		t.Fatalf("optional totalCount should not invalidate absence: %v", read.Diagnostics)
+	}
+}
 func TestDataPolicyAssignmentLifecycle(t *testing.T) {
 	authorized := false
 	calls := []string{}
@@ -163,6 +181,25 @@ func TestDataPolicyAssignmentPaginationAndFailures(t *testing.T) {
 		if !out.Diagnostics.HasError() || out.State.Raw.IsNull() {
 			t.Fatalf("error %d lost state: %v", code, out.Diagnostics)
 		}
+	}
+}
+
+func TestDataPolicyAssignmentReadRejectsIncompletePagination(t *testing.T) {
+	c := objectTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("page") == "1" {
+			fmt.Fprint(w, `{"statusCode":200,"data":{"totalCount":51,"list":[{"targetIdentifier":"other","targetType":"USER"}]}}`)
+			return
+		}
+		fmt.Fprint(w, `{"statusCode":200,"data":{"totalCount":51,"list":[]}}`)
+	})
+	svc := &DataPolicyAssignmentResource{client: c}
+	m := assignmentModel()
+	m.ID = types.StringValue(assignmentID("policy:one", "USER", "user/one"))
+	st := objectState(t, svc, m)
+	read := resource.ReadResponse{State: st}
+	svc.Read(context.Background(), resource.ReadRequest{State: st}, &read)
+	if !read.Diagnostics.HasError() || read.State.Raw.IsNull() {
+		t.Fatalf("inconsistent pagination must not erase state: %v", read.Diagnostics)
 	}
 }
 

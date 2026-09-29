@@ -27,6 +27,18 @@ func TestDataResourceStructRejectsUnsupportedAndMalformedValues(t *testing.T) {
 		})
 	}
 }
+func TestDataResourceCreateNotFoundReportsStatus(t *testing.T) {
+	c := objectTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, `{"statusCode":404,"message":"namespace missing"}`)
+	})
+	svc := &DataResourceResource{client: c}
+	m := DataResourceModel{ID: types.StringUnknown(), NamespaceCode: types.StringValue("space"), ResourceCode: types.StringValue("items"), ResourceName: types.StringValue("Inventory"), Type: types.StringValue("STRING"), Struct: types.StringValue(`"items"`), Actions: types.SetValueMust(types.StringType, []attr.Value{types.StringValue("read")})}
+	resp := resource.CreateResponse{State: dataResourceState(t, svc, &DataResourceModel{Actions: types.SetNull(types.StringType)})}
+	svc.Create(context.Background(), resource.CreateRequest{Plan: dataResourcePlan(t, svc, &m)}, &resp)
+	if !resp.Diagnostics.HasError() || !strings.Contains(resp.Diagnostics.Errors()[0].Detail(), "404") {
+		t.Fatalf("missing 404 status in create diagnostic: %v", resp.Diagnostics)
+	}
+}
 func TestDataResourceReadDriftAndRejectsUnmanagedTree(t *testing.T) {
 	variant := "ARRAY"
 	remoteStruct := `["changed"]`

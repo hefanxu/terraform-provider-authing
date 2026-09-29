@@ -31,12 +31,18 @@ The direct client obtains a management access token using AK/SK, caches it until
 - **`authing_role_assignment`** (Resource): Assign roles to users or departments.
 - **`authing_resource`** (Resource / Data Source): Define API, DATA, UI, BUTTON, and MENU resources with actions.
 - **`authing_data_policy`** (Resource): Fine-grained data access policies (ALLOW/DENY statement lists).
+- **`authing_data_resource`** (Resource / Data Source): Manage STRING and ARRAY permission data resources; TREE resources are not yet supported.
+- **`authing_data_policy_assignment`** (Resource): Authorize one policy for one subject, with paginated readback and targeted revocation.
 
 ### 5. Applications & Integration (应用与集成)
 - **`authing_application`** (Resource / Data Source): Self-built applications, OAuth/OIDC redirect URLs.
 - **`authing_ext_idp`** (Resource): External enterprise identity providers (SAML, OIDC, WeChat, DingTalk, LDAP).
 - **`authing_webhook`** (Resource): Webhook subscriptions for identity event streams.
 - **`authing_pipeline_function`** (Resource): Serverless pipeline extension functions (pre-register, post-auth, etc.).
+- **`authing_application_subject_auth`** (Data Source): Read an application's authorization details for a subject.
+
+### 6. Devices (终端)
+- **`authing_device_status`** (Data Source): Read terminal status. The management API does not expose a complete device creation lifecycle; this is intentionally not a managed device resource.
 
 ---
 

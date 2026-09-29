@@ -171,6 +171,12 @@ func dataResourceRequest(ctx context.Context, c *authingapi.Client, endpoint, me
 	}
 	return 200, remote, nil
 }
+func dataResourceWriteError(status int, err error) string {
+	if err != nil {
+		return err.Error()
+	}
+	return fmt.Sprintf("Authing statusCode=%d", status)
+}
 func readDataResource(ctx context.Context, c *authingapi.Client, ns, code string, previous *DataResourceModel) (DataResourceModel, int, error) {
 	var result DataResourceModel
 	status, remote, err := dataResourceRequest(ctx, c, "/api/v3/get-data-resource", http.MethodGet, map[string]string{"namespaceCode": ns, "resourceCode": code})
@@ -239,7 +245,7 @@ func (r *DataResourceResource) Create(ctx context.Context, req resource.CreateRe
 	}
 	status, _, err := dataResourceRequest(ctx, r.client, "/api/v3/create-data-resource", http.MethodPost, body)
 	if err != nil || status != 200 {
-		resp.Diagnostics.AddError("Create data resource failed", fmt.Sprint(err))
+		resp.Diagnostics.AddError("Create data resource failed", dataResourceWriteError(status, err))
 		return
 	}
 	p.ID = types.StringValue(dataResourceID(p.NamespaceCode.ValueString(), p.ResourceCode.ValueString()))
@@ -308,7 +314,7 @@ func (r *DataResourceResource) Update(ctx context.Context, req resource.UpdateRe
 	}
 	status, _, err = dataResourceRequest(ctx, r.client, "/api/v3/update-data-resource", http.MethodPost, body)
 	if err != nil || status != 200 {
-		resp.Diagnostics.AddError("Update data resource failed", fmt.Sprint(err))
+		resp.Diagnostics.AddError("Update data resource failed", dataResourceWriteError(status, err))
 		return
 	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &p)...)
