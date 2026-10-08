@@ -138,6 +138,14 @@ resource "authing_application" "portal_app" {
 
 ---
 
+## Opt-in Authing sandbox read-only acceptance
+
+The separate **Authing read-only sandbox acceptance** GitHub Actions workflow (`.github/workflows/authing-acceptance.yml`) runs **only** from a manual `workflow_dispatch`. It does not run on push or pull requests. Create the `authing-sandbox` GitHub Environment and configure its environment-scoped secrets `AUTHING_ACCESS_KEY_ID` and `AUTHING_ACCESS_KEY_SECRET` with credentials for an isolated sandbox user pool. Optionally configure the environment variable `AUTHING_HOST` for a custom HTTPS Authing API host (otherwise the provider uses `https://api.authing.cn`). Do not commit, paste, or log credential values. Restrict access to the environment with GitHub environment protection rules as appropriate.
+
+In GitHub **Actions → Authing read-only sandbox acceptance → Run workflow**, select the branch with the workflow and type the exact confirmation `READ_ONLY_SANDBOX`. Anything else skips the job; the test additionally requires its explicit `-authing-read-only-sandbox` flag, the exact confirmation, and both credentials. The workflow verifies the provider with checksum-pinned Terraform, runs offline/mock tests, then runs `terraform plan` on only `data.authing_global_security_settings.sandbox` via a temporary dev override. The authenticated provider may POST to obtain a management token, then GET `/api/v3/get-security-settings`; it never applies or destroys, changes user-pool data, or writes a Terraform state file. Terraform output is suppressed to avoid credential disclosure. A successful plan validates this single lookup against the live sandbox API, **not** CRUD behavior, tenant scope, or other data sources.
+
+Offline check: `python3 scripts/protocol_smoke.py && go test -count=1 ./scripts/acceptance` (the live test skips without the flag). Never run the live test with production credentials.
+
 ## Local Development & Debugging
 
 Compile the binary:

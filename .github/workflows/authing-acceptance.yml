@@ -1,0 +1,38 @@
+name: Authing read-only sandbox acceptance
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type READ_ONLY_SANDBOX to authorize one read-only plan against the isolated Authing sandbox'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  read-only-plan:
+    if: ${{ inputs.confirm == 'READ_ONLY_SANDBOX' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: authing-sandbox
+    steps:
+      - name: Checkout
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Install checksum-verified Terraform and verify provider protocol offline
+        run: python3 scripts/protocol_smoke.py
+      - name: Verify mock read-only request path and guards
+        run: go test -count=1 -run '^(TestGuard|TestMockReadOnlyPlan|TestMockFailureSuppressesCredentials)$' ./scripts/acceptance
+      - name: Plan one read-only data source against Authing sandbox
+        env:
+          AUTHING_ACCEPTANCE_CONFIRM: ${{ inputs.confirm }}
+          AUTHING_ACCESS_KEY_ID: ${{ secrets.AUTHING_ACCESS_KEY_ID }}
+          AUTHING_ACCESS_KEY_SECRET: ${{ secrets.AUTHING_ACCESS_KEY_SECRET }}
+          AUTHING_HOST: ${{ vars.AUTHING_HOST }}
+        run: go test -count=1 -run '^TestReadOnlyPlan$' ./scripts/acceptance -args -authing-read-only-sandbox
