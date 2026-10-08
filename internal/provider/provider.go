@@ -184,5 +184,7 @@ func (p *AuthingProvider) DataSources(ctx context.Context) []func() datasource.D
 		NewDeviceStatusDataSource,
 		NewApplicationSubjectAuthDataSource,
 		NewExtIdpConnectionDataSource,
+		NewGlobalSecuritySettingsDataSource,
+		NewGlobalMFASettingsDataSource,
 	}
 }

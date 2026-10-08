@@ -41,6 +41,7 @@ The direct client obtains a management access token using AK/SK, caches it until
 - **`authing_application`** (Resource / Data Source): Self-built applications, OAuth/OIDC redirect URLs.
 - **`authing_ext_idp`** (Resource): External enterprise identity providers (SAML, OIDC, WeChat, DingTalk, LDAP).
 - **`authing_ext_idp_connection`** (Data Source): Read allowlisted connection metadata by parent and connection ID; secret-containing fields are not exposed.
+- **`authing_global_security_settings`** / **`authing_global_mfa_settings`** (Data Sources): Read nonsecret user-pool security flags and enabled MFA factors. Neither endpoint verifies tenant scope or offers managed lifecycle operations.
 - **`authing_webhook`** (Resource): Webhook subscriptions for identity event streams.
 - **`authing_pipeline_function`** (Resource): Serverless pipeline extension functions (pre-register, post-auth, etc.).
 - **`authing_auth_flow_function`** (Resource): Manage AuthFlowFunction source and settings; source is sensitive but still stored in Terraform state.
