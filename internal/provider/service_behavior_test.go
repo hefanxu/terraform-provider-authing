@@ -81,8 +81,8 @@ func TestRegisteredDataSourceReadCallsAuthing(t *testing.T) {
 		service := factory()
 		metadata := datasource.MetadataResponse{}
 		service.Metadata(ctx, datasource.MetadataRequest{ProviderTypeName: "authing"}, &metadata)
-		// The generic fixture has no valid data-resource struct; dedicated httptest covers it.
-		if metadata.TypeName == "authing_data_resource" || metadata.TypeName == "authing_tenant" || metadata.TypeName == "authing_public_account" {
+		// The generic fixture lacks scoped custom-field metadata; dedicated httptest covers it.
+		if metadata.TypeName == "authing_data_resource" || metadata.TypeName == "authing_tenant" || metadata.TypeName == "authing_public_account" || metadata.TypeName == "authing_tenant_custom_field" {
 			continue
 		}
 
