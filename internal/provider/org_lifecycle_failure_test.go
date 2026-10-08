@@ -121,6 +121,14 @@ func TestOrgDepartmentExtIdpDeleteFailureReported(t *testing.T) {
 		} {
 			t.Run(kind+"/"+tc.name, func(t *testing.T) {
 				client := lifecycleFixture(t, func(w http.ResponseWriter, r *http.Request) {
+					if kind == "ext-idp" && r.URL.Path == "/api/v3/get-ext-idp" {
+						if tc.name == "missing" {
+							fmt.Fprint(w, `{"statusCode":404,"message":"missing"}`)
+						} else {
+							fmt.Fprint(w, `{"statusCode":200,"data":{"id":"idp","name":"old","type":"oidc"}}`)
+						}
+						return
+					}
 					expected := "/api/v3/delete-" + kind
 					if kind == "department-member" {
 						expected = "/api/v3/remove-department-members"

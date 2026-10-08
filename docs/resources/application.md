@@ -36,10 +36,10 @@ resource "authing_application" "portal" {
 ### Optional
 
 - `app_type` (String) Application type (e.g. `web`, `spa`, `native`, `api`).
-- `app_identifier` (String) Unique application identifier. Authing describes this as required for self-built applications; existing configurations may omit it to retain their current behavior. Changes are sent to Authing on update.
+- `app_identifier` (String) Unique application identifier. The published CreateApplicationDto schema requires `appName` only; this field remains optional. Changes are sent to Authing on update and confirmed by GET readback.
 - `app_logo` (String) Application logo URL.
 - `default_protocol` (String) Default application protocol: `oidc`, `oauth`, `saml`, `cas`, or `asa`.
-- `sso_enabled` (Boolean) Enable SSO. An explicit `false` is sent on create and update; omission uses Authing's value.
+- `sso_enabled` (Boolean) Enable SSO. An explicit `false` is sent on create and update; omission uses Authing's value. Application updates are confirmed against GET readback, and an acknowledged write with mismatched or failed readback reports an error without replacing prior Terraform state.
 - `permission_strategy` (String) Default application access policy: `ALLOW_ALL` or `DENY_ALL`. Optional and computed: omission adopts Authing's current policy. The provider sets it after application creation and refreshes it on read. There is no independent strategy delete/reset operation; removing this argument does not reset Authing's policy. Deleting the application deletes the application, not just this policy. If a follow-up strategy operation fails after creation, import the reported application ID before retrying to avoid duplicates.
 - `description` (String) Application description.
 - `init_login_url` (String) Initial login URL.

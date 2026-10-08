@@ -76,6 +76,10 @@ func getApplicationState(t *testing.T, state tfsdk.State) ApplicationModel {
 func TestApplicationUpdateSendsChangedFields(t *testing.T) {
 	var body map[string]any
 	svc, state, plan := applicationFixture(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/v3/get-application" {
+			fmt.Fprint(w, `{"statusCode":200,"data":{"appId":"app-1","appName":"New","appType":"web","redirectUris":["https://new/cb"],"logoutRedirectUris":[],"initLoginUri":"https://new/login","appDescription":"new"}}`)
+			return
+		}
 		if r.URL.Path != "/api/v3/update-application" || r.Method != "POST" {
 			t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
 		}
@@ -295,6 +299,10 @@ func TestApplicationSettingsReadDriftAndFalse(t *testing.T) {
 func TestApplicationSettingsUpdateExplicitFalseAndNull(t *testing.T) {
 	var body map[string]any
 	svc, state, plan := applicationFixture(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/v3/get-application" {
+			fmt.Fprint(w, `{"statusCode":200,"data":{"appId":"app-1","appName":"Portal","appType":"web","appIdentifier":"new-id","appLogo":"https://new/logo.png","defaultProtocol":"oauth","ssoEnabled":false,"appDescription":"old","initLoginUri":"https://old/login","redirectUris":["https://old/cb"],"logoutRedirectUris":["https://old/logout"]}}`)
+			return
+		}
 		if r.URL.Path != "/api/v3/update-application" {
 			t.Errorf("unexpected path %s", r.URL.Path)
 		}

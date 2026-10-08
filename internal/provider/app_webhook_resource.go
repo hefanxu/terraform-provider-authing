@@ -5,12 +5,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"strings"
 
 	"github.com/Authing/authing-golang-sdk/v3/dto"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	dschema "github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"terraform-provider-authing/internal/authingapi"
 
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
@@ -322,23 +324,15 @@ func (r *ApplicationResource) Update(ctx context.Context, req resource.UpdateReq
 	payload := map[string]interface{}{"appId": appID, "appName": plan.AppName.ValueString()}
 	if !plan.AppIdentifier.IsUnknown() && !plan.AppIdentifier.IsNull() {
 		payload["appIdentifier"] = plan.AppIdentifier.ValueString()
-	} else {
-		plan.AppIdentifier = state.AppIdentifier
 	}
 	if !plan.AppLogo.IsUnknown() && !plan.AppLogo.IsNull() {
 		payload["appLogo"] = plan.AppLogo.ValueString()
-	} else {
-		plan.AppLogo = state.AppLogo
 	}
 	if !plan.DefaultProtocol.IsUnknown() && !plan.DefaultProtocol.IsNull() {
 		payload["defaultProtocol"] = plan.DefaultProtocol.ValueString()
-	} else {
-		plan.DefaultProtocol = state.DefaultProtocol
 	}
 	if !plan.SsoEnabled.IsUnknown() && !plan.SsoEnabled.IsNull() {
 		payload["ssoEnabled"] = plan.SsoEnabled.ValueBool()
-	} else {
-		plan.SsoEnabled = state.SsoEnabled
 	}
 	if !plan.Description.IsUnknown() && !plan.Description.IsNull() {
 		payload["appDescription"] = plan.Description.ValueString()
@@ -374,6 +368,11 @@ func (r *ApplicationResource) Update(ctx context.Context, req resource.UpdateReq
 			resp.Diagnostics.AddError("Failed to update Authing application", fmt.Sprintf("code=%d msg=%s success=%t", result.StatusCode, result.Message, result.Data.Success))
 			return
 		}
+		plan, err = r.confirmApplicationUpdate(ctx, appID, plan)
+		if err != nil {
+			resp.Diagnostics.AddError("Failed to confirm Authing application update", fmt.Sprintf("Application %q acknowledged the update but readback failed: %v. Prior state was retained.", appID, err))
+			return
+		}
 	}
 	if strategyChanged {
 		if err := r.updatePermissionStrategy(ctx, appID, plan.PermissionStrategy.ValueString()); err != nil {
@@ -397,6 +396,88 @@ func (r *ApplicationResource) Update(ctx context.Context, req resource.UpdateReq
 
 	diags = resp.State.Set(ctx, plan)
 	resp.Diagnostics.Append(diags...)
+}
+
+func (r *ApplicationResource) confirmApplicationUpdate(ctx context.Context, appID string, plan ApplicationModel) (ApplicationModel, error) {
+	res := r.client.GetApplication(&dto.GetApplicationDto{AppId: appID})
+	if res == nil || res.StatusCode != 200 || res.Data.AppId != appID {
+		return plan, fmt.Errorf("invalid or unsuccessful GET /get-application response (expected app ID %q): %s", appID, applicationResponseError(res))
+	}
+	remote := res.Data
+	for _, field := range []struct {
+		name    string
+		planned types.String
+		actual  string
+	}{
+		{"app_name", plan.AppName, remote.AppName},
+		{"app_type", plan.AppType, remote.AppType},
+		{"app_identifier", plan.AppIdentifier, remote.AppIdentifier},
+		{"app_logo", plan.AppLogo, remote.AppLogo},
+		{"default_protocol", plan.DefaultProtocol, remote.DefaultProtocol},
+		{"description", plan.Description, remote.AppDescription},
+		{"init_login_url", plan.InitLoginUrl, remote.InitLoginUri},
+	} {
+		if !field.planned.IsNull() && !field.planned.IsUnknown() && field.planned.ValueString() != field.actual {
+			return plan, fmt.Errorf("%s read back as %q instead of %q", field.name, field.actual, field.planned.ValueString())
+		}
+	}
+	if !plan.SsoEnabled.IsNull() && !plan.SsoEnabled.IsUnknown() && plan.SsoEnabled.ValueBool() != remote.SsoEnabled {
+		return plan, fmt.Errorf("sso_enabled read back as %t instead of %t", remote.SsoEnabled, plan.SsoEnabled.ValueBool())
+	}
+	for _, field := range []struct {
+		name    string
+		planned types.List
+		actual  []string
+	}{
+		{"redirect_uris", plan.RedirectUris, remote.RedirectUris},
+		{"logout_redirect_uris", plan.LogoutRedirectUris, remote.LogoutRedirectUris},
+	} {
+		if !field.planned.IsNull() && !field.planned.IsUnknown() {
+			var expected []string
+			if diags := field.planned.ElementsAs(ctx, &expected, false); diags.HasError() {
+				return plan, fmt.Errorf("invalid planned %s: %v", field.name, diags)
+			}
+			if !reflect.DeepEqual(nonNilApplicationURIs(expected), nonNilApplicationURIs(field.actual)) {
+				return plan, fmt.Errorf("%s read back differently from the plan", field.name)
+			}
+		}
+	}
+	if plan.AppType.IsNull() || plan.AppType.IsUnknown() {
+		plan.AppType = types.StringValue(remote.AppType)
+	}
+	if plan.AppIdentifier.IsNull() || plan.AppIdentifier.IsUnknown() {
+		plan.AppIdentifier = types.StringValue(remote.AppIdentifier)
+	}
+	if plan.AppLogo.IsNull() || plan.AppLogo.IsUnknown() {
+		plan.AppLogo = types.StringValue(remote.AppLogo)
+	}
+	if plan.DefaultProtocol.IsNull() || plan.DefaultProtocol.IsUnknown() {
+		plan.DefaultProtocol = types.StringValue(remote.DefaultProtocol)
+	}
+	if plan.Description.IsNull() || plan.Description.IsUnknown() {
+		plan.Description = types.StringValue(remote.AppDescription)
+	}
+	if plan.InitLoginUrl.IsNull() || plan.InitLoginUrl.IsUnknown() {
+		plan.InitLoginUrl = types.StringValue(remote.InitLoginUri)
+	}
+	if plan.SsoEnabled.IsNull() || plan.SsoEnabled.IsUnknown() {
+		plan.SsoEnabled = types.BoolValue(remote.SsoEnabled)
+	}
+	if plan.RedirectUris.IsNull() || plan.RedirectUris.IsUnknown() {
+		var diags diag.Diagnostics
+		plan.RedirectUris, diags = types.ListValueFrom(ctx, types.StringType, nonNilApplicationURIs(remote.RedirectUris))
+		if diags.HasError() {
+			return plan, fmt.Errorf("invalid remote redirect_uris: %v", diags)
+		}
+	}
+	if plan.LogoutRedirectUris.IsNull() || plan.LogoutRedirectUris.IsUnknown() {
+		var diags diag.Diagnostics
+		plan.LogoutRedirectUris, diags = types.ListValueFrom(ctx, types.StringType, nonNilApplicationURIs(remote.LogoutRedirectUris))
+		if diags.HasError() {
+			return plan, fmt.Errorf("invalid remote logout_redirect_uris: %v", diags)
+		}
+	}
+	return plan, nil
 }
 
 func (r *ApplicationResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
@@ -721,6 +802,7 @@ func (r *WebhookResource) Delete(ctx context.Context, req resource.DeleteRequest
 // --- ExtIdp Resource (External Identity Provider) ---
 
 var _ resource.Resource = &ExtIdpResource{}
+var _ resource.ResourceWithImportState = &ExtIdpResource{}
 
 func NewExtIdpResource() resource.Resource {
 	return &ExtIdpResource{}
@@ -764,9 +846,10 @@ func (r *ExtIdpResource) Schema(ctx context.Context, req resource.SchemaRequest,
 				},
 			},
 			"tenant_id": schema.StringAttribute{
-				Optional:    true,
-				Computed:    true,
-				Description: "Tenant ID if multi-tenant.",
+				Optional:      true,
+				Computed:      true,
+				Description:   "Tenant ID if multi-tenant. Changing it replaces the identity provider.",
+				PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown(), stringplanmodifier.RequiresReplace()},
 			},
 		},
 	}
@@ -809,6 +892,10 @@ func (r *ExtIdpResource) Create(ctx context.Context, req resource.CreateRequest,
 		resp.Diagnostics.AddError("Failed to create external IdP", errMsg)
 		return
 	}
+	if res.Data.TenantId != plan.TenantId.ValueString() && (!plan.TenantId.IsNull() || res.Data.TenantId != "") {
+		resp.Diagnostics.AddError("Failed to confirm external IdP scope", fmt.Sprintf("External IdP %q was created but returned tenant %q instead of %q. Import this ID in its actual tenant before retrying to avoid duplicate creation.", res.Data.Id, res.Data.TenantId, plan.TenantId.ValueString()))
+		return
+	}
 
 	plan.ID = types.StringValue(res.Data.Id)
 	plan.ExtIdpId = types.StringValue(res.Data.Id)
@@ -824,9 +911,7 @@ func (r *ExtIdpResource) Read(ctx context.Context, req resource.ReadRequest, res
 		return
 	}
 
-	res := r.client.GetExtIdp(&dto.GetExtIdpDto{
-		Id: state.ExtIdpId.ValueString(),
-	})
+	res := r.getScopedExtIdp(&state)
 	if res != nil && res.StatusCode == 404 {
 		resp.State.RemoveResource(ctx)
 		return
@@ -835,33 +920,54 @@ func (r *ExtIdpResource) Read(ctx context.Context, req resource.ReadRequest, res
 		resp.Diagnostics.AddError("Failed to read external IdP", "Authing returned an invalid or unsuccessful response")
 		return
 	}
+	if err := extIdpIdentityError(&state, &res.Data); err != nil {
+		resp.Diagnostics.AddError("External IdP identity mismatch", err.Error())
+		return
+	}
 
 	state.ID = types.StringValue(res.Data.Id)
 	state.Name = types.StringValue(res.Data.Name)
+	state.Type = types.StringValue(res.Data.Type)
+	state.TenantId = types.StringValue(res.Data.TenantId)
 
 	diags = resp.State.Set(ctx, &state)
 	resp.Diagnostics.Append(diags...)
 }
 
 func (r *ExtIdpResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var plan ExtIdpModel
-	diags := req.Plan.Get(ctx, &plan)
-	resp.Diagnostics.Append(diags...)
+	var plan, state ExtIdpModel
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
+		return
+	}
+	if plan.TenantId != state.TenantId || plan.Type != state.Type || plan.ExtIdpId != state.ExtIdpId {
+		resp.Diagnostics.AddError("Cannot update external IdP identity", "tenant_id and type are immutable; replace the identity provider instead.")
+		return
+	}
+	if err := r.confirmExtIdp(&state); err != nil {
+		resp.Diagnostics.AddError("Failed to confirm external IdP before update", err.Error())
 		return
 	}
 
 	res := r.client.UpdateExtIdp(&dto.UpdateExtIdpDto{
-		Id:   plan.ExtIdpId.ValueString(),
-		Name: plan.Name.ValueString(),
+		Id: state.ExtIdpId.ValueString(), Name: plan.Name.ValueString(), TenantId: state.TenantId.ValueString(),
 	})
 	if res == nil || res.StatusCode != 200 {
 		resp.Diagnostics.AddError("Failed to update external IdP", "Error response from Authing")
 		return
 	}
+	readback := r.getScopedExtIdp(&state)
+	if err := confirmExtIdpResponse(&state, readback); err != nil {
+		resp.Diagnostics.AddError("Failed to confirm external IdP after update", err.Error())
+		return
+	}
+	if readback.Data.Name != plan.Name.ValueString() {
+		resp.Diagnostics.AddError("Failed to confirm external IdP after update", fmt.Sprintf("IdP %q read back name %q instead of %q; prior state was retained.", state.ExtIdpId.ValueString(), readback.Data.Name, plan.Name.ValueString()))
+		return
+	}
 
-	diags = resp.State.Set(ctx, plan)
-	resp.Diagnostics.Append(diags...)
+	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
 }
 
 func (r *ExtIdpResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
@@ -871,13 +977,69 @@ func (r *ExtIdpResource) Delete(ctx context.Context, req resource.DeleteRequest,
 	if resp.Diagnostics.HasError() {
 		return
 	}
+	preflight := r.getScopedExtIdp(&state)
+	if preflight != nil && preflight.StatusCode == 404 {
+		return // Already absent in the requested scope.
+	}
+	if err := confirmExtIdpResponse(&state, preflight); err != nil {
+		resp.Diagnostics.AddError("Failed to confirm external IdP before delete", err.Error())
+		return
+	}
 
 	res := r.client.DeleteExtIdp(&dto.DeleteExtIdpDto{
-		Id: state.ExtIdpId.ValueString(),
+		Id: state.ExtIdpId.ValueString(), TenantId: state.TenantId.ValueString(),
 	})
 	if res == nil || res.StatusCode != 404 && (res.StatusCode != 200 || !res.Data.Success) {
 		resp.Diagnostics.AddError("Failed to delete external IdP", "Authing returned an invalid or unsuccessful response")
 	}
+}
+
+func (r *ExtIdpResource) getScopedExtIdp(state *ExtIdpModel) *dto.ExtIdpDetailSingleRespDto {
+	return r.client.GetExtIdp(&dto.GetExtIdpDto{Id: state.ExtIdpId.ValueString(), TenantId: state.TenantId.ValueString()})
+}
+
+func extIdpIdentityError(state *ExtIdpModel, remote *dto.ExtIdpDetail) error {
+	if remote.Id != state.ExtIdpId.ValueString() || remote.TenantId != state.TenantId.ValueString() {
+		return fmt.Errorf("requested IdP %q in tenant %q but received IdP %q in tenant %q", state.ExtIdpId.ValueString(), state.TenantId.ValueString(), remote.Id, remote.TenantId)
+	}
+	if !state.Type.IsNull() && !state.Type.IsUnknown() && state.Type.ValueString() != remote.Type {
+		return fmt.Errorf("IdP %q type changed from %q to %q", remote.Id, state.Type.ValueString(), remote.Type)
+	}
+	if remote.Type == "" {
+		return fmt.Errorf("IdP %q response omitted type", remote.Id)
+	}
+	return nil
+}
+
+func (r *ExtIdpResource) confirmExtIdp(state *ExtIdpModel) error {
+	return confirmExtIdpResponse(state, r.getScopedExtIdp(state))
+}
+
+func confirmExtIdpResponse(state *ExtIdpModel, res *dto.ExtIdpDetailSingleRespDto) error {
+	if res == nil || res.StatusCode != 200 || res.Data.Id == "" {
+		if res == nil {
+			return fmt.Errorf("empty or invalid API response")
+		}
+		return fmt.Errorf("code=%d msg=%s", res.StatusCode, res.Message)
+	}
+	return extIdpIdentityError(state, &res.Data)
+}
+
+// Import accepts an unscoped ID or tenant_id:ext_idp_id for a tenant-scoped IdP.
+func (r *ExtIdpResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	parts := strings.Split(req.ID, ":")
+	if req.ID == "" || len(parts) > 2 || len(parts) == 2 && (parts[0] == "" || parts[1] == "") {
+		resp.Diagnostics.AddError("Invalid external IdP import ID", "Expected an ID or tenant_id:ext_idp_id with nonempty components.")
+		return
+	}
+	id, tenant := parts[0], types.StringNull()
+	if len(parts) == 2 {
+		id, tenant = parts[1], types.StringValue(parts[0])
+	}
+	resp.Diagnostics.Append(resp.State.Set(ctx, ExtIdpModel{
+		ID: types.StringValue(id), ExtIdpId: types.StringValue(id),
+		TenantId: tenant, Type: types.StringNull(), Name: types.StringNull(),
+	})...)
 }
 
 // --- Pipeline Function Resource ---

@@ -32,9 +32,20 @@ resource "authing_ext_idp" "ldap" {
 
 ### Optional
 
-- `tenant_id` (String) Tenant ID if in a multi-tenant user pool.
+- `tenant_id` (String, Forces New) Tenant ID if in a multi-tenant user pool. Every lookup, update, and deletion is scoped to this tenant; a returned tenant or type mismatch is an error rather than adoption of another IdP.
 
 ### Read-Only
 
 - `ext_idp_id` (String) Authing External IdP identifier.
 - `id` (String) The external identity provider ID.
+
+## Import
+
+Import a user-pool IdP by its ID, or a tenant IdP as `tenant_id:ext_idp_id`:
+
+```shell
+terraform import authing_ext_idp.wechat idp-123
+terraform import authing_ext_idp.wechat tenant-123:idp-123
+```
+
+A tenant-scoped import must include the tenant ID; a failed scope check retains the existing state and prevents update/delete. Tenant changes replace the IdP.
