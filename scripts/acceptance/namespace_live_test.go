@@ -25,10 +25,10 @@ const namespaceTestCode = "hermesacc-1234567890abcdef"
 // The mock exercises Terraform's real provider protocol, not just DTO calls.
 type mockNamespace struct {
 	sync.Mutex
-	code, name, description                                      string
-	paths                                                        []string
-	deletes                                                      int
-	failDrift, foreign, children, wrongCode, incompleteInventory bool
+	code, name, description                                                  string
+	paths                                                                    []string
+	deletes                                                                  int
+	failDrift, failDelete, foreign, children, wrongCode, incompleteInventory bool
 }
 
 func (n *mockNamespace) serve(w http.ResponseWriter, r *http.Request) {
@@ -96,7 +96,7 @@ func (n *mockNamespace) serve(w http.ResponseWriter, r *http.Request) {
 		var v struct {
 			Code string `json:"code"`
 		}
-		if r.Method != http.MethodPost || json.NewDecoder(r.Body).Decode(&v) != nil || v.Code != n.code || n.foreign || n.children {
+		if n.failDelete || r.Method != http.MethodPost || json.NewDecoder(r.Body).Decode(&v) != nil || v.Code != n.code || n.foreign || n.children {
 			http.Error(w, "unowned deletion", 500)
 			return
 		}
@@ -231,6 +231,24 @@ func TestNamespaceTraceFailedMutationCleansUpWithoutLeaking(t *testing.T) {
 	}
 }
 
+func TestNamespaceTracePreservesOriginalPhaseWhenCleanupFails(t *testing.T) {
+	n := &mockNamespace{failDrift: true, failDelete: true}
+	_, server := namespaceClient(t, n)
+	defer server.Close()
+	err := runNamespaceTrace(t.TempDir(), map[string]string{"AUTHING_ACCESS_KEY_ID": "key-marker", "AUTHING_ACCESS_KEY_SECRET": "credential-marker", "AUTHING_HOST": server.URL}, namespaceTestCode)
+	if err == nil || !strings.Contains(err.Error(), "phase=remote-drift") || !strings.Contains(err.Error(), "cleanup=incomplete") || !strings.Contains(err.Error(), namespaceTestCode) {
+		t.Fatalf("missing original phase and cleanup status: %v", err)
+	}
+	for _, secret := range []string{"key-marker", "credential-marker", "mock-token", "unowned deletion"} {
+		if strings.Contains(err.Error(), secret) {
+			t.Fatal("diagnostic leaked response or credential")
+		}
+	}
+	if n.deletes != 0 || n.code != namespaceTestCode {
+		t.Fatal("failed cleanup changed namespace")
+	}
+}
+
 func newNamespaceCode() (string, error) {
 	var b [8]byte
 	if _, err := rand.Read(b[:]); err != nil {
@@ -334,7 +352,12 @@ func runNamespaceTrace(root string, credentials map[string]string, code string) 
 	defer func() {
 		if started {
 			if err := cleanupNamespace(client, code, name, marker); err != nil {
-				result = fmt.Errorf("namespace phase=cleanup-incomplete code=%s (output suppressed)", code)
+				if result != nil {
+					// result contains only a controlled phase and validated code.
+					result = fmt.Errorf("%s cleanup=incomplete", result)
+				} else {
+					result = fmt.Errorf("namespace phase=cleanup code=%s cleanup=incomplete (output suppressed)", code)
+				}
 			}
 		}
 	}()
