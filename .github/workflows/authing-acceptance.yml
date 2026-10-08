@@ -31,12 +31,15 @@ on:
           - group_member
           - auth_flow_function
           - data_object
-          - data_policy
           - tenant
           - invitation_invitee
           - department
           - role_assignment
           - tenant_membership
+          - tenant_organization
+          - department_member
+          - pipeline_function
+          - data_object_field
       test_object_code:
         description: 'Read-only recovery: exact generated incident code only'
         required: false

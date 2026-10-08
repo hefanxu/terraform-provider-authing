@@ -27,12 +27,15 @@ CASES = {
     "group_member": "TestDestructiveLiveGroupMemberTrace",
     "auth_flow_function": "TestDestructiveLiveAuthFlowFunctionTrace",
     "data_object": "TestDestructiveLiveObjectTrace",
-    "data_policy": "TestDestructiveLiveDataPolicyTrace",
     "tenant": "TestDestructiveLiveTenantTrace",
     "invitation_invitee": "TestDestructiveLiveInvitationInviteeTrace",
     "department": "TestDestructiveLiveDepartmentTrace",
     "role_assignment": "TestDestructiveLiveRoleAssignmentTrace",
     "tenant_membership": "TestDestructiveLiveTenantMembershipTrace",
+    "tenant_organization": "TestDestructiveLiveTenantOrganizationTrace",
+    "department_member": "TestDestructiveLiveDepartmentMemberTrace",
+    "pipeline_function": "TestDestructiveLivePipelineFunctionTrace",
+    "data_object_field": "TestDestructiveLiveDataObjectFieldReplacement",
 }
 
 # Tracers print generated non-secret identifiers for possible manual cleanup.
