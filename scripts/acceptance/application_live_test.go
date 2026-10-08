@@ -125,8 +125,8 @@ func TestMockApplicationFailedStrategyCleanup(t *testing.T) {
 	}
 	a.Lock()
 	defer a.Unlock()
-	if a.id != "" || a.deletes != 1 {
-		t.Fatalf("failed cleanup: %+v", a)
+	if a.id != "mock-app-123" || a.deletes != 0 {
+		t.Fatalf("deleted application without state-backed ID: %+v", a)
 	}
 }
 func TestMockApplicationCleanupRefusesForeignName(t *testing.T) {

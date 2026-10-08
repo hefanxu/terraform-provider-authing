@@ -17,12 +17,12 @@ import (
 
 const applicationCallback = "https://example.invalid/callback"
 
-// Query the entire filtered result set; a missing/incomplete page is never absence.
+// Query the entire unfiltered result set; a missing/incomplete page is never absence.
 func findApplication(client *authingapi.Client, name string) (string, error) {
 	var match string
 	seen := 0
 	for page := 1; page <= 100; page++ {
-		body, err := client.SendHttpRequest("/api/v3/list-applications", "GET", map[string]any{"page": page, "limit": 100, "keywords": name, "isSelfBuiltApp": true})
+		body, err := client.SendHttpRequest("/api/v3/list-applications", "GET", map[string]any{"page": page, "limit": 100})
 		if err != nil {
 			return "", errors.New("application listing failed")
 		}
@@ -34,10 +34,10 @@ func findApplication(client *authingapi.Client, name string) (string, error) {
 					AppName       string `json:"appName"`
 					AppIdentifier string `json:"appIdentifier"`
 				} `json:"list"`
-				TotalCount int `json:"totalCount"`
+				TotalCount *int `json:"totalCount"`
 			} `json:"data"`
 		}
-		if json.Unmarshal(body, &result) != nil || result.StatusCode != 200 || result.Data == nil || result.Data.List == nil || result.Data.TotalCount < 0 {
+		if json.Unmarshal(body, &result) != nil || result.StatusCode != 200 || result.Data == nil || result.Data.List == nil || result.Data.TotalCount == nil || *result.Data.TotalCount < 0 || len(result.Data.List) > 100 || seen+len(result.Data.List) > *result.Data.TotalCount {
 			return "", errors.New("invalid application listing")
 		}
 		for _, app := range result.Data.List {
@@ -49,7 +49,7 @@ func findApplication(client *authingapi.Client, name string) (string, error) {
 			}
 		}
 		seen += len(result.Data.List)
-		if seen >= result.Data.TotalCount {
+		if seen == *result.Data.TotalCount {
 			return match, nil
 		}
 		if len(result.Data.List) == 0 {
@@ -159,25 +159,25 @@ func runApplicationTrace(root string, credentials map[string]string, name string
 		if !started {
 			return
 		}
-		// A failed create may leave no Terraform state (e.g. strategy update fails).
-		// Discover only by the unique name/identifier, then independently verify GET.
-		discovered, e := findApplication(client, name)
-		if e != nil || discovered != "" && id != "" && discovered != id {
-			result = fmt.Errorf("application phase=cleanup-incomplete code=%s (output suppressed)", name)
-			return
-		}
-		if discovered != "" {
-			id = discovered
-		}
+		// Only a Terraform state ID from this run authorizes deletion. A name
+		// match, even with a marker, cannot prove this run created the object.
 		if id == "" {
-			// After a failed apply, an absent listing cannot prove a create never happened.
-			if result != nil {
-				result = fmt.Errorf("application phase=cleanup-incomplete code=%s (output suppressed)", name)
-			}
-			return
+			id, _ = applicationStateID(root, traceEnvironment(root, filepath.Join(root, "terraform.rc"), credentials), terraform)
 		}
-		if cleanupApplication(client, id, name, marker) != nil {
-			result = fmt.Errorf("application phase=cleanup-incomplete code=%s id=%s (output suppressed)", name, id)
+		discovered, e := findApplication(client, name)
+		cleanup := "confirmed"
+		if e != nil || discovered != "" && (id == "" || discovered != id) {
+			cleanup = "incomplete"
+		} else if id != "" && cleanupApplication(client, id, name, marker) != nil {
+			cleanup = "incomplete"
+		} else if id == "" && result != nil {
+			// An empty listing after a failed apply does not prove no create occurred.
+			cleanup = "incomplete"
+		}
+		if result != nil {
+			result = fmt.Errorf("%s cleanup=%s", result, cleanup)
+		} else if cleanup == "incomplete" {
+			result = fmt.Errorf("application phase=cleanup-incomplete code=%s cleanup=incomplete (output suppressed)", name)
 		}
 	}()
 	providerDir := filepath.Join(root, "provider")
