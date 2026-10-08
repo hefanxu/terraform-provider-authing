@@ -345,7 +345,12 @@ resource "authing_application" "sandbox" {
 			if err := ownedApplication(client, id, name, marker); err != nil {
 				return applicationDriftFailure("ownership-unverified")
 			}
-			body, err := client.SendHttpRequest("/api/v3/update-application", "POST", map[string]string{"appId": id, "appName": name + "-drift"})
+			body, err := client.SendHttpRequest("/api/v3/update-application", "POST", map[string]any{
+				"appId": id, "appName": name + "-drift",
+				"appIdentifier": name, "appDescription": marker,
+				"redirectUris": []string{applicationCallback}, "logoutRedirectUris": []string{},
+				"ssoEnabled": false,
+			})
 			if err != nil {
 				return applicationDriftFailure("update-transport")
 			}

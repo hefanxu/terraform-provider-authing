@@ -20,6 +20,7 @@ type mockApplication struct {
 	failCreateValidation                   bool
 	rejectUnconfiguredNested               bool
 	failDriftUpdate                        bool
+	requireUpdateIdentity                  bool
 	deletes                                int
 }
 
@@ -87,6 +88,13 @@ func (a *mockApplication) serve(w http.ResponseWriter, r *http.Request) {
 		if a.failDriftUpdate {
 			fmt.Fprint(w, `{"statusCode":422,"message":"secret-marker private-uri"}`)
 			return
+		}
+		if a.requireUpdateIdentity {
+			uris, ok := body["redirectUris"].([]any)
+			if body["appIdentifier"] != a.identifier || body["appDescription"] != a.marker || !ok || len(uris) != 1 || uris[0] != applicationCallback || body["ssoEnabled"] != false {
+				fmt.Fprint(w, `{"statusCode":200,"data":{"success":false}}`)
+				return
+			}
 		}
 		if body["appId"] != a.id || body["appName"] == nil {
 			http.Error(w, "invalid update", 500)
