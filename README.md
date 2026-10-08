@@ -98,6 +98,7 @@ resource "authing_user" "developer" {
 resource "authing_group" "backend_team" {
   code        = "backend_devs"
   name        = "Backend Development Team"
+  type        = "static" # Authing's documented example; select the type supported by your tenant.
   description = "Engineers working on backend services"
 }
 
