@@ -27,6 +27,9 @@ on:
           - post
           - invitation_roster
           - data_resource
+          - group_member
+          - auth_flow_function
+          - data_object
       test_object_code:
         description: 'Read-only recovery: exact generated incident code only'
         required: false
@@ -127,7 +130,7 @@ jobs:
       - name: Verify selection, guard, and redacted diagnostics offline
         run: python3 -m unittest discover -s scripts/acceptance -p test_run_live_case.py
       - name: Verify mock Terraform lifecycles offline
-        run: go test -count=1 -run '^(TestDestructiveGuard|TestMock.*)$' ./scripts/acceptance
+        run: go test -count=1 ./scripts/acceptance
       - name: Trace one selected lifecycle in isolated Authing sandbox
         env:
           ACCEPTANCE_TEST_CASE: ${{ inputs.test_case }}

@@ -23,6 +23,9 @@ CASES = {
     "post": "TestDestructiveLivePostTrace",
     "invitation_roster": "TestDestructiveLiveInvitationRosterTrace",
     "data_resource": "TestDestructiveLiveDataResourceTrace",
+    "group_member": "TestDestructiveLiveGroupMemberTrace",
+    "auth_flow_function": "TestDestructiveLiveAuthFlowFunctionTrace",
+    "data_object": "TestDestructiveLiveObjectTrace",
 }
 
 # Tracers print generated non-secret identifiers for possible manual cleanup.
