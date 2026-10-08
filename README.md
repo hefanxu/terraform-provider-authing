@@ -40,6 +40,7 @@ The direct client obtains a management access token using AK/SK, caches it until
 ### 5. Applications & Integration (应用与集成)
 - **`authing_application`** (Resource / Data Source): Self-built applications, OAuth/OIDC redirect URLs.
 - **`authing_ext_idp`** (Resource): External enterprise identity providers (SAML, OIDC, WeChat, DingTalk, LDAP).
+- **`authing_ext_idp_connection`** (Data Source): Read allowlisted connection metadata by parent and connection ID; secret-containing fields are not exposed.
 - **`authing_webhook`** (Resource): Webhook subscriptions for identity event streams.
 - **`authing_pipeline_function`** (Resource): Serverless pipeline extension functions (pre-register, post-auth, etc.).
 - **`authing_auth_flow_function`** (Resource): Manage AuthFlowFunction source and settings; source is sensitive but still stored in Terraform state.
@@ -52,6 +53,7 @@ The direct client obtains a management access token using AK/SK, caches it until
 - **`authing_tenant`** (Resource / Data Source): Manage tenants and their complete associated application ID set.
 - **`authing_tenant_membership`** (Resource): Attach an existing user-pool user to a tenant without deleting the user on detach.
 - **`authing_tenant_admin`** (Resource): Grant or revoke tenant administrator privilege for an existing member.
+- **`authing_tenant_custom_field`** (Data Source): Look up a tenant-scoped custom-field definition; writes are deferred until safe round-trip semantics are established.
 
 ---
 
