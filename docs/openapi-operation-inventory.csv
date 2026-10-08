@@ -1,0 +1,760 @@
+spec,tags,method,path,operation_id,summary,path_referenced_in_provider_code
+management,,GET,/api/internal/v1/metadata/get-user-device,MetadataInternalController_getDevice,,no
+management,,POST,/api/internal/v1/metadata/get-all-row,MetadataInternalController_getAllMetadataRow,,no
+management,,POST,/api/internal/v1/metadata/get-department-tree,MetadataInternalController_getDepartmentTree,,no
+management,,POST,/api/internal/v1/metadata/get-field-values,MetadataInternalController_fetchUniqueFieldValues,,no
+management,,POST,/api/internal/v1/metadata/get-row-batch,MetadataInternalController_getRowBatch,,no
+management,,POST,/api/internal/v1/metadata/get-row-mapping,MetadataInternalController_fetchRowMapping,,no
+management,,POST,/api/internal/v1/metadata/get-rowids,MetadataInternalController_getRowIds,,no
+management,,POST,/api/internal/v1/metadata/list-fields,MetadataInternalController_listFields,,no
+management,,POST,/api/internal/v1/metadata/update-row,MetadataInternalController_updateRow,,no
+management,,POST,/api/v3/add-device,TerminalController_addDevice,新增设备,no
+management,,POST,/api/v3/authing-verify/create-device,TerminalVerifyController_createVerifyDevice,新增 verify 设备,no
+management,,POST,/api/v3/create-device,TerminalController_createDevice,新增设备,no
+management,,POST,/api/v3/get-last-login-apps-by-device-ids,TerminalController_findLastLoginAppsByDeviceIdsV2,最近登录应用,no
+management,,POST,/api/v3/get-last-login-apps-by-deviceIds,TerminalController_findLastLoginAppsByDeviceIds,最近登录应用,no
+management,Authing Verify/API 列表,GET,/api/v3/verify-config,VerifyConfigController_getVerifyConfig,获取 verify-config 配置,no
+management,Authing Verify/API 列表,PUT,/api/v3/verify-config,VerifyConfigController_updateVerifyConfig,修改 verify-config 配置,no
+management,管理 AK & SK/API 列表,GET,/api/v3/get-access-key,AccessKeyManagementController_getAccessKey,获取协作管理员 AK/SK 详细信息,no
+management,管理 AK & SK/API 列表,GET,/api/v3/list-access-key,AccessKeyManagementController_getAccessKeyList,获取协作管理员 AK/SK 列表,no
+management,管理 AK & SK/API 列表,POST,/api/v3/create-access-key,AccessKeyManagementController_createAccessKey,创建协作管理员的 AK/SK,no
+management,管理 AK & SK/API 列表,POST,/api/v3/delete-access-key,AccessKeyManagementController_deleteAccessKey,删除协作管理员的 AK/SK,no
+management,"管理 AK & SK/API 列表,管理 AccessKey/API 列表,管理员 AccessKey/API 列表",POST,/api/v3/update-access-key,AccessKeyManagementController_updateAccessKey,更新一个管理员 AccessKey,no
+management,管理 AuthFlowFunction/API 列表,GET,/api/v3/get-auth-flow-function,AuthFlowFunctionController_getPipelineFunction,获取 AuthFlowFunction 函数详情,no
+management,管理 AuthFlowFunction/API 列表,POST,/api/v3/create-auth-flow-function,AuthFlowFunctionController_createPipelineFunction,创建 AuthFlowFunction 函数,no
+management,管理 AuthFlowFunction/API 列表,POST,/api/v3/delete-auth-flow-function,AuthFlowFunctionController_deletePipelineFunction,删除 AuthFlowFunction 函数,no
+management,管理 AuthFlowFunction/API 列表,POST,/api/v3/update-auth-flow-function,AuthFlowFunctionController_updatePipelineFunction,修改 AuthFlowFunction 函数,no
+management,管理 LDAP Server/API 列表,GET,/api/v3/get-ldap-server-config,LdapServerManagementController_queryLdapConfigInfo,获取 LDAP server 配置信息,no
+management,管理 LDAP Server/API 列表,GET,/api/v3/get-ldap-server-log,LdapServerManagementController_queryLdapLog,LDAP server 日志查询,no
+management,管理 LDAP Server/API 列表,GET,/api/v3/get-ldap-server-random-pwd,LdapServerManagementController_getBindPwd,生成 LDAP Server 管理员密码,no
+management,管理 LDAP Server/API 列表,GET,/api/v3/get-ldap-sub-entries,LdapServerManagementController_queryLdapSubEntries,LDAP server 根据 DN 查询下一级,no
+management,管理 LDAP Server/API 列表,POST,/api/v3/disable-ldap-server,LdapServerManagementController_disableLdapServer,关闭 LDAP server 服务，关闭前必须先初始化,no
+management,管理 LDAP Server/API 列表,POST,/api/v3/enable-ldap-server,LdapServerManagementController_saveLdapConfigInfo,初始化/重启 LDAP server,no
+management,管理 LDAP Server/API 列表,POST,/api/v3/update-ldap-server-config,LdapServerManagementController_updateLdapConfigInfo,更新 LDAP server 配置信息,no
+management,管理 Pipeline/API 列表,GET,/api/v3/get-pipeline-function,PipelineManagementController_getPipelineFunction,获取 Pipeline 函数详情,yes
+management,管理 Pipeline/API 列表,GET,/api/v3/get-pipeline-logs,PipelineManagementController_getPipelineLogs,获取 Pipeline 日志,no
+management,管理 Pipeline/API 列表,GET,/api/v3/list-pipeline-functions,PipelineManagementController_listPipelineFunctions,获取 Pipeline 函数列表,no
+management,管理 Pipeline/API 列表,POST,/api/v3/create-pipeline-function,PipelineManagementController_createPipelineFunction,创建 Pipeline 函数,yes
+management,管理 Pipeline/API 列表,POST,/api/v3/delete-pipeline-function,PipelineManagementController_deletePipelineFunction,删除 Pipeline 函数,yes
+management,管理 Pipeline/API 列表,POST,/api/v3/reupload-pipeline-function,PipelineManagementController_reuploadPipelineFunction,重新上传 Pipeline 函数,no
+management,管理 Pipeline/API 列表,POST,/api/v3/update-pipeline-function,PipelineManagementController_updatePipelineFunction,修改 Pipeline 函数,yes
+management,管理 Pipeline/API 列表,POST,/api/v3/update-pipeline-order,PipelineManagementController_updatePipelineOrder,修改 Pipeline 函数顺序,no
+management,管理 Session/API 列表,POST,/api/v3/deactivate-all-sessions,SessionManagementController_deactivateAllSessions,停用全部 Session,no
+management,管理 Session/API 列表,POST,/api/v3/deactivate-sessions-batch,SessionManagementController_deactivateSessions,批量停用 Session,no
+management,管理 Session/API 列表,POST,/api/v3/list-sessions,SessionManagementController_listSessions,获取 Session 列表,no
+management,管理 Session/API 列表,POST,/api/v3/list-sessions-detail-by-view,SessionManagementController_listSessionsByView,视图详情下的 Session 列表,no
+management,管理 Session/API 列表,POST,/api/v3/statistic-sessions-by-app,SessionManagementController_listSessionsByApp,获取按应用统计的 Session 列表,no
+management,管理 Session/API 列表,POST,/api/v3/statistic-sessions-by-device,SessionManagementController_listSessionsByDevice,获取按设备统计的 Session 列表,no
+management,管理 Session/API 列表,POST,/api/v3/statistic-sessions-by-user,SessionManagementController_listSessionsByUser,获取按用户统计的 Session 列表,no
+management,"管理 Token/API 列表,鉴权机制/获取 Access Token",POST,/api/v3/get-management-token,V3ManagementController_getManagementToken,获取 Access Token,yes
+management,管理 Webhook/API 列表,GET,/api/v3/get-webhook,WebhookManagementController_getWebhook,获取 Webhook 详情,yes
+management,管理 Webhook/API 列表,GET,/api/v3/get-webhook-event-list,WebhookManagementController_getWebhookEventList,获取 Webhook 事件列表,no
+management,管理 Webhook/API 列表,GET,/api/v3/list-webhooks,WebhookManagementController_listWebhooks,获取 Webhook 列表,no
+management,管理 Webhook/API 列表,POST,/api/v3/create-webhook,WebhookManagementController_createWebhook,创建 Webhook,yes
+management,管理 Webhook/API 列表,POST,/api/v3/delete-webhook,WebhookManagementController_deleteWebhook,删除 Webhook,yes
+management,管理 Webhook/API 列表,POST,/api/v3/get-webhook-logs,WebhookManagementController_getWebhookLogs,获取 Webhook 日志,no
+management,管理 Webhook/API 列表,POST,/api/v3/trigger-webhook,WebhookManagementController_triggerWebhook,手动触发 Webhook 执行,no
+management,管理 Webhook/API 列表,POST,/api/v3/update-webhook,WebhookManagementController_updateWebhook,修改 Webhook 配置,yes
+management,管理事件/API 列表,GET,/api/v3/list-event-apps,OpenEventController_listEventApps,获取事件应用列表,no
+management,管理事件/API 列表,GET,/api/v3/list-events,OpenEventController_listEvents,获取事件列表,no
+management,管理事件/API 列表,POST,/api/v3/create-event-app,OpenEventController_createEventApp,创建自定义事件应用,no
+management,管理事件/API 列表,POST,/api/v3/define-event,OpenEventController_defineEvent,定义自定义事件,no
+management,管理事件/API 列表,POST,/api/v3/pub-event,OpenEventController_verifyEvent,推送自定义事件,no
+management,管理事件/API 列表,POST,/api/v3/pub-userEvent,OpenEventController_pubUserEvent,认证端推送自定义事件,no
+management,管理元数据/API 列表,POST,/api/v3/metadata/ueba/capture,UEBAController_capture,UEBA 上传,no
+management,管理公共账号/API 列表,GET,/api/v3/get-departments-of-public-account,PublicAccountPermissionController_getPublicAccountDepartments,获取公共账号的部门列表,no
+management,管理公共账号/API 列表,GET,/api/v3/get-groups-of-public-account,PublicAccountPermissionController_getGroupsOfPublicAccount,获取公共账号分组列表,no
+management,管理公共账号/API 列表,GET,/api/v3/get-post-of-public-account,PublicAccountPermissionController_getPostOfPublicUser,获取公共账号的岗位,no
+management,管理公共账号/API 列表,GET,/api/v3/get-public-account,PublicAccountsManagementController_getPublicAccount,获取公共账号信息,no
+management,管理公共账号/API 列表,GET,/api/v3/get-public-account-batch,PublicAccountsManagementController_getPublicAccountBatch,批量获取公共账号信息,no
+management,管理公共账号/API 列表,GET,/api/v3/get-public-accounts-of-department,PublicAccountPermissionController_getPublicAccountsOfDepartment,获取部门的公共账号列表,no
+management,管理公共账号/API 列表,GET,/api/v3/get-public-accounts-of-group,PublicAccountPermissionController_getPublicAccountsOfGroup,获取分组的公共账号列表,no
+management,管理公共账号/API 列表,GET,/api/v3/get-public-accounts-of-post,PublicAccountPermissionController_getPublicAccountsOfPost,获取岗位的公共账号列表,no
+management,管理公共账号/API 列表,GET,/api/v3/get-public-accounts-of-role,PublicAccountPermissionController_getPublicAccountsOfRole,获取角色的公共账号列表,no
+management,管理公共账号/API 列表,GET,/api/v3/get-public-accounts-of-user,PublicAccountsManagementController_getPublicAccountsOfUser,获取用户的公共账号列表,no
+management,管理公共账号/API 列表,GET,/api/v3/get-roles-of-public-account,PublicAccountPermissionController_getPublicAccountRoles,获取公共账号的角色列表,no
+management,管理公共账号/API 列表,GET,/api/v3/get-users-of-public-account,PublicAccountsManagementController_getUsersOfPublicAccount,公共账号的用户列表,no
+management,管理公共账号/API 列表,POST,/api/v3/create-public-account,PublicAccountsManagementController_createPublicAccount,创建公共账号,no
+management,管理公共账号/API 列表,POST,/api/v3/create-public-accounts-batch,PublicAccountsManagementController_createPublicAccountsBatch,批量创建公共账号,no
+management,管理公共账号/API 列表,POST,/api/v3/delete-public-accounts-batch,PublicAccountsManagementController_deletePublicAccountsBatch,批量删除公共账号,no
+management,管理公共账号/API 列表,POST,/api/v3/kick-public-accounts,PublicAccountsManagementController_kickPublicAccounts,强制下线公共账号,no
+management,管理公共账号/API 列表,POST,/api/v3/list-public-accounts,PublicAccountsManagementController_listPublicAccounts,获取/搜索公共账号列表,no
+management,管理公共账号/API 列表,POST,/api/v3/resign-public-account-batch,PublicAccountPermissionController_resignPublicAccountBatch,批量离职用户,no
+management,管理公共账号/API 列表,POST,/api/v3/set-public-account-of-departments,PublicAccountPermissionController_setPublicAccountOfDepartments,设置公共账号所在部门,no
+management,管理公共账号/API 列表,POST,/api/v3/set-public-account-of-groups,PublicAccountPermissionController_getPublicAccountOfGroups,公共账号添加批量分组,no
+management,管理公共账号/API 列表,POST,/api/v3/set-public-account-of-post,PublicAccountPermissionController_setPublicAccountOfnPost,设置公共账号的岗位,no
+management,管理公共账号/API 列表,POST,/api/v3/set-public-account-of-roles,PublicAccountPermissionController_bindPublicAccountOfRoles,公共账号绑定批量角色,no
+management,管理公共账号/API 列表,POST,/api/v3/set-public-account-of-users,PublicAccountsManagementController_bindUsersPublicAccount,公共账号绑定批量用户,no
+management,管理公共账号/API 列表,POST,/api/v3/set-user-of-public-accounts,PublicAccountsManagementController_setuserOfPublicAccount,用户绑定批量公共账号,no
+management,管理公共账号/API 列表,POST,/api/v3/transfer-into-public-account,PublicAccountsManagementController_changeIntoPublicAccount,个人账号转换为公共账号,no
+management,管理公共账号/API 列表,POST,/api/v3/unbind-public-account-of-post,PublicAccountPermissionController_unbindPublicAccountOfPost,解绑公共账号关联岗位,no
+management,管理公共账号/API 列表,POST,/api/v3/unbind-public-account-of-user,PublicAccountsManagementController_unbindUsersPublicAccount,公共账号解绑用户,no
+management,管理公共账号/API 列表,POST,/api/v3/update-public-account,PublicAccountsManagementController_updatePublicAccount,修改公共账号资料,no
+management,管理公共账号/API 列表,POST,/api/v3/update-public-account-batch,PublicAccountsManagementController_updatePublicAccountBatch,批量修改公共账号资料,no
+management,管理受邀人/API 列表,GET,/api/v3/invitation-invitee/template,InvitationUserManagementController_importTemplate,获取导入名单受邀人的模板,no
+management,管理受邀人/API 列表,POST,/api/v3/batch-delete-invitation-invitees,InvitationUserManagementController_deleteInvitees,批量删除名单中的受邀人,no
+management,管理受邀人/API 列表,POST,/api/v3/create-invitation-invitee,InvitationUserManagementController_createUser,给名单添加受邀人,no
+management,管理受邀人/API 列表,POST,/api/v3/edit-invitation-invitee,InvitationUserManagementController_updateUser,从名单编辑受邀人,no
+management,管理受邀人/API 列表,POST,/api/v3/invitation-invitee/export,InvitationUserManagementController_exportUsers,导出名单内受邀人,no
+management,管理受邀人/API 列表,POST,/api/v3/invitation-invitee/import,InvitationUserManagementController_importUsers,导入名单受邀人,no
+management,管理受邀人/API 列表,POST,/api/v3/invitation-invitee/upload,InvitationUserManagementController_upload,上传导入名单受邀人的文件,no
+management,管理受邀人/API 列表,POST,/api/v3/list-invitation-invitees,InvitationUserManagementController_filterUsers,查看名单内受邀人,no
+management,管理受邀人/API 列表,POST,/api/v3/quick-filter-invitees,InvitationUserManagementController_quickFilterInviteeList,快捷查询受邀人列表,no
+management,管理同步中心/API 列表,GET,/api/v3/get-sync-job,SyncCenterManagementController_getSyncJob,获取同步作业详情,no
+management,管理同步中心/API 列表,GET,/api/v3/get-sync-task,SyncCenterManagementController_getSyncTask,获取同步任务详情,no
+management,管理同步中心/API 列表,GET,/api/v3/list-sync-job-logs,SyncCenterManagementController_listSyncJobLogs,获取同步作业详情,no
+management,管理同步中心/API 列表,GET,/api/v3/list-sync-jobs,SyncCenterManagementController_listSyncJobs,获取同步作业详情,no
+management,管理同步中心/API 列表,GET,/api/v3/list-sync-risk-operations,SyncCenterManagementController_listSyncRiskOperations,获取同步风险操作列表,no
+management,管理同步中心/API 列表,GET,/api/v3/list-sync-tasks,SyncCenterManagementController_listSyncTasks,获取同步任务列表,no
+management,管理同步中心/API 列表,POST,/api/v3/cancel-sync-risk-operation,SyncCenterManagementController_cancelSyncRiskOperation,取消同步风险操作,no
+management,管理同步中心/API 列表,POST,/api/v3/create-sync-task,SyncCenterManagementController_createSyncTask,创建同步任务,no
+management,管理同步中心/API 列表,POST,/api/v3/trigger-sync-risk-operations,SyncCenterManagementController_triggerSyncRiskOperations,执行同步风险操作,no
+management,管理同步中心/API 列表,POST,/api/v3/trigger-sync-task,SyncCenterManagementController_triggerSyncTask,执行同步任务,no
+management,管理同步中心/API 列表,POST,/api/v3/update-sync-task,SyncCenterManagementController_updateSyncTask,修改同步任务,no
+management,管理多租户/API 列表,GET,/api/v3/get-multiple-tenant-admin,TenantManagementController_getMultipleTenantAdmin,获取多租户管理员用户列表,no
+management,管理多租户/API 列表,GET,/api/v3/get-tenant-cooperator,TenantManagementController_getTenantCooperator,获取一个协调管理员,no
+management,管理多租户/API 列表,GET,/api/v3/get-tenant-cooperator-menu,TenantManagementController_getTenantCooperatorMenu,获取一个协调管理员拥有的列表,no
+management,管理多租户/API 列表,GET,/api/v3/import-tenant-history,TenantManagementController_importTenantHistory,导入租户历史,no
+management,管理多租户/API 列表,GET,/api/v3/import-tenant-notify-user,TenantManagementController_importTenantNotifyUser,导入租户通知用户列表,no
+management,管理多租户/API 列表,GET,/api/v3/list-invite-tenant-user-records,TenantManagementController_listInviteTennatUserRecords,获取可访问的租户控制台列表,no
+management,管理多租户/API 列表,GET,/api/v3/list-multiple-tenant-admins,TenantManagementController_listMultipleTenantAdmin,获取多租户管理员用户列表,no
+management,管理多租户/API 列表,GET,/api/v3/list-tenant-cooperators,TenantManagementController_listTenantCooperators,获取协作管理员用户列表,no
+management,管理多租户/API 列表,POST,/api/v3/create-multiple-tenant-admin,TenantManagementController_createMultipleTenantAdmin,创建多租户管理员用户,no
+management,管理多租户/API 列表,POST,/api/v3/create-tenant-cooperator,TenantManagementController_createTenantCooperator,创建协调管理员,no
+management,管理多租户/API 列表,POST,/api/v3/delete-multiple-tenant-admin,TenantManagementController_deleteMultipleTenantAdmin,删除多租户管理员用户,no
+management,管理多租户/API 列表,POST,/api/v3/delete-tenant-cooperator,TenantManagementController_deleteTenantCooperator,删除协调管理员,no
+management,管理多租户/API 列表,POST,/api/v3/delete-tenant-user,TenantManagementController_deleteTenantUser,批量移除租户成员,no
+management,管理多租户/API 列表,POST,/api/v3/generate-invite-tenant-user-link,TenantManagementController_generateInviteTenantUserLink,生成一个邀请租户成员的链接,no
+management,管理多租户/API 列表,POST,/api/v3/import-tenant,TenantManagementController_importTenant,导入租户,no
+management,管理多租户/API 列表,POST,/api/v3/send-email-batch,TenantManagementController_sendEmailBatch,导入租户通知邮箱用户,no
+management,管理多租户/API 列表,POST,/api/v3/send-sms-batch,TenantManagementController_sendSmsBatch,导入租户短信通知用户,no
+management,管理多租户/API 列表,POST,/api/v3/update-multiple-tenant-admin,TenantManagementController_updateMultipleTenantAdmin,更新多租户管理员用户,no
+management,管理多租户/API 列表,POST,/api/v3/update-tenant-cooperator,TenantManagementController_updateTenantCooperator,更新协调管理员,no
+management,"管理多租户/API 列表,管理租户/API 列表",GET,/api/v3/get-tenant,TenantManagementController_getTenant,获取租户详情,no
+management,"管理多租户/API 列表,管理租户/API 列表",GET,/api/v3/get-tenant-by-code,TenantManagementController_getTenantByCode,获取租户详情,no
+management,"管理多租户/API 列表,管理租户/API 列表",GET,/api/v3/get-tenant-enterprise-certification,TenantManagementController_getTenantEnterpriseCertification,获取租户企业认证信息,no
+management,"管理多租户/API 列表,管理租户/API 列表",GET,/api/v3/get-tenant-little-info,TenantManagementController_getTenantLittleInfo,获取租户一点点的信息,no
+management,"管理多租户/API 列表,管理租户/API 列表",GET,/api/v3/list-tenants,TenantManagementController_listTenants,获取/搜索租户列表,no
+management,"管理多租户/API 列表,管理租户/API 列表",POST,/api/v3/create-tenant,TenantManagementController_createTenant,创建租户,no
+management,"管理多租户/API 列表,管理租户/API 列表",POST,/api/v3/create-tenant-enterprise-certification,TenantManagementController_createTenantEnterpriseCertification,创建租户企业认证,no
+management,"管理多租户/API 列表,管理租户/API 列表",POST,/api/v3/delete-tenant,TenantManagementController_deleteTenant,删除租户,no
+management,"管理多租户/API 列表,管理租户/API 列表",POST,/api/v3/delete-tenant-admin,TenantManagementController_deleteTenantAdmin,取消设置租户管理员,no
+management,"管理多租户/API 列表,管理租户/API 列表",POST,/api/v3/list-tenant-admin,TenantManagementController_listTenantAdmin,获取租户管理员列表,no
+management,"管理多租户/API 列表,管理租户/API 列表",POST,/api/v3/review-tenant-enterprise-certification,TenantManagementController_reviewTenantEnterpriseCertification,审核户企业认证,no
+management,"管理多租户/API 列表,管理租户/API 列表",POST,/api/v3/set-tenant-admin,TenantManagementController_setTenantAdmin,设置租户管理员,no
+management,"管理多租户/API 列表,管理租户/API 列表",POST,/api/v3/update-tenant,TenantManagementController_updateTenant,更新租户数据,no
+management,"管理多租户/API 列表,管理租户/API 列表",POST,/api/v3/update-tenant-enterprise-certification,TenantManagementController_updateTenantEnterpriseCertification,修改租户企业认证,no
+management,管理安全配置/API 列表,GET,/api/v3/get-global-mfa-settings,SecurityAPIV3Controller_getGlobalMfaSettings,获取全局多因素认证配置,no
+management,管理安全配置/API 列表,GET,/api/v3/get-security-settings,SecurityAPIV3Controller_getSecuritySettings,获取安全配置,no
+management,管理安全配置/API 列表,POST,/api/v3/disable-global-mfa-settings,SecurityAPIV3Controller_closeGlobalMfaSettings,关闭全局多因素认证配置,no
+management,管理安全配置/API 列表,POST,/api/v3/update-global-mfa-settings,SecurityAPIV3Controller_updateGlobalMfaSettings,修改全局多因素认证配置,no
+management,管理安全配置/API 列表,POST,/api/v3/update-security-settings,SecurityAPIV3Controller_updateSecuritySettings,修改安全配置,no
+management,管理审批中心/API 列表,GET,/api/v3/approval,ApprovalApiV3Controller_getDetail,获取审批详情,no
+management,管理审批中心/API 列表,GET,/api/v3/approval-closed-list,ApprovalApiV3Controller_closedList,获取已办审批列表,no
+management,管理审批中心/API 列表,GET,/api/v3/approval-log-list,ApprovalApiV3Controller_logList,获取审批日志列表,no
+management,管理审批中心/API 列表,GET,/api/v3/approval-pending-list,ApprovalApiV3Controller_pendList,获取代办审批列表,no
+management,管理审批中心/API 列表,PUT,/api/v3/approval-batch-process,ApprovalApiV3Controller_batchProcessApproval,批量处理审批,no
+management,管理审批中心/API 列表,PUT,/api/v3/approval-process,ApprovalApiV3Controller_processApproval,处理单个审批,no
+management,管理审计日志/API 列表,POST,/api/v3/get-admin-audit-logs,AuditLogsController_getAdminAuditLogs,获取管理员操作日志,no
+management,管理审计日志/API 列表,POST,/api/v3/get-user-action-logs,UserActionLogsController_getUserActionLogs,获取用户行为日志,no
+management,管理岗位/API 列表,GET,/api/v3/get-post,PostManageManagementController_getPost,获取岗位,yes
+management,管理岗位/API 列表,GET,/api/v3/get-user-post,PostManageManagementController_getUserPost,获取用户关联岗位,no
+management,管理岗位/API 列表,GET,/api/v3/get-user-posts,PostManageManagementController_getUserPosts,获取用户关联岗位,no
+management,管理岗位/API 列表,GET,/api/v3/list-post,PostManageManagementController_postList,岗位列表,no
+management,管理岗位/API 列表,POST,/api/v3/create-post,PostManageManagementController_createPost,创建岗位,yes
+management,管理岗位/API 列表,POST,/api/v3/get-post-by-id,PostManageManagementController_getPostById,获取岗位信息,no
+management,管理岗位/API 列表,POST,/api/v3/list-post,PostManageManagementController_postListBatch,岗位列表,no
+management,管理岗位/API 列表,POST,/api/v3/remove-post,PostManageManagementController_removePost,删除岗位,yes
+management,管理岗位/API 列表,POST,/api/v3/set-user-posts,PostManageManagementController_setUserPosts,用户设置岗位,no
+management,管理岗位/API 列表,POST,/api/v3/update-post,PostManageManagementController_updatePost,更新岗位信息,yes
+management,管理岗位/API 列表,POST,/api/v3/user-connection-post,PostManageManagementController_userConnectionPost,用户关联岗位,no
+management,管理应用/API 列表,DELETE,/api/v3/batch-applications-auth,ApplicationsManagementController_deleteAuth,批量删除应用授权,no
+management,管理应用/API 列表,GET,/api/v3/get-application-permission-strategy,ApplicationsManagementController_getApplicationPermissionStrategy,获取应用默认访问授权策略,no
+management,管理应用/API 列表,GET,/api/v3/get-application-secret,ApplicationsManagementController_getApplicationSecret,获取应用密钥,no
+management,管理应用/API 列表,GET,/api/v3/get-asa-account,AsaAccountManagementController_getAsaAccount,获取 ASA 账号,no
+management,管理应用/API 列表,GET,/api/v3/get-asa-account-assigned-targets,AsaAccountManagementController_getAsaAccountAssignedTargets,获取 ASA 账号分配的主体列表,no
+management,管理应用/API 列表,GET,/api/v3/get-assigned-account,AsaAccountManagementController_getAssignedAccount,获取主体被分配的 ASA 账号,no
+management,管理应用/API 列表,GET,/api/v3/get-auth-flow-config,AuthFlowManagementController_findFlowByAppId,获取指定编排配置,no
+management,管理应用/API 列表,GET,/api/v3/get-auth-flow-config-by-app-id,AuthFlowManagementController_findManyByAppId,获取应用编排配置列表,no
+management,管理应用/API 列表,GET,/api/v3/get-current-auth-flow-config,AuthFlowManagementController_findCurrentFlowByAppId,获取当前编排配置,no
+management,管理应用/API 列表,GET,/api/v3/get-mfa-trigger-data,ApplicationsManagementController_getMfaTriggerData,获取应用下用户 MFA 触发数据,no
+management,管理应用/API 列表,GET,/api/v3/get-subject-auth-detail,ApplicationsManagementController_detailAuthSubject,主体授权详情,yes
+management,管理应用/API 列表,GET,/api/v3/list-application-simple-info,ApplicationsManagementController_listApplicationSimpleInfo,获取应用简单信息列表,no
+management,管理应用/API 列表,GET,/api/v3/list-applications,ApplicationsManagementController_listApplications,获取应用列表,no
+management,管理应用/API 列表,GET,/api/v3/list-asa-accounts,AsaAccountManagementController_listAsaAccount,获取 ASA 账号列表,no
+management,管理应用/API 列表,GET,/api/v3/list-programmatic-access-accounts,ProgrammaticAccessAccountManagementController_paginationProgrammaticAccessAccounts,获取编程访问账号列表,no
+management,管理应用/API 列表,GET,/api/v3/userpool-tenant-config,ApplicationsManagementController_userpollTenantConfig,获取用户池租户配置信息,no
+management,管理应用/API 列表,POST,/api/v3/assign-asa-account,AsaAccountManagementController_assignAsaAccount,分配 ASA 账号,no
+management,管理应用/API 列表,POST,/api/v3/change-userpool-tenant-ext-idp-conn-state,ApplicationsManagementController_changeUserpoolTenanExtIdpConnState,设置用户池多租户身份源连接,no
+management,管理应用/API 列表,POST,/api/v3/check-domain-available,ApplicationsManagementController_checkDomainAvailable,检测域名是否可用,no
+management,管理应用/API 列表,POST,/api/v3/copy-auth-flow-config,AuthFlowManagementController_copyAuthFlowConfig,复制编排配置,no
+management,管理应用/API 列表,POST,/api/v3/create-application,ApplicationsManagementController_createApplication,创建应用,yes
+management,管理应用/API 列表,POST,/api/v3/create-asa-account,AsaAccountManagementController_createAsaAccount,创建 ASA 账号,no
+management,管理应用/API 列表,POST,/api/v3/create-asa-accounts-batch,AsaAccountManagementController_createAsaAccountBatch,批量创建 ASA 账号,no
+management,管理应用/API 列表,POST,/api/v3/create-auth-flow-app-config,ApplicationsManagementController_createAuthFlowAppConfig,创建应用认证配置,no
+management,管理应用/API 列表,POST,/api/v3/create-programmatic-access-account,ProgrammaticAccessAccountManagementController_createProgrammaticAccessAccount,创建编程访问账号,no
+management,管理应用/API 列表,POST,/api/v3/delete-application,ApplicationsManagementController_deleteApplication,删除应用,yes
+management,管理应用/API 列表,POST,/api/v3/delete-asa-account,AsaAccountManagementController_deleteAsaAccount,删除 ASA 账号,no
+management,管理应用/API 列表,POST,/api/v3/delete-asa-accounts-batch,AsaAccountManagementController_deleteAsaAccountBatch,批量删除 ASA 账号,no
+management,管理应用/API 列表,POST,/api/v3/delete-auth-flow-config,AuthFlowManagementController_deleteAuthFlow,删除编排配置,no
+management,管理应用/API 列表,POST,/api/v3/delete-programmatic-access-account,ProgrammaticAccessAccountManagementController_deleteProgrammaticAccessAccounts,删除编程访问账号,no
+management,管理应用/API 列表,POST,/api/v3/disable-programmatic-access-account,ProgrammaticAccessAccountManagementController_disableProgrammaticAccessAccount,禁用编程访问账号,no
+management,管理应用/API 列表,POST,/api/v3/disabled-auth-flow-app,ApplicationsManagementController_disabledAuthFlowAppConfig,关闭编排,no
+management,管理应用/API 列表,POST,/api/v3/enable-programmatic-access-account,ProgrammaticAccessAccountManagementController_enabledProgrammaticAccessAccount,启用编程访问账号,no
+management,管理应用/API 列表,POST,/api/v3/enabled-auth-flow-app,ApplicationsManagementController_enabledAuthFlowAppConfig,开启编排,no
+management,管理应用/API 列表,POST,/api/v3/get-application-access-control-user-list,ApplicationsManagementController_getApplicationAccessControlUserList,获取应用访问控制用户列表,no
+management,管理应用/API 列表,POST,/api/v3/get-asa-accounts-batch,AsaAccountManagementController_getAsaAccountBatch,批量获取 ASA 账号,no
+management,管理应用/API 列表,POST,/api/v3/list-application-active-users,ApplicationsManagementController_listApplicationActiveUsers,获取应用当前登录用户,no
+management,管理应用/API 列表,POST,/api/v3/list-applications-auth,ApplicationsManagementController_listAuthApplication,应用授权列表,no
+management,管理应用/API 列表,POST,/api/v3/list-subject-auth,ApplicationsManagementController_listAuthSubject,主体授权列表,no
+management,管理应用/API 列表,POST,/api/v3/refresh-application-secret,ApplicationsManagementController_refreshApplicationSecret,刷新应用密钥,no
+management,管理应用/API 列表,POST,/api/v3/refresh-programmatic-access-account-secret,ProgrammaticAccessAccountManagementController_resetSecret,刷新编程访问账号密钥,no
+management,管理应用/API 列表,POST,/api/v3/save-auth-flow-config,AuthFlowManagementController_saveAuthFlowConfig,创建编排配置,no
+management,管理应用/API 列表,POST,/api/v3/switch-auth-flow-config,AuthFlowManagementController_switchAuthFlow,切换编排配置,no
+management,管理应用/API 列表,POST,/api/v3/unassign-asa-account,AsaAccountManagementController_unassignAsaAccount,取消分配 ASA 账号,no
+management,管理应用/API 列表,POST,/api/v3/update-application,ApplicationsManagementController_updateApplication,更新应用,yes
+management,管理应用/API 列表,POST,/api/v3/update-application-mfa-settings,ApplicationsManagementController_updateApplicationMfaSettings,修改应用多因素认证配置,no
+management,管理应用/API 列表,POST,/api/v3/update-application-permission-strategy,ApplicationsManagementController_updateApplicationPermissionStrategy,更新应用默认访问授权策略,no
+management,管理应用/API 列表,POST,/api/v3/update-asa-account,AsaAccountManagementController_updateAsaAccount,更新 ASA 账号,no
+management,管理应用/API 列表,POST,/api/v3/update-auth-enabled,ApplicationsManagementController_enabledAuth,更新授权开关,no
+management,管理应用/API 列表,POST,/api/v3/update-auth-flow-config,AuthFlowManagementController_updateAuthFlow,更新编排配置,no
+management,管理应用/API 列表,POST,/api/v3/update-login-page-config,ApplicationsManagementController_updateLoginPageConfig,更新应用登录页配置,no
+management,管理应用/API 列表,POST,/api/v3/update-userpool-tenant-appqrcode-state,ApplicationsManagementController_updateTenantQRCodeState,更新租户控制台扫码登录状态,no
+management,管理应用/API 列表,POST,/api/v3/update-userpool-tenant-config,ApplicationsManagementController_updateUserPoolTenantConfig,更新用户池租户配置信息,no
+management,"管理应用/API 列表,管理租户应用/API 列表",GET,/api/v3/get-application,ApplicationsManagementController_getApplication,获取应用详情,yes
+management,"管理应用/API 列表,管理租户应用/API 列表",GET,/api/v3/get-application-simple-info,ApplicationsManagementController_getApplicationSimpleInfo,获取应用简单信息,no
+management,"管理应用/API 列表,管理租户应用/API 列表",GET,/api/v3/list-tenant-applications,ApplicationsManagementController_listTenantApplications,获取租户应用列表,no
+management,"管理应用/API 列表,管理租户应用/API 列表",POST,/api/v3/authorize-application-access,ApplicationsManagementController_authorizeApplicationAccess,授权应用访问权限,no
+management,"管理应用/API 列表,管理租户应用/API 列表",POST,/api/v3/revoke-application-access,ApplicationsManagementController_revokeApplicationAccess,删除应用访问授权记录,no
+management,管理数据对象/API 列表,GET,/api/v3/metadata/all-operate,MetaDataController_listOperateAll,全部操作管理列表,no
+management,管理数据对象/API 列表,GET,/api/v3/metadata/get-import-template,MetaDataController_getImportTemplate,获取导入模板,no
+management,管理数据对象/API 列表,GET,/api/v3/metadata/get-model,MetaDataController_getModel,获取数据对象详情,yes
+management,管理数据对象/API 列表,GET,/api/v3/metadata/get-row,MetaDataController_getRow,获取数据对象行信息,no
+management,管理数据对象/API 列表,GET,/api/v3/metadata/get-row-by-value,MetaDataController_getRowByValue,根据属性值获取数据对象行信息,no
+management,管理数据对象/API 列表,GET,/api/v3/metadata/get-row-relation,MetaDataController_getRelationValue,获取行关联数据,no
+management,管理数据对象/API 列表,GET,/api/v3/metadata/get-row-relation-details,MetaDataController_getRelationDetails,获取行关联数据,no
+management,管理数据对象/API 列表,GET,/api/v3/metadata/list-field,MetaDataController_listField,获取数据对象字段列表,yes
+management,管理数据对象/API 列表,GET,/api/v3/metadata/list-model,MetaDataController_listModel,获取数据对象列表,no
+management,管理数据对象/API 列表,GET,/api/v3/metadata/list-operate,MetaDataController_listOperate,操作管理列表(分页),no
+management,管理数据对象/API 列表,POST,/api/v3/metadata/copy-operate,MetaDataController_copyOperate,复制自定义操作,no
+management,管理数据对象/API 列表,POST,/api/v3/metadata/copy-row-relation,MetaDataController_copyRowRelation,复制行关联关系,no
+management,管理数据对象/API 列表,POST,/api/v3/metadata/create-field,MetaDataController_createField,创建数据对象的字段,yes
+management,管理数据对象/API 列表,POST,/api/v3/metadata/create-model,MetaDataController_createModel,创建数据对象,yes
+management,管理数据对象/API 列表,POST,/api/v3/metadata/create-operate,MetaDataController_createOperate,创建自定义操作,no
+management,管理数据对象/API 列表,POST,/api/v3/metadata/create-row,MetaDataController_createRow,添加行,no
+management,管理数据对象/API 列表,POST,/api/v3/metadata/create-row-relation,MetaDataController_createRowRelation,创建行关联数据,no
+management,管理数据对象/API 列表,POST,/api/v3/metadata/create-row-relation-rows,MetaDataController_createRowRelationRows,创建 一条行数据关联到不同的行数据,no
+management,管理数据对象/API 列表,POST,/api/v3/metadata/execute-operate,MetaDataController_executeOperate,执行自定义操作,no
+management,管理数据对象/API 列表,POST,/api/v3/metadata/export,MetaDataController_exportMetadata,导出全部数据,no
+management,管理数据对象/API 列表,POST,/api/v3/metadata/export/model,MetaDataController_exportModel,导出数据对象,no
+management,管理数据对象/API 列表,POST,/api/v3/metadata/filter,MetaDataController_listRow,数据对象高级搜索,no
+management,管理数据对象/API 列表,POST,/api/v3/metadata/get-all-metadata,MetaDataController_getAllMetadata,获取全部数据对象数据,no
+management,管理数据对象/API 列表,POST,/api/v3/metadata/get-all-row-by-scrollid,MetaDataController_getAllMetadataRow,获取全部元数据行信息,no
+management,管理数据对象/API 列表,POST,/api/v3/metadata/get-relation-info,MetaDataController_getRelationInfo,获取关联数据详情,no
+management,管理数据对象/API 列表,POST,/api/v3/metadata/group,MetaDataController_getMetadataGroupList,获取元数据关联群组信息,no
+management,管理数据对象/API 列表,POST,/api/v3/metadata/import,MetaDataController_importMetadata,导入数据,no
+management,管理数据对象/API 列表,POST,/api/v3/metadata/import/model,MetaDataController_importModel,导入数据对象,no
+management,管理数据对象/API 列表,POST,/api/v3/metadata/relation-search,MetaDataController_relationSearch,关联关系模糊查询,no
+management,管理数据对象/API 列表,POST,/api/v3/metadata/remove-field,MetaDataController_remoteField,删除数据对象的字段,yes
+management,管理数据对象/API 列表,POST,/api/v3/metadata/remove-model,MetaDataController_removeModel,删除数据对象,yes
+management,管理数据对象/API 列表,POST,/api/v3/metadata/remove-operate,MetaDataController_removeOperate,移除自定义操作,no
+management,管理数据对象/API 列表,POST,/api/v3/metadata/remove-row,MetaDataController_removeRow,删除行,no
+management,管理数据对象/API 列表,POST,/api/v3/metadata/remove-row-relation,MetaDataController_removeRelationValue,删除行关联数据,no
+management,管理数据对象/API 列表,POST,/api/v3/metadata/remove-row-relation-rows,MetaDataController_removeRelationValueRows,移除 当前行的多个关联关系,no
+management,管理数据对象/API 列表,POST,/api/v3/metadata/update-field,MetaDataController_updateField,更新数据对象的字段,no
+management,管理数据对象/API 列表,POST,/api/v3/metadata/update-model,MetaDataController_updateModel,更新数据对象,yes
+management,管理数据对象/API 列表,POST,/api/v3/metadata/update-operate,MetaDataController_updateOperate,更新操作管理,no
+management,管理数据对象/API 列表,POST,/api/v3/metadata/update-row,MetaDataController_updateRow,更新行,no
+management,管理数据对象/API 列表,POST,/get-row-batch,MetaDataController_getRowBatch,批量获取行信息,no
+management,管理数据资源与权限/API 列表,GET,/api/v3/check-data-policy-exists,DataResourcesPolicyManagementController_checkDataPolicyExists,检查数据策略名称是否可用,no
+management,管理数据资源与权限/API 列表,GET,/api/v3/check-data-resource-exists,DataResourcesManagementController_checkDataResourceExists,检查数据资源 Code 或者名称是否可用,no
+management,管理数据资源与权限/API 列表,GET,/api/v3/get-data-policy,DataResourcesPolicyManagementController_getDataPolicy,获取数据策略详情,yes
+management,管理数据资源与权限/API 列表,GET,/api/v3/get-data-resource,DataResourcesManagementController_getDataResource,获取数据资源详情,yes
+management,管理数据资源与权限/API 列表,GET,/api/v3/get-permission-namespace,PermissionNamespaceManagementController_getPermissionNamespace,获取权限空间详情,yes
+management,管理数据资源与权限/API 列表,GET,/api/v3/get-permission-namespaces-batch,PermissionNamespaceManagementController_getPermissionNamespacesBatch,批量获取权限空间详情列表,no
+management,管理数据资源与权限/API 列表,GET,/api/v3/list-data-policies,DataResourcesPolicyManagementController_listDataPolices,获取数据策略列表,no
+management,管理数据资源与权限/API 列表,GET,/api/v3/list-data-policy-targets,DataResourcesPolicyManagementController_listDataPolicyTargets,获取数据策略授权的主体列表,yes
+management,管理数据资源与权限/API 列表,GET,/api/v3/list-data-resources,DataResourcesManagementController_listDataResources,获取数据资源列表,no
+management,管理数据资源与权限/API 列表,GET,/api/v3/list-dnef,DataResourcesManagementController_listDnef,获取树类型资源的扩展字段列表,no
+management,管理数据资源与权限/API 列表,GET,/api/v3/list-permission-namespace-roles,PermissionNamespaceManagementController_ListPermissionNamespaceRoles,分页查询权限空间下所有的角色列表,no
+management,管理数据资源与权限/API 列表,GET,/api/v3/list-permission-namespaces,PermissionNamespaceManagementController_ListPermissionNamespaces,分页获取权限空间列表,no
+management,管理数据资源与权限/API 列表,GET,/api/v3/list-simple-data-policies,DataResourcesPolicyManagementController_listSimpleDataPolices,获取数据策略简略信息列表,no
+management,管理数据资源与权限/API 列表,POST,/api/v3/authorize-data-policies,DataResourcesPolicyManagementController_authorizeDataPolicies,授权数据策略,yes
+management,管理数据资源与权限/API 列表,POST,/api/v3/batch-create-dnef,DataResourcesManagementController_batchCreateDnef,批量创建树类型资源的扩展字段,no
+management,管理数据资源与权限/API 列表,POST,/api/v3/check-external-user-permission,DataAuthenticationManagementController_checkExternalUserPermission,判断外部用户权限,no
+management,管理数据资源与权限/API 列表,POST,/api/v3/check-m2m-permission,DataAuthenticationManagementController_checkM2mPermission,判断 m2m 权限,no
+management,管理数据资源与权限/API 列表,POST,/api/v3/check-m2m-same-level-permission,DataAuthenticationManagementController_checkM2mSameLevelPermission,判断 m2m 在树资源同层级下的权限（推荐）,no
+management,管理数据资源与权限/API 列表,POST,/api/v3/check-permission,DataAuthenticationManagementController_checkPermission,判断用户权限（重点）,no
+management,管理数据资源与权限/API 列表,POST,/api/v3/check-permission-namespace-exists,PermissionNamespaceManagementController_checkPermissionNamespaceExists,校验权限空间 Code 或者名称是否可用,no
+management,管理数据资源与权限/API 列表,POST,/api/v3/check-user-same-level-permission,DataAuthenticationManagementController_checkUserSameLevelPermission,判断用户在树资源同层级下的权限（推荐）,no
+management,管理数据资源与权限/API 列表,POST,/api/v3/create-array-data-resource,DataResourcesManagementController_createDataResourceByArray,创建数组数据资源,no
+management,管理数据资源与权限/API 列表,POST,/api/v3/create-data-policy,DataResourcesPolicyManagementController_createDataPolicy,创建数据策略（重点）,yes
+management,管理数据资源与权限/API 列表,POST,/api/v3/create-data-resource,DataResourcesManagementController_createDataResource,创建数据资源（推荐、重点）,yes
+management,管理数据资源与权限/API 列表,POST,/api/v3/create-dnef,DataResourcesManagementController_createDnef,创建树类型资源的扩展字段,no
+management,管理数据资源与权限/API 列表,POST,/api/v3/create-permission-namespace,PermissionNamespaceManagementController_createPermissionNamespace,创建权限空间,yes
+management,管理数据资源与权限/API 列表,POST,/api/v3/create-permission-namespaces-batch,PermissionNamespaceManagementController_createPermissionNamespacesBatch,批量创建权限空间,no
+management,管理数据资源与权限/API 列表,POST,/api/v3/create-string-data-resource,DataResourcesManagementController_createDataResourceByString,创建字符串数据资源,no
+management,管理数据资源与权限/API 列表,POST,/api/v3/create-tree-data-resource,DataResourcesManagementController_createDataResourceByTree,创建树数据资源,no
+management,管理数据资源与权限/API 列表,POST,/api/v3/delete-data-policy,DataResourcesPolicyManagementController_deleteDataPolicy,删除数据策略,yes
+management,管理数据资源与权限/API 列表,POST,/api/v3/delete-data-resource,DataResourcesManagementController_deleteDataResource,删除数据资源,yes
+management,管理数据资源与权限/API 列表,POST,/api/v3/delete-dnef,DataResourcesManagementController_deleteDnef,删除树类型资源的扩展字段,no
+management,管理数据资源与权限/API 列表,POST,/api/v3/delete-permission-namespace,PermissionNamespaceManagementController_deletePermissionNamespace,删除权限空间,yes
+management,管理数据资源与权限/API 列表,POST,/api/v3/delete-permission-namespaces-batch,PermissionNamespaceManagementController_deletePermissionNamespacesBatch,批量删除权限空间,no
+management,管理数据资源与权限/API 列表,POST,/api/v3/get-external-user-resource-struct,DataAuthenticationManagementController_getExternalUserResourceStruct,获取外部用户拥有指定资源的权限及资源结构信息,no
+management,管理数据资源与权限/API 列表,POST,/api/v3/get-m2m-permission-list,DataAuthenticationManagementController_getM2mPermissionList,获取 m2m 权限列表,no
+management,管理数据资源与权限/API 列表,POST,/api/v3/get-m2m-resource-permission-list,DataAuthenticationManagementController_getM2mResourcePermissionList,获取m2m拥有某些资源的权限列表（推荐）,no
+management,管理数据资源与权限/API 列表,POST,/api/v3/get-m2m-resource-struct,DataAuthenticationManagementController_getM2mResourceStruct,获取m2m拥有指定资源的权限及资源结构信息,no
+management,管理数据资源与权限/API 列表,POST,/api/v3/get-user-permission-list,DataAuthenticationManagementController_getUserPermissionList,获取用户权限列表,no
+management,管理数据资源与权限/API 列表,POST,/api/v3/get-user-resource-permission-list,DataAuthenticationManagementController_getUserResourcePermissionList,获取用户拥有某些资源的权限列表（推荐）,no
+management,管理数据资源与权限/API 列表,POST,/api/v3/get-user-resource-struct,DataAuthenticationManagementController_getUserResourceStruct,获取用户拥有指定资源的权限及资源结构信息,no
+management,管理数据资源与权限/API 列表,POST,/api/v3/list-permission-view/data,DataPermissionViewManagementController_listPermissionView,获取权限视图数据列表,no
+management,管理数据资源与权限/API 列表,POST,/api/v3/list-resource-targets,DataAuthenticationManagementController_listResourceTargets,获取拥有某些资源权限的用户列表,no
+management,管理数据资源与权限/API 列表,POST,/api/v3/revoke-data-policy,DataResourcesPolicyManagementController_revokeDataPolicy,删除数据策略授权,yes
+management,管理数据资源与权限/API 列表,POST,/api/v3/update-data-policy,DataResourcesPolicyManagementController_updateDataPolicy,修改数据策略,yes
+management,管理数据资源与权限/API 列表,POST,/api/v3/update-data-resource,DataResourcesManagementController_updateDataResource,修改数据资源,yes
+management,管理数据资源与权限/API 列表,POST,/api/v3/update-dnef,DataResourcesManagementController_updateDnef,更新树类型资源的扩展字段,no
+management,管理数据资源与权限/API 列表,POST,/api/v3/update-permission-namespace,PermissionNamespaceManagementController_updatePermissionNamespace,修改权限空间,yes
+management,管理注册白名单/API 列表,GET,/api/v3/list-whitelist,WhitelistManagementController_listWhitelists,获取注册白名单列表,no
+management,管理注册白名单/API 列表,GET,/api/v3/list-whitelist-of-app,WhitelistManagementController_listWhitelistsOfApp,获取应用注册白名单列表,no
+management,管理注册白名单/API 列表,POST,/api/v3/add-whitelist,WhitelistManagementController_addWhitelist,创建注册白名单,no
+management,管理注册白名单/API 列表,POST,/api/v3/add-whitelist-of-app,WhitelistManagementController_addWhitelistOfApp,创建应用注册白名单,no
+management,管理注册白名单/API 列表,POST,/api/v3/delete-whitelist,WhitelistManagementController_deleteWhitelist,删除注册白名单,no
+management,管理注册白名单/API 列表,POST,/api/v3/delete-whitelist-of-app,WhitelistManagementController_deleteWhitelistOfApp,删除应用注册白名单,no
+management,管理消息服务/API 列表,GET,/api/v3/get-email-provider,MessageManagementController_getEmailProvider,获取第三方邮件服务配置,no
+management,管理消息服务/API 列表,GET,/api/v3/get-email-templates,MessageManagementController_getEmailTemplates,获取邮件模版列表,no
+management,管理消息服务/API 列表,POST,/api/v3/config-email-provider,MessageManagementController_configEmailProvider,配置第三方邮件服务,no
+management,管理消息服务/API 列表,POST,/api/v3/preview-email-template,MessageManagementController_previewEmailTemplate,预览邮件模版,no
+management,管理消息服务/API 列表,POST,/api/v3/update-email-template,MessageManagementController_updateEmailTemplate,修改邮件模版,no
+management,管理用户/API 列表,GET,/api/v3/get-mfa-status,UsersManagementController_getUserMfaStatus,获取用户 MFA 状态,no
+management,管理用户/API 列表,GET,/api/v3/get-otp-secret-by-user,UsersManagementController_getOtpSecretByUser,获取用户绑定 OTP 的秘钥,no
+management,管理用户/API 列表,GET,/api/v3/get-user,UsersManagementController_getUser,获取用户信息,yes
+management,管理用户/API 列表,GET,/api/v3/get-user-accessible-apps,UsersManagementController_getUserAccessibleApps,获取用户可访问的应用,no
+management,管理用户/API 列表,GET,/api/v3/get-user-authorized-apps,UsersManagementController_getUserAuthorizedApps,获取用户授权的应用,no
+management,管理用户/API 列表,GET,/api/v3/get-user-authorized-resources,UsersManagementController_getUserAuthorizedResources,获取用户被授权的所有资源,no
+management,管理用户/API 列表,GET,/api/v3/get-user-batch,UsersManagementController_getUserBatch,批量获取用户信息,no
+management,管理用户/API 列表,GET,/api/v3/get-user-departments,UsersManagementController_getUserDepartments,获取用户部门列表,no
+management,管理用户/API 列表,GET,/api/v3/get-user-groups,UsersManagementController_getUserGroups,获取用户分组列表,yes
+management,管理用户/API 列表,GET,/api/v3/get-user-identities,UsersManagementController_getUserIdentities,获取用户的外部身份源,no
+management,管理用户/API 列表,GET,/api/v3/get-user-logged-in-identities,UsersManagementController_getUserLoggedinIdentities,获取用户曾经登录过的身份源,no
+management,管理用户/API 列表,GET,/api/v3/get-user-loggedin-apps,UsersManagementController_getUserLoggedinApps,获取用户曾经登录过的应用,no
+management,管理用户/API 列表,GET,/api/v3/get-user-login-history,UsersManagementController_getUserLoginHistory,获取用户的登录历史记录,no
+management,管理用户/API 列表,GET,/api/v3/get-user-mfa-info,UsersManagementController_getUserMfaInfo,获取用户 MFA 绑定信息,no
+management,管理用户/API 列表,GET,/api/v3/get-user-principal-authentication-info,UsersManagementController_getUserPrincipalAuthenticationInfo,获取用户实名认证信息,no
+management,管理用户/API 列表,GET,/api/v3/get-user-roles,UsersManagementController_getUserRoles,获取用户角色列表,no
+management,管理用户/API 列表,GET,/api/v3/get-user-sync-relations,UsersManagementController_getUserSyncRelations,获取用户绑定的第三方同步关系,no
+management,管理用户/API 列表,GET,/api/v3/list-archived-users,UsersManagementController_listArchivedUsers,获取已归档的用户列表,no
+management,管理用户/API 列表,GET,/api/v3/list-users,UsersManagementController_listUsersLegacy,获取用户列表,yes
+management,管理用户/API 列表,POST,/api/v3/batch-get-user-encrypt-password,UsersManagementController_getUserEncryptPasswordBatch,批量获取用户密码密文,no
+management,管理用户/API 列表,POST,/api/v3/check-session-status,UsersManagementController_checkSessionStatus,检查某个用户在应用下是否具备 Session 登录态,no
+management,管理用户/API 列表,POST,/api/v3/create-user,UsersManagementController_createUser,创建用户,yes
+management,管理用户/API 列表,POST,/api/v3/create-users-batch,UsersManagementController_createUsersBatch,批量创建用户,no
+management,管理用户/API 列表,POST,/api/v3/delete-user-sync-relations,UsersManagementController_deleteUserSyncRelations,删除用户同步关联关系,no
+management,管理用户/API 列表,POST,/api/v3/delete-users-batch,UsersManagementController_deleteUsersBatch,批量删除用户,yes
+management,管理用户/API 列表,POST,/api/v3/get-user-password-ciphertext,UsersManagementController_getUserPasswordCiphertext,获取用户自定义加密的密码,no
+management,管理用户/API 列表,POST,/api/v3/has-any-role,UsersManagementController_hasAnyRole,判断用户是否有某个角色,no
+management,管理用户/API 列表,POST,/api/v3/import-otp,UsersManagementController_importOtp,导入用户的 OTP,no
+management,管理用户/API 列表,POST,/api/v3/is-user-exists,UsersManagementController_isUserExists,判断用户是否存在,no
+management,管理用户/API 列表,POST,/api/v3/kick-users,UsersManagementController_kickUsers,强制下线用户,no
+management,管理用户/API 列表,POST,/api/v3/link-identity,UsersManagementController_linkIdentity,给用户绑定一个身份信息,no
+management,管理用户/API 列表,POST,/api/v3/list-users,UsersManagementController_listUsers,获取/搜索用户列表,yes
+management,管理用户/API 列表,POST,/api/v3/list-users-by-keywords,UsersManagementController_listUsersByKeywords,,no
+management,管理用户/API 列表,POST,/api/v3/list-users-by-scroll,UsersManagementController_listUsersByScrollId,通过 es scrollId 获取/搜索用户列表,no
+management,管理用户/API 列表,POST,/api/v3/mfa-totp-verify-by-user,UsersManagementController_mfaOtpVerifyByUser,校验用户 MFA 绑定的 OTP,no
+management,管理用户/API 列表,POST,/api/v3/reset-user-principal-authentication-info,UsersManagementController_resetUserPrincipalAuthenticationInfo,删除用户实名认证信息,no
+management,管理用户/API 列表,POST,/api/v3/resign-user,UsersManagementController_resignUser,离职用户,no
+management,管理用户/API 列表,POST,/api/v3/resign-user-batch,UsersManagementController_resignUserBatch,批量离职用户,no
+management,管理用户/API 列表,POST,/api/v3/send-user-reset-password-email-link,UsersManagementController_sendUserResetPasswordEmailLink,发送用户忘记密码邮箱链接,no
+management,管理用户/API 列表,POST,/api/v3/send-user-reset-password-request,UsersManagementController_sendUserResetPasswordRequest,根据用户信息发送重置密码请求,no
+management,管理用户/API 列表,POST,/api/v3/set-mfa-status,UsersManagementController_setUsersMfaStatus,设置用户 MFA 状态,no
+management,管理用户/API 列表,POST,/api/v3/set-user-departments,UsersManagementController_setUserDepartments,设置用户所在部门,no
+management,管理用户/API 列表,POST,/api/v3/set-user-mfa-bind-sms-email,UsersManagementController_setUserMfaBindSmsEmail,设置用户 MFA 绑定手机号或者邮箱,no
+management,管理用户/API 列表,POST,/api/v3/unlink-identity,UsersManagementController_unlinkIdentity,解除绑定用户在身份源下的所有身份信息,no
+management,管理用户/API 列表,POST,/api/v3/update-user,UsersManagementController_updateUser,修改用户资料,yes
+management,管理用户/API 列表,POST,/api/v3/update-user-batch,UsersManagementController_updateUserBatch,批量修改用户资料,no
+management,管理用户/API 列表,POST,/api/v3/users/field/decrypt,UsersManagementController_userFieldDecrypt,用户属性解密,no
+management,管理用户分组/API 列表,GET,/api/v3/get-all-groups,GroupsManagementController_getAllGroups,获取所有分组,no
+management,管理用户分组/API 列表,GET,/api/v3/get-group,GroupsManagementController_getGroup,获取分组详情,yes
+management,管理用户分组/API 列表,GET,/api/v3/get-group-authorized-resources,GroupsManagementController_getGroupAuthorizedResources,获取分组被授权的资源列表,no
+management,管理用户分组/API 列表,GET,/api/v3/list-group-members,GroupsManagementController_ListGroupMembers,获取分组成员列表,no
+management,管理用户分组/API 列表,GET,/api/v3/list-groups,GroupsManagementController_listGroups,获取分组列表,no
+management,管理用户分组/API 列表,POST,/api/v3/add-group-members,GroupsManagementController_addGroupMembers,添加分组成员,yes
+management,管理用户分组/API 列表,POST,/api/v3/create-group,GroupsManagementController_createGroup,创建分组,yes
+management,管理用户分组/API 列表,POST,/api/v3/create-groups-batch,GroupsManagementController_createGroupsBatch,批量创建分组,no
+management,管理用户分组/API 列表,POST,/api/v3/create-or-update-group,GroupsManagementController_createOrUpdateGroup,创建或修改分组,no
+management,管理用户分组/API 列表,POST,/api/v3/delete-groups-batch,GroupsManagementController_deleteGroupsBatch,批量删除分组,yes
+management,管理用户分组/API 列表,POST,/api/v3/remove-group-members,GroupsManagementController_RemoveGroupMembers,批量移除分组成员,yes
+management,管理用户分组/API 列表,POST,/api/v3/update-group,GroupsManagementController_updateGroup,修改分组,yes
+management,管理租户成员/API 列表,GET,/api/v3/get-tenant-user,TenantUserAPIV3ManagementController_getTenantUser,获取单个租户成员,no
+management,管理租户成员/API 列表,POST,/api/v3/add-tenant-users,TenantUserAPIV3ManagementController_addTenantUsers,添加租户成员,no
+management,管理租户成员/API 列表,POST,/api/v3/create-tenant-user,TenantUserAPIV3ManagementController_createTenantUser,创建租户成员,no
+management,管理租户成员/API 列表,POST,/api/v3/list-tenant-users,TenantUserAPIV3ManagementController_listTenantUsers,获取/搜索租户成员列表,no
+management,管理租户成员/API 列表,POST,/api/v3/remove-tenant-users,TenantUserAPIV3ManagementController_removeTenantUsers,批量移除租户成员,no
+management,管理租户成员/API 列表,POST,/api/v3/send-invite-tenant-user-email,TenantUserAPIV3ManagementController_sendInviteTenantUserEmail,发送邀请租户用户邮件,no
+management,管理租户成员/API 列表,POST,/api/v3/update-tenant-user,TenantUserAPIV3ManagementController_updateTenantUser,更新租户成员,no
+management,管理租户组织机构/API 列表,POST,/api/v3/add-tenant-department-members,TenantDepartmentAPIV3ManagementController_addTenantDepartmentMembers,租户部门下添加成员,no
+management,管理租户组织机构/API 列表,POST,/api/v3/remove-tenant-department-members,TenantDepartmentAPIV3ManagementController_removeTenantDepartmentMembers,租户部门下删除成员,no
+management,管理租户身份源/API 列表,GET,/api/v3/ext-idp-conn-apps,ExtIdpManagementController_extIdpConnStateByApps,身份源下应用的连接详情,no
+management,管理组织机构/API 列表,GET,/api/v3/get-all-departments,DepartmentsManagementController_getAllDepartments,获取所有部门列表,no
+management,管理组织机构/API 列表,GET,/api/v3/get-department-by-id,DepartmentsManagementController_getDepartmentById,根据部门id查询部门,no
+management,管理组织机构/API 列表,GET,/api/v3/get-department-sync-relations,DepartmentsManagementController_getDepartmentSyncRelations,获取部门绑定的第三方同步关系,no
+management,管理组织机构/API 列表,GET,/api/v3/get-organization-batch,OrganizationsManagementController_getOrganizationsBatch,批量获取组织机构详情,no
+management,管理组织机构/API 列表,GET,/api/v3/get-parent-department,DepartmentsManagementController_getParentDepartment,获取父部门信息,no
+management,管理组织机构/API 列表,GET,/api/v3/is-department-in-department,DepartmentsManagementController_isDepartmentDepartmentInDepartment,判断部门是否在某个部门下,no
+management,管理组织机构/API 列表,GET,/api/v3/is-user-in-department,DepartmentsManagementController_isUserInDepartment,判断用户是否在某个部门下,no
+management,管理组织机构/API 列表,GET,/api/v3/list-department-member-ids,DepartmentsManagementController_listDepartmentMemberIds,获取部门直属成员 ID 列表,no
+management,管理组织机构/API 列表,GET,/api/v3/search-department-members,DepartmentsManagementController_searchDepartmentMembers,搜索部门下的成员,no
+management,管理组织机构/API 列表,GET,/api/v3/search-organizations,OrganizationsManagementController_searchOrganizations,搜索组织机构列表,no
+management,管理组织机构/API 列表,POST,/api/v3/add-department-members,DepartmentsManagementController_addDepartmentMembers,部门下添加成员,yes
+management,管理组织机构/API 列表,POST,/api/v3/create-department-tree,DepartmentsManagementController_createDepartmentTree,根据组织树批量创建部门,no
+management,管理组织机构/API 列表,POST,/api/v3/create-organization,OrganizationsManagementController_createOrganization,创建组织机构,yes
+management,管理组织机构/API 列表,POST,/api/v3/delete-department-sync-relations,DepartmentsManagementController_deleteDepartmentSyncRelations,删除部门同步关联关系,no
+management,管理组织机构/API 列表,POST,/api/v3/delete-organization,OrganizationsManagementController_deleteOrganization,删除组织机构,yes
+management,管理组织机构/API 列表,POST,/api/v3/remove-department-members,DepartmentsManagementController_removeDepartmentMembers,部门下删除成员,yes
+management,管理组织机构/API 列表,POST,/api/v3/search-departments,DepartmentsManagementController_searchDepartments,搜索部门,no
+management,管理组织机构/API 列表,POST,/api/v3/search-departments-list,DepartmentsManagementController_searchDepartmentsList,搜索部门,no
+management,管理组织机构/API 列表,POST,/api/v3/update-department-status,DepartmentsManagementController_updateNodeStatus,更新部门状态,no
+management,管理组织机构/API 列表,POST,/api/v3/update-organization,OrganizationsManagementController_updateOrganization,修改组织机构,yes
+management,管理组织机构/API 列表,POST,/api/v3/update-organization-status,OrganizationsManagementController_updateOrganizationStatus,更新组织机构状态,no
+management,"管理组织机构/API 列表,管理租户组织机构/API 列表",GET,/api/v3/get-department,DepartmentsManagementController_getDepartment,获取部门信息,yes
+management,"管理组织机构/API 列表,管理租户组织机构/API 列表",GET,/api/v3/get-organization,OrganizationsManagementController_getOrganization,获取组织机构详情,yes
+management,"管理组织机构/API 列表,管理租户组织机构/API 列表",GET,/api/v3/list-children-departments,DepartmentsManagementController_listChildrenDepartments,获取子部门列表,no
+management,"管理组织机构/API 列表,管理租户组织机构/API 列表",GET,/api/v3/list-department-members,DepartmentsManagementController_listDepartmentMembers,获取部门成员列表,no
+management,"管理组织机构/API 列表,管理租户组织机构/API 列表",GET,/api/v3/list-organizations,OrganizationsManagementController_listOrganizations,获取组织机构列表,no
+management,"管理组织机构/API 列表,管理租户组织机构/API 列表",POST,/api/v3/create-department,DepartmentsManagementController_createDepartment,创建部门,yes
+management,"管理组织机构/API 列表,管理租户组织机构/API 列表",POST,/api/v3/delete-department,DepartmentsManagementController_deleteDepartment,删除部门,yes
+management,"管理组织机构/API 列表,管理租户组织机构/API 列表",POST,/api/v3/delete-department-and-childs,DepartmentsManagementController_deleteDepartmentAndChilds,删除部门和子部门,no
+management,"管理组织机构/API 列表,管理租户组织机构/API 列表",POST,/api/v3/get-department-available-app,DepartmentsManagementController_getDepartmentAllApp,部门被授权的应用列表,no
+management,"管理组织机构/API 列表,管理租户组织机构/API 列表",POST,/api/v3/update-department,DepartmentsManagementController_updateDepartment,修改部门,yes
+management,管理终端设备/API 列表,POST,/api/v3/delete-device,TerminalManagementController_deleteDevice,移除设备,no
+management,管理终端设备/API 列表,POST,/api/v3/delete-device-by-user,TerminalUserController_deleteDevice,移除绑定(用户详情页),no
+management,管理终端设备/API 列表,POST,/api/v3/device-status,TerminalManagementController_getDeviceStatus,获取设备状态,yes
+management,管理终端设备/API 列表,POST,/api/v3/disable-device,TerminalManagementController_disableDevice,停用设备,no
+management,管理终端设备/API 列表,POST,/api/v3/disable-device-by-user,TerminalUserController_disableDevice,停用设备(用户详情页),no
+management,管理终端设备/API 列表,POST,/api/v3/enable-device,TerminalManagementController_enableDevice,启用设备,no
+management,管理终端设备/API 列表,POST,/api/v3/enable-device-by-user,TerminalUserController_enableDevice,启用设备(用户详情页),no
+management,管理终端设备/API 列表,POST,/api/v3/suspend-device,TerminalManagementController_suspendDevice,挂起设备,no
+management,管理终端设备/API 列表,POST,/api/v3/suspend-device-by-user,TerminalUserController_suspendDevice,挂起设备(用户详情页),no
+management,管理自定义域名/API 列表,GET,/api/v3/get-custom-domain,CustomDomainController_getCustom,获取自定义域名,no
+management,管理自定义域名/API 列表,GET,/api/v3/verify-custom-domain-dns,CustomDomainController_verifyCustomDomain,验证域名 dns 归属,no
+management,管理自定义域名/API 列表,GET,/api/v3/verify-custom-domain-https,CustomDomainController_verifyCustomDomainHttps,验证域名 https 归属,no
+management,管理自定义域名/API 列表,POST,/api/v3/create-custom-domain,CustomDomainController_createCustomDomain,创建自定义域名,no
+management,管理自定义域名/API 列表,POST,/api/v3/remove-custom-domain,CustomDomainController_removeCustomDomain,移除自定义域名,no
+management,管理自定义域名/API 列表,POST,/api/v3/update-custom-domain,CustomDomainController_updateCustomDomain,更新自定义域名,no
+management,管理自定义字段/API 列表,GET,/api/v3/get-custom-data,CustomFieldsManagementController_getCustomData,获取用户、分组、角色、组织机构的自定义字段值,no
+management,管理自定义字段/API 列表,GET,/api/v3/get-custom-fields,CustomFieldsManagementController_getCustomFields,获取自定义字段列表,no
+management,管理自定义字段/API 列表,GET,/api/v3/get-user-base-fields,CustomFieldsManagementController_getUserBaseFields,获取用户内置字段列表,no
+management,管理自定义字段/API 列表,GET,/api/v3/list-custom-fields,CustomFieldsManagementController_listCustFields,获取自定义字段列表,no
+management,管理自定义字段/API 列表,GET,/api/v3/list-user-base-fields,CustomFieldsManagementController_listUserBaseFields,获取用户内置字段列表,no
+management,管理自定义字段/API 列表,POST,/api/v3/delete-custom-fields,CustomFieldsManagementController_deleteCustomFields,删除自定义字段定义,no
+management,管理自定义字段/API 列表,POST,/api/v3/set-custom-data,CustomFieldsManagementController_setCustomData,设置自定义字段的值,no
+management,管理自定义字段/API 列表,POST,/api/v3/set-custom-fields,CustomFieldsManagementController_setCustomFields,创建/修改自定义字段定义,no
+management,管理自定义字段/API 列表,POST,/api/v3/set-user-base-fields,CustomFieldsManagementController_setUserBaseFields,修改用户内置字段配置,no
+management,管理角色/API 列表,GET,/api/v3/get-role,RolesManagementController_getRole,获取角色详情,yes
+management,管理角色/API 列表,GET,/api/v3/get-role-authorized-resources,RolesManagementController_getRoleAuthorizedResources,获取角色被授权的资源列表,no
+management,管理角色/API 列表,GET,/api/v3/list-role-all-members,RolesManagementController_listRoleAllMembers,获取角色下所有成员列表,no
+management,管理角色/API 列表,GET,/api/v3/list-role-assignments,RolesManagementController_listRoleAssignments,获取角色授权列表,no
+management,管理角色/API 列表,GET,/api/v3/list-role-departments,RolesManagementController_listRoleDepartments,获取角色的部门列表,no
+management,管理角色/API 列表,GET,/api/v3/list-role-members,RolesManagementController_listRoleDirectMembers,获取角色直属成员列表,no
+management,管理角色/API 列表,GET,/api/v3/list-roles,RolesManagementController_listRoles,获取角色列表,no
+management,管理角色/API 列表,POST,/api/v3/assign-role,RolesManagementController_assignRole,单个角色批量授权,yes
+management,管理角色/API 列表,POST,/api/v3/assign-role-batch,RolesManagementController_assignRoleBatch,批量分配角色,no
+management,管理角色/API 列表,POST,/api/v3/check-role-mutual-exclusion,RolesManagementController_checkMutualExclusion,检测角色互斥,no
+management,管理角色/API 列表,POST,/api/v3/check-role-params,RolesManagementController_checkParamsNamespace,校验角色 Code 或者名称是否可用,no
+management,管理角色/API 列表,POST,/api/v3/create-admin-role,RolesManagementController_createAdminRole,创建管理员角色,no
+management,管理角色/API 列表,POST,/api/v3/create-role,RolesManagementController_createRole,创建角色,yes
+management,管理角色/API 列表,POST,/api/v3/create-roles-batch,RolesManagementController_createRolesBatch,批量创建角色,no
+management,管理角色/API 列表,POST,/api/v3/delete-admin-roles,RolesManagementController_deleteAdminRolesBatch,删除管理员自定义角色,no
+management,管理角色/API 列表,POST,/api/v3/delete-roles-batch,RolesManagementController_deleteRolesBatch,单个权限分组（权限空间）内删除角色,yes
+management,管理角色/API 列表,POST,/api/v3/get-role-policy-list,RolesManagementController_getRoleDatePolicyList,获取角色下所拥有的数据策略列表,no
+management,管理角色/API 列表,POST,/api/v3/multiple-namespace-delete-roles-batch,RolesManagementController_deleteRoles,跨权限分组（空间）删除角色,no
+management,管理角色/API 列表,POST,/api/v3/revoke-role,RolesManagementController_revokeRole,移除分配的角色,yes
+management,管理角色/API 列表,POST,/api/v3/revoke-role-batch,RolesManagementController_revokeRoleBatch,批量移除分配的角色,no
+management,管理角色/API 列表,POST,/api/v3/update-role,RolesManagementController_updateRole,修改角色,yes
+management,管理计量计费/API 列表,GET,/api/v3/get-all-rights-items,CostManagementController_getAllRightsItem,获取所有权益,no
+management,管理计量计费/API 列表,GET,/api/v3/get-current-package-info,CostManagementController_getCurrentPackageInfo,获取套餐详情,no
+management,管理计量计费/API 列表,GET,/api/v3/get-mau-period-usage-history,CostManagementController_getMauPeriodUsageHistory,获取 MAU 使用记录,no
+management,管理计量计费/API 列表,GET,/api/v3/get-order-detail,CostManagementController_getOrderDetail,获取订单详情,no
+management,管理计量计费/API 列表,GET,/api/v3/get-order-pay-detail,CostManagementController_getOrderPayDetail,获取订单支付明细,no
+management,管理计量计费/API 列表,GET,/api/v3/get-orders,CostManagementController_getOrders,获取订单列表,no
+management,管理计量计费/API 列表,GET,/api/v3/get-usage-info,CostManagementController_getUsageInfo,获取用量详情,no
+management,管理计量计费/API 列表,POST,/api/v3/click-cost-contact,CostManagementController_costContactClick,点击联系我们,no
+management,管理设备互斥/API 列表,GET,/api/v3/get-device-exclusive-rule-settings,DeviceExclusiveRuleSettingsController_getRuleSettings,获取设备互斥规则配置,no
+management,管理设备互斥/API 列表,GET,/api/v3/get-device-exclusive-valid-scope-settings,DeviceExclusiveValidScopeSettingsController_getAllValidScopeSettings,获取设备互斥生效范围配置,no
+management,管理设备互斥/API 列表,GET,/api/v3/get-device-exclusive-white-list-settings,DeviceExclusiveWhiteListSettingsController_getAllWhiteListSettings,获取设备互斥白名单配置,no
+management,管理设备互斥/API 列表,GET,/api/v3/get-supported-device-exclusive-apps,DeviceExclusiveValidScopeSettingsController_findAppLists,获取支持设备互斥生效范围的应用列表,no
+management,管理设备互斥/API 列表,POST,/api/v3/remove-device-exclusive-valid-scope-settings,DeviceExclusiveValidScopeSettingsController_remove,移除设备互斥生效范围配置,no
+management,管理设备互斥/API 列表,POST,/api/v3/remove-device-exclusive-white-list-settings,DeviceExclusiveWhiteListSettingsController_remove,移除设备互斥白名单配置,no
+management,管理设备互斥/API 列表,POST,/api/v3/save-device-exclusive-valid-scope-settings,DeviceExclusiveValidScopeSettingsController_saveInvitationPolicies,保存设备互斥生效范围配置,no
+management,管理设备互斥/API 列表,POST,/api/v3/save-device-exclusive-white-list-settings,DeviceExclusiveWhiteListSettingsController_saveInvitationPolicies,保存设备互斥白名单配置,no
+management,管理设备互斥/API 列表,POST,/api/v3/update-device-exclusive-rule-settings,DeviceExclusiveRuleSettingsController_updateRuleSettings,更新设备互斥规则配置,no
+management,管理资源与权限/API 列表,GET,/api/v3/get-authorized-resources,AccessControlManagementController_getAuthorizedResources,获取某个主体被授权的资源列表,no
+management,管理资源与权限/API 列表,GET,/api/v3/get-namespace,NamespaceManagementController_getNamespace,获取权限分组详情,no
+management,管理资源与权限/API 列表,GET,/api/v3/get-namespaces-batch,NamespaceManagementController_getNamespacesBatch,批量获取权限分组详情,no
+management,管理资源与权限/API 列表,GET,/api/v3/get-resource,ResourceManagementController_getResource,获取资源详情,yes
+management,管理资源与权限/API 列表,GET,/api/v3/get-resources-batch,ResourceManagementController_getResourcesBatch,批量获取资源详情,no
+management,管理资源与权限/API 列表,GET,/api/v3/list-namespace-roles,NamespaceManagementController_ListNamespaceRoles,分页权限分组下所有的角色列表,no
+management,管理资源与权限/API 列表,GET,/api/v3/list-namespaces,NamespaceManagementController_ListNamespaces,分页获取权限分组列表,no
+management,管理资源与权限/API 列表,POST,/api/v3/create-namespace,NamespaceManagementController_createNamespace,创建权限分组,no
+management,管理资源与权限/API 列表,POST,/api/v3/create-namespaces-batch,NamespaceManagementController_createNamespacesBatch,批量创建权限分组,no
+management,管理资源与权限/API 列表,POST,/api/v3/create-resource,ResourceManagementController_createResource,创建资源,yes
+management,管理资源与权限/API 列表,POST,/api/v3/create-resources-batch,ResourceManagementController_createResourcesBatch,批量创建资源,no
+management,管理资源与权限/API 列表,POST,/api/v3/delete-common-resources-batch,ResourceManagementController_batchDeleteCommonResource,批量删除资源,no
+management,管理资源与权限/API 列表,POST,/api/v3/delete-namespace,NamespaceManagementController_deleteNamespace,删除权限分组信息,no
+management,管理资源与权限/API 列表,POST,/api/v3/delete-namespaces-batch,NamespaceManagementController_deleteNamespacesBatch,批量删除权限分组,no
+management,管理资源与权限/API 列表,POST,/api/v3/delete-resource,ResourceManagementController_deleteResource,删除资源,yes
+management,管理资源与权限/API 列表,POST,/api/v3/delete-resources-batch,ResourceManagementController_deleteResourcesBatch,批量删除资源,no
+management,管理资源与权限/API 列表,POST,/api/v3/get-resource-authorized-targets,AccessControlManagementController_getResourceAuthorizedTargets,获取资源被授权的主体,no
+management,管理资源与权限/API 列表,POST,/api/v3/update-namespace,NamespaceManagementController_updateNamespace,修改权限分组信息,no
+management,管理资源与权限/API 列表,POST,/api/v3/update-resource,ResourceManagementController_updateResource,修改资源,yes
+management,"管理资源与权限/API 列表,管理资源与权限/API 列表,多租户管理资源与权限/API 列表",GET,/api/v3/list-common-resource,ResourceManagementController_listCommonResource,分页获取常规资源列表,no
+management,"管理资源与权限/API 列表,管理资源与权限/API 列表,多租户管理资源与权限/API 列表",GET,/api/v3/list-resources,ResourceManagementController_listResources,分页获取资源列表,no
+management,"管理资源与权限/API 列表,管理资源与权限/API 列表,多租户管理资源与权限/API 列表",POST,/api/v3/associate-tenant-resource,ResourceManagementController_associateTenantResource,关联/取消关联应用资源到租户,no
+management,"管理资源与权限/API 列表,管理资源与权限/API 列表,多租户管理资源与权限/API 列表",POST,/api/v3/authorize-resources,AccessControlManagementController_authorizeResources,授权资源,no
+management,"管理资源与权限/API 列表,管理资源与权限/API 列表,多租户管理资源与权限/API 列表",POST,/api/v3/is-action-allowed,AccessControlManagementController_isActionAllowed,判断用户是否对某个资源的某个操作有权限,no
+management,管理身份源/API 列表,GET,/api/v3/list-enabled-ext-idp-conns-by-app,ExtIdpManagementController_listEnabledExtIdpConns,根据应用 id 获取应用已启用的身份源连接列表,no
+management,管理身份源/API 列表,GET,/api/v3/list-ext-idp-conns,ExtIdpManagementController_listExtIdpConns,获取身份源连接列表,no
+management,"管理身份源/API 列表,管理租户身份源/API 列表",GET,/api/v3/get-ext-idp,ExtIdpManagementController_getExtIdp,获取身份源详情,yes
+management,"管理身份源/API 列表,管理租户身份源/API 列表",GET,/api/v3/list-ext-idp,ExtIdpManagementController_listExtIdp,获取身份源列表,no
+management,"管理身份源/API 列表,管理租户身份源/API 列表",GET,/api/v3/list-tenant-ext-idp,ExtIdpManagementController_listTenantExtIdp,租户控制台获取身份源列表,no
+management,"管理身份源/API 列表,管理租户身份源/API 列表",POST,/api/v3/change-ext-idp-conn-association-state,ExtIdpManagementController_changeExtIdpConnAssociationState,租户关联身份源,no
+management,"管理身份源/API 列表,管理租户身份源/API 列表",POST,/api/v3/change-ext-idp-conn-state,ExtIdpManagementController_changeExtIdpConnState,身份源连接开关,no
+management,"管理身份源/API 列表,管理租户身份源/API 列表",POST,/api/v3/create-ext-idp,ExtIdpManagementController_createExtIdp,创建身份源,yes
+management,"管理身份源/API 列表,管理租户身份源/API 列表",POST,/api/v3/create-ext-idp-conn,ExtIdpManagementController_createExtIdpConn,在某个已有身份源下创建新连接,no
+management,"管理身份源/API 列表,管理租户身份源/API 列表",POST,/api/v3/delete-ext-idp,ExtIdpManagementController_deleteExtIdp,删除身份源,yes
+management,"管理身份源/API 列表,管理租户身份源/API 列表",POST,/api/v3/delete-ext-idp-conn,ExtIdpManagementController_deleteExtIdpConn,删除身份源连接,no
+management,"管理身份源/API 列表,管理租户身份源/API 列表",POST,/api/v3/get-weixin-access-token,ExtIdpManagementController_getWechatMpAccessTokenInfo,获取微信小程序、公众号 Access Token,no
+management,"管理身份源/API 列表,管理租户身份源/API 列表",POST,/api/v3/update-ext-idp,ExtIdpManagementController_updateExtIdp,更新身份源配置,yes
+management,"管理身份源/API 列表,管理租户身份源/API 列表",POST,/api/v3/update-ext-idp-conn,ExtIdpManagementController_updateExtIdpConn,更新身份源连接,no
+management,管理通用邀请/API 列表,GET,/api/v3/get-universal-invitation-settings,UniversalInvitationController_getUniversalInvitation,获取通用邀请配置,no
+management,管理通用邀请/API 列表,POST,/api/v3/batch-approval-universal-invitation-applicants,UniversalInvitationApplicantController_approval,批量通过通用邀请的申请,no
+management,管理通用邀请/API 列表,POST,/api/v3/batch-reject-universal-invitation-applicant,UniversalInvitationApplicantController_reject,批量拒绝通用邀请的申请,no
+management,管理通用邀请/API 列表,POST,/api/v3/filter-universal-invitation-applicants,UniversalInvitationApplicantController_filter,查询通用邀请申请列表,no
+management,管理通用邀请/API 列表,POST,/api/v3/generate-universal-invitation-link,UniversalInvitationController_generateUniversalInvitation,生成通用邀请链接,no
+management,管理通用邀请/API 列表,POST,/api/v3/update-universal-invitation-settings,UniversalInvitationController_updateUniversalInvitation,更新通用邀请配置,no
+management,管理邀请名单/API 列表,GET,/api/v3/get-invitation-roster,InvitationRosterManagementController_getInvitationRoster,获取邀请名单详情,no
+management,管理邀请名单/API 列表,POST,/api/v3/create-invitation-roster,InvitationRosterManagementController_createInvitationRoster,创建邀请名单,no
+management,管理邀请名单/API 列表,POST,/api/v3/delete-invitation-roster,InvitationRosterManagementController_deleteInvitationRoster,删除邀请名单,no
+management,管理邀请名单/API 列表,POST,/api/v3/delete-invitation-rosters-batch,InvitationRosterManagementController_deleteInvitationRosterBatch,批量删除邀请名单,no
+management,管理邀请名单/API 列表,POST,/api/v3/list-invitation-rosters,InvitationRosterManagementController_listInvitationRoster,获取邀请名单列表,no
+management,管理邀请名单/API 列表,POST,/api/v3/list-invitation-rosters-by-no-policy-id,InvitationRosterManagementController_listInvitationRostersByNonPolicyId,获取未关联策略的邀请名单列表,no
+management,管理邀请名单/API 列表,POST,/api/v3/list-invitation-rosters-by-policy-id,InvitationRosterManagementController_listInvitationRostersByPolicyId,根据策略 Id 获取邀请名单列表,no
+management,管理邀请名单/API 列表,POST,/api/v3/revert-roster-invitation,InvitationRosterManagementController_revertRosterInvitation,撤回邀请,no
+management,管理邀请名单/API 列表,POST,/api/v3/revert-roster-invitation-batch,InvitationRosterManagementController_revertRosterInvitationBatch,撤回邀请,no
+management,管理邀请名单/API 列表,POST,/api/v3/send-roster-invitation,InvitationRosterManagementController_sendRosterInvitation,根据邀请名单发送邀请,no
+management,管理邀请名单/API 列表,POST,/api/v3/send-roster-invitation-batch,InvitationRosterManagementController_sendRosterInvitationBatch,批量发送邀请,no
+management,管理邀请名单/API 列表,POST,/api/v3/update-invitation-roster,InvitationRosterManagementController_updateInvitationRoster,更新邀请名单,no
+management,管理邀请名单/API 列表,POST,/api/v3/update-invitation-roster-batch-bind-policy,InvitationRosterManagementController_batchBindPolicy,更新邀请名单，批量关联邀请策略,no
+management,管理邀请名单/API 列表,POST,/api/v3/update-invitation-roster-batch-unbind-policy,InvitationRosterManagementController_batchUnbindPolicy,更新邀请名单，根据策略 Id 批量解除关联,no
+management,管理邀请策略/API 列表,GET,/api/v3/get-invitation-policy,InvitationPolicyManagementController_getPolicyDetailById,获取邀请策略详情,no
+management,管理邀请策略/API 列表,GET,/api/v3/get-invitation-policy-user-attribution,InvitationPolicyManagementController_getPolicyUserAttributionDetail,获取邀请策略用户归属详情,no
+management,管理邀请策略/API 列表,GET,/api/v3/get-invitation-policy-user-attribution-main-department,InvitationPolicyManagementController_getUserAttributionMainDepartment,获取设置的用户归属主部门,no
+management,管理邀请策略/API 列表,GET,/api/v3/list-invitation-policy-extends-fields,InvitationPolicyManagementController_listRegisterExtendsFields,获取策略流程配置补充信息的字段列表,no
+management,管理邀请策略/API 列表,GET,/api/v3/list-invitation-policy-user-attributions,InvitationPolicyManagementController_listPolicyUserAttributionDetail,获取邀请策略用户归属列表,no
+management,管理邀请策略/API 列表,POST,/api/v3/add-invitation-policy-user-attribution,InvitationPolicyManagementController_addPolicyUserAttribution,添加邀请策略用户归属,no
+management,管理邀请策略/API 列表,POST,/api/v3/add-invitation-policy-user-attributions-batch,InvitationPolicyManagementController_addPolicyUserAttributionsBatch,批量添加邀请策略用户归属,no
+management,管理邀请策略/API 列表,POST,/api/v3/copy-invitation-policy-by-id,InvitationPolicyManagementController_copyInvitationPolicyById,创建邀请策略副本,no
+management,管理邀请策略/API 列表,POST,/api/v3/create-invitation-policy,InvitationPolicyManagementController_createInvitationPolicy,创建邀请策略,no
+management,管理邀请策略/API 列表,POST,/api/v3/delete-invitation-policies-batch,InvitationPolicyManagementController_batchDeleteInvitationPolicies,批量删除邀请策略,no
+management,管理邀请策略/API 列表,POST,/api/v3/get-invitation-policy-email-template,InvitationPolicyManagementController_getInviteEmailTemplate,获取邀请策略邮件模板,no
+management,管理邀请策略/API 列表,POST,/api/v3/list-invitation-policies,InvitationPolicyManagementController_listInvitationPolicies,获取邀请策略列表,no
+management,管理邀请策略/API 列表,POST,/api/v3/remove-invitation-policy-user-attribution,InvitationPolicyManagementController_removePolicyUserAttribution,删除邀请策略用户归属,no
+management,管理邀请策略/API 列表,POST,/api/v3/remove-invitation-policy-user-attribution-main-department,InvitationPolicyManagementController_removeUserAttributionMainDepartment,移除用户归属的主部门设置,no
+management,管理邀请策略/API 列表,POST,/api/v3/remove-invitation-policy-user-attributions-batch,InvitationPolicyManagementController_removePolicyUserAttributionsBatch,批量删除邀请策略用户归属,no
+management,管理邀请策略/API 列表,POST,/api/v3/set-invitation-policy-user-attribution-main-department,InvitationPolicyManagementController_setUserAttributionMainDepartment,设置用户归属的主部门,no
+management,管理邀请策略/API 列表,POST,/api/v3/update-invitation-policy,InvitationPolicyManagementController_updateInvitationPolicy,更新邀请策略,no
+management,管理邀请策略/API 列表,POST,/api/v3/update-invitation-policy-email-template,InvitationPolicyManagementController_updateInviteEmailTemplate,获取邀请策略邮件模板,no
+management,管理邀请策略/API 列表,POST,/api/v3/update-invitation-policy-extends-fields,InvitationPolicyManagementController_updateRegisterExtendsFields,更新策略流程配置补充信息,no
+management,管理风险名单/API 列表,DELETE,/api/v3/ip-list/{id},RiskListController_deleteById,删除 ip 名单,no
+management,管理风险名单/API 列表,DELETE,/api/v3/risk-list-policy/{id},RiskListController_deleteRiskListPolicyById,删除风险策略,no
+management,管理风险名单/API 列表,DELETE,/api/v3/user-list/{id},RiskListController_deleteUserListById,删除用户名单,no
+management,管理风险名单/API 列表,GET,/api/v3/ip-list,RiskListController_findIpList,获取 ip 列表,no
+management,管理风险名单/API 列表,GET,/api/v3/risk-list-policy,RiskListController_findRiskListPolicy,获取风险策略列表,no
+management,管理风险名单/API 列表,GET,/api/v3/user-list,RiskListController_findUserList,获取风险名单用户列表,no
+management,管理风险名单/API 列表,POST,/api/v3/ip-list,RiskListController_add,创建 ip 名单,no
+management,管理风险名单/API 列表,POST,/api/v3/risk-list-policy,RiskListController_addRiskListPolicy,创建风险策略,no
+management,管理风险名单/API 列表,POST,/api/v3/user-list,RiskListController_addUser,创建用户名单,no
+tenant_management,管理 AK & SK/API 列表,GET,/api/v3/get-access-key,AccessKeyManagementController_getAccessKey,获取协作管理员 AK/SK 详细信息,no
+tenant_management,管理 AK & SK/API 列表,GET,/api/v3/list-access-key,AccessKeyManagementController_getAccessKeyList,获取协作管理员 AK/SK 列表,no
+tenant_management,管理 AK & SK/API 列表,POST,/api/v3/create-access-key,AccessKeyManagementController_createAccessKey,创建协作管理员的 AK/SK,no
+tenant_management,管理 AK & SK/API 列表,POST,/api/v3/delete-access-key,AccessKeyManagementController_deleteAccessKey,删除协作管理员的 AK/SK,no
+tenant_management,"管理 AK & SK/API 列表,管理 AccessKey/API 列表,管理员 AccessKey/API 列表",POST,/api/v3/update-access-key,AccessKeyManagementController_updateAccessKey,更新一个管理员 AccessKey,no
+tenant_management,"管理 Token/API 列表,鉴权机制/获取 Access Token",POST,/api/v3/get-management-token,V3ManagementController_getManagementToken,获取 Access Token,yes
+tenant_management,管理多租户/API 列表,GET,/api/v3/get-multiple-tenant-admin,TenantManagementController_getMultipleTenantAdmin,获取多租户管理员用户列表,no
+tenant_management,管理多租户/API 列表,GET,/api/v3/get-tenant-cooperator,TenantManagementController_getTenantCooperator,获取一个协调管理员,no
+tenant_management,管理多租户/API 列表,GET,/api/v3/get-tenant-cooperator-menu,TenantManagementController_getTenantCooperatorMenu,获取一个协调管理员拥有的列表,no
+tenant_management,管理多租户/API 列表,GET,/api/v3/import-tenant-history,TenantManagementController_importTenantHistory,导入租户历史,no
+tenant_management,管理多租户/API 列表,GET,/api/v3/import-tenant-notify-user,TenantManagementController_importTenantNotifyUser,导入租户通知用户列表,no
+tenant_management,管理多租户/API 列表,GET,/api/v3/list-invite-tenant-user-records,TenantManagementController_listInviteTennatUserRecords,获取可访问的租户控制台列表,no
+tenant_management,管理多租户/API 列表,GET,/api/v3/list-multiple-tenant-admins,TenantManagementController_listMultipleTenantAdmin,获取多租户管理员用户列表,no
+tenant_management,管理多租户/API 列表,GET,/api/v3/list-tenant-cooperators,TenantManagementController_listTenantCooperators,获取协作管理员用户列表,no
+tenant_management,管理多租户/API 列表,POST,/api/v3/create-multiple-tenant-admin,TenantManagementController_createMultipleTenantAdmin,创建多租户管理员用户,no
+tenant_management,管理多租户/API 列表,POST,/api/v3/create-tenant-cooperator,TenantManagementController_createTenantCooperator,创建协调管理员,no
+tenant_management,管理多租户/API 列表,POST,/api/v3/delete-multiple-tenant-admin,TenantManagementController_deleteMultipleTenantAdmin,删除多租户管理员用户,no
+tenant_management,管理多租户/API 列表,POST,/api/v3/delete-tenant-cooperator,TenantManagementController_deleteTenantCooperator,删除协调管理员,no
+tenant_management,管理多租户/API 列表,POST,/api/v3/delete-tenant-user,TenantManagementController_deleteTenantUser,批量移除租户成员,no
+tenant_management,管理多租户/API 列表,POST,/api/v3/generate-invite-tenant-user-link,TenantManagementController_generateInviteTenantUserLink,生成一个邀请租户成员的链接,no
+tenant_management,管理多租户/API 列表,POST,/api/v3/import-tenant,TenantManagementController_importTenant,导入租户,no
+tenant_management,管理多租户/API 列表,POST,/api/v3/send-email-batch,TenantManagementController_sendEmailBatch,导入租户通知邮箱用户,no
+tenant_management,管理多租户/API 列表,POST,/api/v3/send-sms-batch,TenantManagementController_sendSmsBatch,导入租户短信通知用户,no
+tenant_management,管理多租户/API 列表,POST,/api/v3/update-multiple-tenant-admin,TenantManagementController_updateMultipleTenantAdmin,更新多租户管理员用户,no
+tenant_management,管理多租户/API 列表,POST,/api/v3/update-tenant-cooperator,TenantManagementController_updateTenantCooperator,更新协调管理员,no
+tenant_management,"管理多租户/API 列表,管理租户/API 列表",GET,/api/v3/get-tenant,TenantManagementController_getTenant,获取租户详情,no
+tenant_management,"管理多租户/API 列表,管理租户/API 列表",GET,/api/v3/get-tenant-by-code,TenantManagementController_getTenantByCode,获取租户详情,no
+tenant_management,"管理多租户/API 列表,管理租户/API 列表",GET,/api/v3/get-tenant-enterprise-certification,TenantManagementController_getTenantEnterpriseCertification,获取租户企业认证信息,no
+tenant_management,"管理多租户/API 列表,管理租户/API 列表",GET,/api/v3/get-tenant-little-info,TenantManagementController_getTenantLittleInfo,获取租户一点点的信息,no
+tenant_management,"管理多租户/API 列表,管理租户/API 列表",GET,/api/v3/list-tenants,TenantManagementController_listTenants,获取/搜索租户列表,no
+tenant_management,"管理多租户/API 列表,管理租户/API 列表",POST,/api/v3/create-tenant,TenantManagementController_createTenant,创建租户,no
+tenant_management,"管理多租户/API 列表,管理租户/API 列表",POST,/api/v3/create-tenant-enterprise-certification,TenantManagementController_createTenantEnterpriseCertification,创建租户企业认证,no
+tenant_management,"管理多租户/API 列表,管理租户/API 列表",POST,/api/v3/delete-tenant,TenantManagementController_deleteTenant,删除租户,no
+tenant_management,"管理多租户/API 列表,管理租户/API 列表",POST,/api/v3/delete-tenant-admin,TenantManagementController_deleteTenantAdmin,取消设置租户管理员,no
+tenant_management,"管理多租户/API 列表,管理租户/API 列表",POST,/api/v3/list-tenant-admin,TenantManagementController_listTenantAdmin,获取租户管理员列表,no
+tenant_management,"管理多租户/API 列表,管理租户/API 列表",POST,/api/v3/review-tenant-enterprise-certification,TenantManagementController_reviewTenantEnterpriseCertification,审核户企业认证,no
+tenant_management,"管理多租户/API 列表,管理租户/API 列表",POST,/api/v3/set-tenant-admin,TenantManagementController_setTenantAdmin,设置租户管理员,no
+tenant_management,"管理多租户/API 列表,管理租户/API 列表",POST,/api/v3/update-tenant,TenantManagementController_updateTenant,更新租户数据,no
+tenant_management,"管理多租户/API 列表,管理租户/API 列表",POST,/api/v3/update-tenant-enterprise-certification,TenantManagementController_updateTenantEnterpriseCertification,修改租户企业认证,no
+tenant_management,管理应用/API 列表,DELETE,/api/v3/batch-applications-auth,ApplicationsManagementController_deleteAuth,批量删除应用授权,no
+tenant_management,管理应用/API 列表,GET,/api/v3/get-application-permission-strategy,ApplicationsManagementController_getApplicationPermissionStrategy,获取应用默认访问授权策略,no
+tenant_management,管理应用/API 列表,GET,/api/v3/get-application-secret,ApplicationsManagementController_getApplicationSecret,获取应用密钥,no
+tenant_management,管理应用/API 列表,GET,/api/v3/get-asa-account,AsaAccountManagementController_getAsaAccount,获取 ASA 账号,no
+tenant_management,管理应用/API 列表,GET,/api/v3/get-asa-account-assigned-targets,AsaAccountManagementController_getAsaAccountAssignedTargets,获取 ASA 账号分配的主体列表,no
+tenant_management,管理应用/API 列表,GET,/api/v3/get-assigned-account,AsaAccountManagementController_getAssignedAccount,获取主体被分配的 ASA 账号,no
+tenant_management,管理应用/API 列表,GET,/api/v3/get-auth-flow-config,AuthFlowManagementController_findFlowByAppId,获取指定编排配置,no
+tenant_management,管理应用/API 列表,GET,/api/v3/get-auth-flow-config-by-app-id,AuthFlowManagementController_findManyByAppId,获取应用编排配置列表,no
+tenant_management,管理应用/API 列表,GET,/api/v3/get-current-auth-flow-config,AuthFlowManagementController_findCurrentFlowByAppId,获取当前编排配置,no
+tenant_management,管理应用/API 列表,GET,/api/v3/get-mfa-trigger-data,ApplicationsManagementController_getMfaTriggerData,获取应用下用户 MFA 触发数据,no
+tenant_management,管理应用/API 列表,GET,/api/v3/get-subject-auth-detail,ApplicationsManagementController_detailAuthSubject,主体授权详情,yes
+tenant_management,管理应用/API 列表,GET,/api/v3/list-application-simple-info,ApplicationsManagementController_listApplicationSimpleInfo,获取应用简单信息列表,no
+tenant_management,管理应用/API 列表,GET,/api/v3/list-applications,ApplicationsManagementController_listApplications,获取应用列表,no
+tenant_management,管理应用/API 列表,GET,/api/v3/list-asa-accounts,AsaAccountManagementController_listAsaAccount,获取 ASA 账号列表,no
+tenant_management,管理应用/API 列表,GET,/api/v3/list-programmatic-access-accounts,ProgrammaticAccessAccountManagementController_paginationProgrammaticAccessAccounts,获取编程访问账号列表,no
+tenant_management,管理应用/API 列表,GET,/api/v3/userpool-tenant-config,ApplicationsManagementController_userpollTenantConfig,获取用户池租户配置信息,no
+tenant_management,管理应用/API 列表,POST,/api/v3/assign-asa-account,AsaAccountManagementController_assignAsaAccount,分配 ASA 账号,no
+tenant_management,管理应用/API 列表,POST,/api/v3/change-userpool-tenant-ext-idp-conn-state,ApplicationsManagementController_changeUserpoolTenanExtIdpConnState,设置用户池多租户身份源连接,no
+tenant_management,管理应用/API 列表,POST,/api/v3/check-domain-available,ApplicationsManagementController_checkDomainAvailable,检测域名是否可用,no
+tenant_management,管理应用/API 列表,POST,/api/v3/copy-auth-flow-config,AuthFlowManagementController_copyAuthFlowConfig,复制编排配置,no
+tenant_management,管理应用/API 列表,POST,/api/v3/create-application,ApplicationsManagementController_createApplication,创建应用,yes
+tenant_management,管理应用/API 列表,POST,/api/v3/create-asa-account,AsaAccountManagementController_createAsaAccount,创建 ASA 账号,no
+tenant_management,管理应用/API 列表,POST,/api/v3/create-asa-accounts-batch,AsaAccountManagementController_createAsaAccountBatch,批量创建 ASA 账号,no
+tenant_management,管理应用/API 列表,POST,/api/v3/create-auth-flow-app-config,ApplicationsManagementController_createAuthFlowAppConfig,创建应用认证配置,no
+tenant_management,管理应用/API 列表,POST,/api/v3/create-programmatic-access-account,ProgrammaticAccessAccountManagementController_createProgrammaticAccessAccount,创建编程访问账号,no
+tenant_management,管理应用/API 列表,POST,/api/v3/delete-application,ApplicationsManagementController_deleteApplication,删除应用,yes
+tenant_management,管理应用/API 列表,POST,/api/v3/delete-asa-account,AsaAccountManagementController_deleteAsaAccount,删除 ASA 账号,no
+tenant_management,管理应用/API 列表,POST,/api/v3/delete-asa-accounts-batch,AsaAccountManagementController_deleteAsaAccountBatch,批量删除 ASA 账号,no
+tenant_management,管理应用/API 列表,POST,/api/v3/delete-auth-flow-config,AuthFlowManagementController_deleteAuthFlow,删除编排配置,no
+tenant_management,管理应用/API 列表,POST,/api/v3/delete-programmatic-access-account,ProgrammaticAccessAccountManagementController_deleteProgrammaticAccessAccounts,删除编程访问账号,no
+tenant_management,管理应用/API 列表,POST,/api/v3/disable-programmatic-access-account,ProgrammaticAccessAccountManagementController_disableProgrammaticAccessAccount,禁用编程访问账号,no
+tenant_management,管理应用/API 列表,POST,/api/v3/disabled-auth-flow-app,ApplicationsManagementController_disabledAuthFlowAppConfig,关闭编排,no
+tenant_management,管理应用/API 列表,POST,/api/v3/enable-programmatic-access-account,ProgrammaticAccessAccountManagementController_enabledProgrammaticAccessAccount,启用编程访问账号,no
+tenant_management,管理应用/API 列表,POST,/api/v3/enabled-auth-flow-app,ApplicationsManagementController_enabledAuthFlowAppConfig,开启编排,no
+tenant_management,管理应用/API 列表,POST,/api/v3/get-application-access-control-user-list,ApplicationsManagementController_getApplicationAccessControlUserList,获取应用访问控制用户列表,no
+tenant_management,管理应用/API 列表,POST,/api/v3/get-asa-accounts-batch,AsaAccountManagementController_getAsaAccountBatch,批量获取 ASA 账号,no
+tenant_management,管理应用/API 列表,POST,/api/v3/list-application-active-users,ApplicationsManagementController_listApplicationActiveUsers,获取应用当前登录用户,no
+tenant_management,管理应用/API 列表,POST,/api/v3/list-applications-auth,ApplicationsManagementController_listAuthApplication,应用授权列表,no
+tenant_management,管理应用/API 列表,POST,/api/v3/list-subject-auth,ApplicationsManagementController_listAuthSubject,主体授权列表,no
+tenant_management,管理应用/API 列表,POST,/api/v3/refresh-application-secret,ApplicationsManagementController_refreshApplicationSecret,刷新应用密钥,no
+tenant_management,管理应用/API 列表,POST,/api/v3/refresh-programmatic-access-account-secret,ProgrammaticAccessAccountManagementController_resetSecret,刷新编程访问账号密钥,no
+tenant_management,管理应用/API 列表,POST,/api/v3/save-auth-flow-config,AuthFlowManagementController_saveAuthFlowConfig,创建编排配置,no
+tenant_management,管理应用/API 列表,POST,/api/v3/switch-auth-flow-config,AuthFlowManagementController_switchAuthFlow,切换编排配置,no
+tenant_management,管理应用/API 列表,POST,/api/v3/unassign-asa-account,AsaAccountManagementController_unassignAsaAccount,取消分配 ASA 账号,no
+tenant_management,管理应用/API 列表,POST,/api/v3/update-application,ApplicationsManagementController_updateApplication,更新应用,yes
+tenant_management,管理应用/API 列表,POST,/api/v3/update-application-mfa-settings,ApplicationsManagementController_updateApplicationMfaSettings,修改应用多因素认证配置,no
+tenant_management,管理应用/API 列表,POST,/api/v3/update-application-permission-strategy,ApplicationsManagementController_updateApplicationPermissionStrategy,更新应用默认访问授权策略,no
+tenant_management,管理应用/API 列表,POST,/api/v3/update-asa-account,AsaAccountManagementController_updateAsaAccount,更新 ASA 账号,no
+tenant_management,管理应用/API 列表,POST,/api/v3/update-auth-enabled,ApplicationsManagementController_enabledAuth,更新授权开关,no
+tenant_management,管理应用/API 列表,POST,/api/v3/update-auth-flow-config,AuthFlowManagementController_updateAuthFlow,更新编排配置,no
+tenant_management,管理应用/API 列表,POST,/api/v3/update-login-page-config,ApplicationsManagementController_updateLoginPageConfig,更新应用登录页配置,no
+tenant_management,管理应用/API 列表,POST,/api/v3/update-userpool-tenant-appqrcode-state,ApplicationsManagementController_updateTenantQRCodeState,更新租户控制台扫码登录状态,no
+tenant_management,管理应用/API 列表,POST,/api/v3/update-userpool-tenant-config,ApplicationsManagementController_updateUserPoolTenantConfig,更新用户池租户配置信息,no
+tenant_management,"管理应用/API 列表,管理租户应用/API 列表",GET,/api/v3/get-application,ApplicationsManagementController_getApplication,获取应用详情,yes
+tenant_management,"管理应用/API 列表,管理租户应用/API 列表",GET,/api/v3/get-application-simple-info,ApplicationsManagementController_getApplicationSimpleInfo,获取应用简单信息,no
+tenant_management,"管理应用/API 列表,管理租户应用/API 列表",GET,/api/v3/list-tenant-applications,ApplicationsManagementController_listTenantApplications,获取租户应用列表,no
+tenant_management,"管理应用/API 列表,管理租户应用/API 列表",POST,/api/v3/authorize-application-access,ApplicationsManagementController_authorizeApplicationAccess,授权应用访问权限,no
+tenant_management,"管理应用/API 列表,管理租户应用/API 列表",POST,/api/v3/revoke-application-access,ApplicationsManagementController_revokeApplicationAccess,删除应用访问授权记录,no
+tenant_management,管理租户成员/API 列表,GET,/api/v3/get-tenant-user,TenantUserAPIV3ManagementController_getTenantUser,获取单个租户成员,no
+tenant_management,管理租户成员/API 列表,POST,/api/v3/add-tenant-users,TenantUserAPIV3ManagementController_addTenantUsers,添加租户成员,no
+tenant_management,管理租户成员/API 列表,POST,/api/v3/create-tenant-user,TenantUserAPIV3ManagementController_createTenantUser,创建租户成员,no
+tenant_management,管理租户成员/API 列表,POST,/api/v3/list-tenant-users,TenantUserAPIV3ManagementController_listTenantUsers,获取/搜索租户成员列表,no
+tenant_management,管理租户成员/API 列表,POST,/api/v3/remove-tenant-users,TenantUserAPIV3ManagementController_removeTenantUsers,批量移除租户成员,no
+tenant_management,管理租户成员/API 列表,POST,/api/v3/send-invite-tenant-user-email,TenantUserAPIV3ManagementController_sendInviteTenantUserEmail,发送邀请租户用户邮件,no
+tenant_management,管理租户成员/API 列表,POST,/api/v3/update-tenant-user,TenantUserAPIV3ManagementController_updateTenantUser,更新租户成员,no
+tenant_management,管理租户组织机构/API 列表,POST,/api/v3/add-tenant-department-members,TenantDepartmentAPIV3ManagementController_addTenantDepartmentMembers,租户部门下添加成员,no
+tenant_management,管理租户组织机构/API 列表,POST,/api/v3/remove-tenant-department-members,TenantDepartmentAPIV3ManagementController_removeTenantDepartmentMembers,租户部门下删除成员,no
+tenant_management,管理租户身份源/API 列表,GET,/api/v3/ext-idp-conn-apps,ExtIdpManagementController_extIdpConnStateByApps,身份源下应用的连接详情,no
+tenant_management,管理组织机构/API 列表,GET,/api/v3/get-all-departments,DepartmentsManagementController_getAllDepartments,获取所有部门列表,no
+tenant_management,管理组织机构/API 列表,GET,/api/v3/get-department-by-id,DepartmentsManagementController_getDepartmentById,根据部门id查询部门,no
+tenant_management,管理组织机构/API 列表,GET,/api/v3/get-department-sync-relations,DepartmentsManagementController_getDepartmentSyncRelations,获取部门绑定的第三方同步关系,no
+tenant_management,管理组织机构/API 列表,GET,/api/v3/get-organization-batch,OrganizationsManagementController_getOrganizationsBatch,批量获取组织机构详情,no
+tenant_management,管理组织机构/API 列表,GET,/api/v3/get-parent-department,DepartmentsManagementController_getParentDepartment,获取父部门信息,no
+tenant_management,管理组织机构/API 列表,GET,/api/v3/is-department-in-department,DepartmentsManagementController_isDepartmentDepartmentInDepartment,判断部门是否在某个部门下,no
+tenant_management,管理组织机构/API 列表,GET,/api/v3/is-user-in-department,DepartmentsManagementController_isUserInDepartment,判断用户是否在某个部门下,no
+tenant_management,管理组织机构/API 列表,GET,/api/v3/list-department-member-ids,DepartmentsManagementController_listDepartmentMemberIds,获取部门直属成员 ID 列表,no
+tenant_management,管理组织机构/API 列表,GET,/api/v3/search-department-members,DepartmentsManagementController_searchDepartmentMembers,搜索部门下的成员,no
+tenant_management,管理组织机构/API 列表,GET,/api/v3/search-organizations,OrganizationsManagementController_searchOrganizations,搜索组织机构列表,no
+tenant_management,管理组织机构/API 列表,POST,/api/v3/add-department-members,DepartmentsManagementController_addDepartmentMembers,部门下添加成员,yes
+tenant_management,管理组织机构/API 列表,POST,/api/v3/create-department-tree,DepartmentsManagementController_createDepartmentTree,根据组织树批量创建部门,no
+tenant_management,管理组织机构/API 列表,POST,/api/v3/create-organization,OrganizationsManagementController_createOrganization,创建组织机构,yes
+tenant_management,管理组织机构/API 列表,POST,/api/v3/delete-department-sync-relations,DepartmentsManagementController_deleteDepartmentSyncRelations,删除部门同步关联关系,no
+tenant_management,管理组织机构/API 列表,POST,/api/v3/delete-organization,OrganizationsManagementController_deleteOrganization,删除组织机构,yes
+tenant_management,管理组织机构/API 列表,POST,/api/v3/remove-department-members,DepartmentsManagementController_removeDepartmentMembers,部门下删除成员,yes
+tenant_management,管理组织机构/API 列表,POST,/api/v3/search-departments,DepartmentsManagementController_searchDepartments,搜索部门,no
+tenant_management,管理组织机构/API 列表,POST,/api/v3/search-departments-list,DepartmentsManagementController_searchDepartmentsList,搜索部门,no
+tenant_management,管理组织机构/API 列表,POST,/api/v3/update-department-status,DepartmentsManagementController_updateNodeStatus,更新部门状态,no
+tenant_management,管理组织机构/API 列表,POST,/api/v3/update-organization,OrganizationsManagementController_updateOrganization,修改组织机构,yes
+tenant_management,管理组织机构/API 列表,POST,/api/v3/update-organization-status,OrganizationsManagementController_updateOrganizationStatus,更新组织机构状态,no
+tenant_management,"管理组织机构/API 列表,管理租户组织机构/API 列表",GET,/api/v3/get-department,DepartmentsManagementController_getDepartment,获取部门信息,yes
+tenant_management,"管理组织机构/API 列表,管理租户组织机构/API 列表",GET,/api/v3/get-organization,OrganizationsManagementController_getOrganization,获取组织机构详情,yes
+tenant_management,"管理组织机构/API 列表,管理租户组织机构/API 列表",GET,/api/v3/list-children-departments,DepartmentsManagementController_listChildrenDepartments,获取子部门列表,no
+tenant_management,"管理组织机构/API 列表,管理租户组织机构/API 列表",GET,/api/v3/list-department-members,DepartmentsManagementController_listDepartmentMembers,获取部门成员列表,no
+tenant_management,"管理组织机构/API 列表,管理租户组织机构/API 列表",GET,/api/v3/list-organizations,OrganizationsManagementController_listOrganizations,获取组织机构列表,no
+tenant_management,"管理组织机构/API 列表,管理租户组织机构/API 列表",POST,/api/v3/create-department,DepartmentsManagementController_createDepartment,创建部门,yes
+tenant_management,"管理组织机构/API 列表,管理租户组织机构/API 列表",POST,/api/v3/delete-department,DepartmentsManagementController_deleteDepartment,删除部门,yes
+tenant_management,"管理组织机构/API 列表,管理租户组织机构/API 列表",POST,/api/v3/delete-department-and-childs,DepartmentsManagementController_deleteDepartmentAndChilds,删除部门和子部门,no
+tenant_management,"管理组织机构/API 列表,管理租户组织机构/API 列表",POST,/api/v3/get-department-available-app,DepartmentsManagementController_getDepartmentAllApp,部门被授权的应用列表,no
+tenant_management,"管理组织机构/API 列表,管理租户组织机构/API 列表",POST,/api/v3/update-department,DepartmentsManagementController_updateDepartment,修改部门,yes
+tenant_management,管理自定义字段/API 列表,GET,/api/v3/get-custom-data,CustomFieldsManagementController_getCustomData,获取用户、分组、角色、组织机构的自定义字段值,no
+tenant_management,管理自定义字段/API 列表,GET,/api/v3/get-custom-fields,CustomFieldsManagementController_getCustomFields,获取自定义字段列表,no
+tenant_management,管理自定义字段/API 列表,GET,/api/v3/get-user-base-fields,CustomFieldsManagementController_getUserBaseFields,获取用户内置字段列表,no
+tenant_management,管理自定义字段/API 列表,GET,/api/v3/list-custom-fields,CustomFieldsManagementController_listCustFields,获取自定义字段列表,no
+tenant_management,管理自定义字段/API 列表,GET,/api/v3/list-user-base-fields,CustomFieldsManagementController_listUserBaseFields,获取用户内置字段列表,no
+tenant_management,管理自定义字段/API 列表,POST,/api/v3/delete-custom-fields,CustomFieldsManagementController_deleteCustomFields,删除自定义字段定义,no
+tenant_management,管理自定义字段/API 列表,POST,/api/v3/set-custom-data,CustomFieldsManagementController_setCustomData,设置自定义字段的值,no
+tenant_management,管理自定义字段/API 列表,POST,/api/v3/set-custom-fields,CustomFieldsManagementController_setCustomFields,创建/修改自定义字段定义,no
+tenant_management,管理自定义字段/API 列表,POST,/api/v3/set-user-base-fields,CustomFieldsManagementController_setUserBaseFields,修改用户内置字段配置,no
+tenant_management,管理资源与权限/API 列表,GET,/api/v3/get-authorized-resources,AccessControlManagementController_getAuthorizedResources,获取某个主体被授权的资源列表,no
+tenant_management,管理资源与权限/API 列表,GET,/api/v3/get-namespace,NamespaceManagementController_getNamespace,获取权限分组详情,no
+tenant_management,管理资源与权限/API 列表,GET,/api/v3/get-namespaces-batch,NamespaceManagementController_getNamespacesBatch,批量获取权限分组详情,no
+tenant_management,管理资源与权限/API 列表,GET,/api/v3/get-resource,ResourceManagementController_getResource,获取资源详情,yes
+tenant_management,管理资源与权限/API 列表,GET,/api/v3/get-resources-batch,ResourceManagementController_getResourcesBatch,批量获取资源详情,no
+tenant_management,管理资源与权限/API 列表,GET,/api/v3/list-namespace-roles,NamespaceManagementController_ListNamespaceRoles,分页权限分组下所有的角色列表,no
+tenant_management,管理资源与权限/API 列表,GET,/api/v3/list-namespaces,NamespaceManagementController_ListNamespaces,分页获取权限分组列表,no
+tenant_management,管理资源与权限/API 列表,POST,/api/v3/create-namespace,NamespaceManagementController_createNamespace,创建权限分组,no
+tenant_management,管理资源与权限/API 列表,POST,/api/v3/create-namespaces-batch,NamespaceManagementController_createNamespacesBatch,批量创建权限分组,no
+tenant_management,管理资源与权限/API 列表,POST,/api/v3/create-resource,ResourceManagementController_createResource,创建资源,yes
+tenant_management,管理资源与权限/API 列表,POST,/api/v3/create-resources-batch,ResourceManagementController_createResourcesBatch,批量创建资源,no
+tenant_management,管理资源与权限/API 列表,POST,/api/v3/delete-common-resources-batch,ResourceManagementController_batchDeleteCommonResource,批量删除资源,no
+tenant_management,管理资源与权限/API 列表,POST,/api/v3/delete-namespace,NamespaceManagementController_deleteNamespace,删除权限分组信息,no
+tenant_management,管理资源与权限/API 列表,POST,/api/v3/delete-namespaces-batch,NamespaceManagementController_deleteNamespacesBatch,批量删除权限分组,no
+tenant_management,管理资源与权限/API 列表,POST,/api/v3/delete-resource,ResourceManagementController_deleteResource,删除资源,yes
+tenant_management,管理资源与权限/API 列表,POST,/api/v3/delete-resources-batch,ResourceManagementController_deleteResourcesBatch,批量删除资源,no
+tenant_management,管理资源与权限/API 列表,POST,/api/v3/get-resource-authorized-targets,AccessControlManagementController_getResourceAuthorizedTargets,获取资源被授权的主体,no
+tenant_management,管理资源与权限/API 列表,POST,/api/v3/update-namespace,NamespaceManagementController_updateNamespace,修改权限分组信息,no
+tenant_management,管理资源与权限/API 列表,POST,/api/v3/update-resource,ResourceManagementController_updateResource,修改资源,yes
+tenant_management,"管理资源与权限/API 列表,管理资源与权限/API 列表,多租户管理资源与权限/API 列表",GET,/api/v3/list-common-resource,ResourceManagementController_listCommonResource,分页获取常规资源列表,no
+tenant_management,"管理资源与权限/API 列表,管理资源与权限/API 列表,多租户管理资源与权限/API 列表",GET,/api/v3/list-resources,ResourceManagementController_listResources,分页获取资源列表,no
+tenant_management,"管理资源与权限/API 列表,管理资源与权限/API 列表,多租户管理资源与权限/API 列表",POST,/api/v3/associate-tenant-resource,ResourceManagementController_associateTenantResource,关联/取消关联应用资源到租户,no
+tenant_management,"管理资源与权限/API 列表,管理资源与权限/API 列表,多租户管理资源与权限/API 列表",POST,/api/v3/authorize-resources,AccessControlManagementController_authorizeResources,授权资源,no
+tenant_management,"管理资源与权限/API 列表,管理资源与权限/API 列表,多租户管理资源与权限/API 列表",POST,/api/v3/is-action-allowed,AccessControlManagementController_isActionAllowed,判断用户是否对某个资源的某个操作有权限,no
+tenant_management,管理身份源/API 列表,GET,/api/v3/list-enabled-ext-idp-conns-by-app,ExtIdpManagementController_listEnabledExtIdpConns,根据应用 id 获取应用已启用的身份源连接列表,no
+tenant_management,管理身份源/API 列表,GET,/api/v3/list-ext-idp-conns,ExtIdpManagementController_listExtIdpConns,获取身份源连接列表,no
+tenant_management,"管理身份源/API 列表,管理租户身份源/API 列表",GET,/api/v3/get-ext-idp,ExtIdpManagementController_getExtIdp,获取身份源详情,yes
+tenant_management,"管理身份源/API 列表,管理租户身份源/API 列表",GET,/api/v3/list-ext-idp,ExtIdpManagementController_listExtIdp,获取身份源列表,no
+tenant_management,"管理身份源/API 列表,管理租户身份源/API 列表",GET,/api/v3/list-tenant-ext-idp,ExtIdpManagementController_listTenantExtIdp,租户控制台获取身份源列表,no
+tenant_management,"管理身份源/API 列表,管理租户身份源/API 列表",POST,/api/v3/change-ext-idp-conn-association-state,ExtIdpManagementController_changeExtIdpConnAssociationState,租户关联身份源,no
+tenant_management,"管理身份源/API 列表,管理租户身份源/API 列表",POST,/api/v3/change-ext-idp-conn-state,ExtIdpManagementController_changeExtIdpConnState,身份源连接开关,no
+tenant_management,"管理身份源/API 列表,管理租户身份源/API 列表",POST,/api/v3/create-ext-idp,ExtIdpManagementController_createExtIdp,创建身份源,yes
+tenant_management,"管理身份源/API 列表,管理租户身份源/API 列表",POST,/api/v3/create-ext-idp-conn,ExtIdpManagementController_createExtIdpConn,在某个已有身份源下创建新连接,no
+tenant_management,"管理身份源/API 列表,管理租户身份源/API 列表",POST,/api/v3/delete-ext-idp,ExtIdpManagementController_deleteExtIdp,删除身份源,yes
+tenant_management,"管理身份源/API 列表,管理租户身份源/API 列表",POST,/api/v3/delete-ext-idp-conn,ExtIdpManagementController_deleteExtIdpConn,删除身份源连接,no
+tenant_management,"管理身份源/API 列表,管理租户身份源/API 列表",POST,/api/v3/get-weixin-access-token,ExtIdpManagementController_getWechatMpAccessTokenInfo,获取微信小程序、公众号 Access Token,no
+tenant_management,"管理身份源/API 列表,管理租户身份源/API 列表",POST,/api/v3/update-ext-idp,ExtIdpManagementController_updateExtIdp,更新身份源配置,yes
+tenant_management,"管理身份源/API 列表,管理租户身份源/API 列表",POST,/api/v3/update-ext-idp-conn,ExtIdpManagementController_updateExtIdpConn,更新身份源连接,no
