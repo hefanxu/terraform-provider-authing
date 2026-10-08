@@ -166,12 +166,17 @@ func (r *DataObjectFieldResource) Read(ctx context.Context, req resource.ReadReq
 		s.Editable = types.BoolValue(f.Editable)
 		// The response type is numeric although create accepts an enum string.
 		var n int
-		if json.Unmarshal(f.Type, &n) == nil {
-			names := map[int]string{1: "Text", 2: "Textarea", 3: "Number", 4: "Boolean", 5: "Date"}
-			if typ, ok := names[n]; ok {
-				s.Type = types.StringValue(typ)
-			}
+		if err := json.Unmarshal(f.Type, &n); err != nil {
+			resp.Diagnostics.AddError("Read data object field failed", "Field response has a missing or invalid type")
+			return
 		}
+		names := map[int]string{1: "Text", 2: "Textarea", 3: "Number", 4: "Boolean", 5: "Date"}
+		typ, ok := names[n]
+		if !ok {
+			resp.Diagnostics.AddError("Read data object field failed", fmt.Sprintf("Unsupported remote field type %d; refusing to retain a stale basic type in state", n))
+			return
+		}
+		s.Type = types.StringValue(typ)
 		resp.Diagnostics.Append(resp.State.Set(ctx, &s)...)
 		return
 	}

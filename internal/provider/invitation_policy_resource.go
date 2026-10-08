@@ -158,7 +158,7 @@ func (r *InvitationPolicyResource) Create(ctx context.Context, req resource.Crea
 		return
 	}
 	if !invitationConfirmed(m, actual) {
-		resp.Diagnostics.AddError("Verify invitation policy creation failed", "get-invitation-policy did not confirm the configured values")
+		resp.Diagnostics.AddError("Verify invitation policy creation failed", fmt.Sprintf("Authing created invitation policy %q but get-invitation-policy did not confirm the configured values. Import that ID before retrying to avoid creating a duplicate.", data.ID))
 		return
 	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &actual)...)

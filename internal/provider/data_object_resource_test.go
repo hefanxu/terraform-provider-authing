@@ -308,6 +308,19 @@ func TestDataObjectFieldRejectsUnsupportedType(t *testing.T) {
 		t.Fatalf("unsupported type should be rejected before API call: diagnostics=%v calls=%d", out.Diagnostics, calls)
 	}
 }
+func TestDataObjectFieldReadRejectsUnrecognizedRemoteType(t *testing.T) {
+	c := objectTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, `{"statusCode":200,"data":[{"id":"field-1","modelId":"model-1","key":"sku","name":"SKU","type":6,"show":true,"editable":true}]}`)
+	})
+	svc := &DataObjectFieldResource{client: c}
+	st := objectState(t, svc, &DataObjectFieldModel{ID: types.StringValue("field-1"), ModelID: types.StringValue("model-1"), Key: types.StringValue("sku"), Name: types.StringValue("SKU"), Type: types.StringValue("Text"), Show: types.BoolValue(true), Editable: types.BoolValue(true)})
+	rd := resource.ReadResponse{State: st}
+	svc.Read(context.Background(), resource.ReadRequest{State: st}, &rd)
+	if !rd.Diagnostics.HasError() || rd.State.Raw.IsNull() || !strings.Contains(rd.Diagnostics[0].Detail(), "6") {
+		t.Fatalf("unsupported type silently persisted as Text: %v", rd.Diagnostics)
+	}
+}
+
 func TestDataObjectFieldListWithoutDataIsNotMissing(t *testing.T) {
 	c := objectTestClient(t, func(w http.ResponseWriter, r *http.Request) { fmt.Fprint(w, `{"statusCode":200}`) })
 	svc := &DataObjectFieldResource{client: c}

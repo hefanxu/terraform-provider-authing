@@ -106,18 +106,28 @@ func (r *InvitationRosterResource) get(ctx context.Context, id string) (Invitati
 		return m, false, rosterStatus(out, nil)
 	}
 	var data struct {
-		ID       string  `json:"rosterId"`
-		Name     string  `json:"name"`
-		PolicyID *string `json:"policyId"`
+		ID             string  `json:"rosterId"`
+		Name           string  `json:"name"`
+		PolicyID       *string `json:"policyId"`
+		AssignedPolicy *struct {
+			PolicyID string `json:"policyId"`
+		} `json:"assignedPolicy"`
 	}
 	if json.Unmarshal(out.Data, &data) != nil || data.ID != id || data.Name == "" {
 		return m, false, errors.New("get-invitation-roster returned missing or mismatched roster data")
 	}
+	if data.PolicyID != nil && data.AssignedPolicy != nil && *data.PolicyID != data.AssignedPolicy.PolicyID {
+		return m, false, errors.New("get-invitation-roster returned conflicting policy IDs")
+	}
 	m.ID = types.StringValue(id)
 	m.Name = types.StringValue(data.Name)
 	m.PolicyID = types.StringNull()
-	if data.PolicyID != nil && *data.PolicyID != "" {
-		m.PolicyID = types.StringValue(*data.PolicyID)
+	policyID := data.PolicyID
+	if policyID == nil && data.AssignedPolicy != nil {
+		policyID = &data.AssignedPolicy.PolicyID
+	}
+	if policyID != nil && *policyID != "" {
+		m.PolicyID = types.StringValue(*policyID)
 	}
 	return m, true, nil
 }

@@ -6,11 +6,31 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
+
+func TestInvitationPolicyCreateMismatchReportsRecoverableID(t *testing.T) {
+	c := objectTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v3/create-invitation-policy":
+			fmt.Fprint(w, `{"statusCode":200,"data":{"policyId":"recover-policy"}}`)
+		case "/api/v3/get-invitation-policy":
+			fmt.Fprint(w, `{"statusCode":200,"data":{"policyId":"recover-policy","name":"Unexpected","enabledIdentifierVerify":false,"enabledInfoFill":true,"registerInfoFillMsg":""}}`)
+		default:
+			t.Errorf("unexpected endpoint %s", r.URL.Path)
+		}
+	})
+	svc := &InvitationPolicyResource{client: c}
+	resp := resource.CreateResponse{State: objectState(t, svc, &InvitationPolicyModel{})}
+	svc.Create(context.Background(), resource.CreateRequest{Plan: objectPlan(t, svc, invitationModel())}, &resp)
+	if !resp.Diagnostics.HasError() || !strings.Contains(resp.Diagnostics[0].Detail(), "recover-policy") || !strings.Contains(resp.Diagnostics[0].Detail(), "Import") {
+		t.Fatalf("mismatch lacks recovery guidance: %v", resp.Diagnostics)
+	}
+}
 
 func invitationModel() InvitationPolicyModel {
 	return InvitationPolicyModel{ID: types.StringUnknown(), Name: types.StringValue("Initial"), EnabledIdentifierVerify: types.BoolValue(false), EnabledInfoFill: types.BoolValue(true), RegisterInfoFillMsg: types.StringValue("")}

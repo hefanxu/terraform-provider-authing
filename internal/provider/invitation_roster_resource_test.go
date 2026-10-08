@@ -238,3 +238,37 @@ func TestInvitationRosterUpdateRejectsChangedRemotePolicy(t *testing.T) {
 		t.Fatal("unbound changed remote policy")
 	}
 }
+
+func TestInvitationRosterReadRejectsConflictingPolicyIDs(t *testing.T) {
+	c := objectTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, `{"statusCode":200,"data":{"rosterId":"roster-1","name":"Initial","policyId":"other","assignedPolicy":{"policyId":"policy-1"}}}`)
+	})
+	svc := &InvitationRosterResource{client: c}
+	m := rosterModel("Initial", "policy-1")
+	m.ID = types.StringValue("roster-1")
+	state := objectState(t, svc, &m)
+	resp := resource.ReadResponse{State: state}
+	svc.Read(context.Background(), resource.ReadRequest{State: state}, &resp)
+	if !resp.Diagnostics.HasError() || resp.State.Raw.IsNull() {
+		t.Fatalf("conflicting policy IDs accepted: %v", resp.Diagnostics)
+	}
+}
+
+func TestInvitationRosterReadNestedAssignedPolicy(t *testing.T) {
+	c := objectTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v3/get-invitation-roster" || r.URL.Query().Get("withAssignedPolicy") != "true" {
+			t.Errorf("unexpected request %s?%s", r.URL.Path, r.URL.RawQuery)
+		}
+		fmt.Fprint(w, `{"statusCode":200,"data":{"rosterId":"roster-1","name":"Initial","assignedPolicy":{"policyId":"policy-1"}}}`)
+	})
+	svc := &InvitationRosterResource{client: c}
+	m := rosterModel("Initial", "policy-1")
+	m.ID = types.StringValue("roster-1")
+	state := objectState(t, svc, &m)
+	resp := resource.ReadResponse{State: state}
+	svc.Read(context.Background(), resource.ReadRequest{State: state}, &resp)
+	var got InvitationRosterModel
+	if d := resp.State.Get(context.Background(), &got); d.HasError() || resp.Diagnostics.HasError() || got.PolicyID.ValueString() != "policy-1" {
+		t.Fatalf("nested policy lost: %+v, %v, %v", got, d, resp.Diagnostics)
+	}
+}
