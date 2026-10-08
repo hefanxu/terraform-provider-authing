@@ -15,7 +15,7 @@ import (
 var applicationRecoveryLive = flag.Bool("authing-application-recovery", false, "read-only incident application ownership probe")
 
 func applicationRecoveryGuard(code string, env map[string]string) error {
-	if (code != incidentApplicationCode && code != secondIncidentApplicationCode) || !sandboxCode.MatchString(code) || env["AUTHING_ACCEPTANCE_CONFIRM"] != "READ_ONLY_SANDBOX" || env["AUTHING_ACCESS_KEY_ID"] == "" || env["AUTHING_ACCESS_KEY_SECRET"] == "" {
+	if (code != incidentApplicationCode && code != secondIncidentApplicationCode && code != thirdIncidentApplicationCode) || !sandboxCode.MatchString(code) || env["AUTHING_ACCEPTANCE_CONFIRM"] != "READ_ONLY_SANDBOX" || env["AUTHING_ACCESS_KEY_ID"] == "" || env["AUTHING_ACCESS_KEY_SECRET"] == "" {
 		return errors.New("read-only application recovery requires exact incident code, confirmation, and sandbox credentials")
 	}
 	return nil

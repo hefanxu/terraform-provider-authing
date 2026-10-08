@@ -68,7 +68,7 @@ jobs:
         run: go test -count=1 -run '^TestReadOnlyPlan$' ./scripts/acceptance -args -authing-read-only-sandbox
 
   application-recovery:
-    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feat/management-api-coverage' && inputs.confirm == 'READ_ONLY_SANDBOX' && inputs.test_case == 'application' && (inputs.test_object_code == 'hermesacc-c99546b76631e842' || inputs.test_object_code == 'hermesacc-05aa25aef574a094') }}
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feat/management-api-coverage' && inputs.confirm == 'READ_ONLY_SANDBOX' && inputs.test_case == 'application' && (inputs.test_object_code == 'hermesacc-c99546b76631e842' || inputs.test_object_code == 'hermesacc-05aa25aef574a094' || inputs.test_object_code == 'hermesacc-db3c63ade05f10bb') }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: authing-sandbox

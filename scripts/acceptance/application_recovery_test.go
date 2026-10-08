@@ -13,6 +13,7 @@ import (
 
 const incidentApplicationCode = "hermesacc-c99546b76631e842"
 const secondIncidentApplicationCode = "hermesacc-05aa25aef574a094"
+const thirdIncidentApplicationCode = "hermesacc-db3c63ade05f10bb"
 
 func TestApplicationRecoveryProbe(t *testing.T) {
 	code := incidentApplicationCode
@@ -94,6 +95,7 @@ func TestApplicationRecoveryGuard(t *testing.T) {
 	}{
 		{incidentApplicationCode, "READ_ONLY_SANDBOX", true},
 		{secondIncidentApplicationCode, "READ_ONLY_SANDBOX", true},
+		{thirdIncidentApplicationCode, "READ_ONLY_SANDBOX", true},
 		{incidentApplicationCode, "DESTRUCTIVE_SANDBOX", false},
 		{"hermesacc-1234567890abcdef", "READ_ONLY_SANDBOX", false},
 		{incidentApplicationCode + "x", "READ_ONLY_SANDBOX", false},
