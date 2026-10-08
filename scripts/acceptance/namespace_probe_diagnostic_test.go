@@ -25,13 +25,14 @@ func TestNamespaceRecoveryTypedDiagnostics(t *testing.T) {
 		{"resources-403", "/api/v3/list-resources", `{"statusCode":403,"message":"secret-marker"}`, "resources", "business-4xx", 403},
 		{"resources-500", "/api/v3/list-resources", `{"statusCode":500,"message":"secret-marker"}`, "resources", "business-5xx", 200},
 		{"resources-nested-403", "/api/v3/list-resources", `{"statusCode":200,"data":{"statusCode":403,"message":"secret-marker"}}`, "resources", "business-4xx", 200},
-		{"resources-malformed", "/api/v3/list-resources", `{"statusCode":200,"data":{"totalCount":0,"list":[]}}`, "resources", "invalid-envelope", 200},
 		{"resources-incomplete", "/api/v3/list-resources", `{"statusCode":200,"data":{"statusCode":200,"totalCount":1,"list":[]}}`, "resources", "incomplete-inventory", 200},
 		{"resources-nested-500", "/api/v3/list-resources", `{"statusCode":200,"data":{"statusCode":500,"message":"secret-marker"}}`, "resources", "business-5xx", 200},
 		{"data-resources-403", "/api/v3/list-data-resources", `{"statusCode":403,"message":"secret-marker"}`, "data-resources", "business-4xx", 403},
 		{"data-resources-500", "/api/v3/list-data-resources", `{"statusCode":500,"message":"secret-marker"}`, "data-resources", "business-5xx", 200},
 		{"data-resources-malformed", "/api/v3/list-data-resources", `{"statusCode":200,"data":{}}`, "data-resources", "invalid-envelope", 200},
 		{"data-resources-incomplete", "/api/v3/list-data-resources", `{"statusCode":200,"data":{"totalCount":1,"list":[]}}`, "data-resources", "incomplete-inventory", 200},
+		{"policies-403", "/api/v3/list-data-policies", `{"statusCode":403,"message":"secret-marker"}`, "policies", "business-4xx", 403},
+		{"policies-malformed", "/api/v3/list-data-policies", `{"statusCode":200,"data":{"list":[]}}`, "policies", "invalid-envelope", 200},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			n := &mockNamespace{code: namespaceTestCode, name: namespaceTestCode, description: "hermesacc ownership " + namespaceTestCode}

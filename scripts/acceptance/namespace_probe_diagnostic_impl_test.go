@@ -17,6 +17,7 @@ const (
 	recoveryRoles         namespaceRecoveryStage = "roles"
 	recoveryResources     namespaceRecoveryStage = "resources"
 	recoveryDataResources namespaceRecoveryStage = "data-resources"
+	recoveryPolicies      namespaceRecoveryStage = "policies"
 )
 
 type namespaceRecoveryCause string
@@ -195,6 +196,7 @@ func probeNamespaceRecoveryDiagnostic(client *authingapi.Client, code string) na
 		{recoveryRoles, "/api/v3/list-permission-namespace-roles", map[string]any{"code": code, "page": 1, "limit": 1}, false},
 		{recoveryResources, "/api/v3/list-resources", map[string]any{"namespace": code, "page": 1, "limit": 1}, true},
 		{recoveryDataResources, "/api/v3/list-data-resources", map[string]any{"namespaceCodes": []string{code}, "page": 1, "limit": 1}, false},
+		{recoveryPolicies, "/api/v3/list-data-policies", map[string]any{"page": 1, "limit": 1}, false},
 	}
 	nonempty := false
 	for _, entry := range entries {
@@ -227,9 +229,14 @@ func probeNamespaceRecoveryDiagnostic(client *authingapi.Client, code string) na
 		}
 		if entry.nested {
 			if page.StatusCode == nil {
-				return recoveryResourceInvalid(classifyResourceShape(data))
+				// The live service returns a complete empty resource page without
+				// the nested statusCode required by OpenAPI. Accept only that
+				// exact structural form under a successful outer envelope.
+				if classifyResourceShape(data) != resourceShapeMissingNestedStatusEmpty {
+					return recoveryResourceInvalid(classifyResourceShape(data))
+				}
 			}
-			if *page.StatusCode != http.StatusOK {
+			if page.StatusCode != nil && *page.StatusCode != http.StatusOK {
 				return recoveryUnknown(entry.stage, recoveryBusinessCause(*page.StatusCode))
 			}
 		}
@@ -267,7 +274,7 @@ func formatNamespaceRecoveryLog(d namespaceRecoveryDiagnostic, code string) stri
 		d = recoveryUnknown(recoveryGet, recoveryInvalidEnvelope)
 	}
 	switch d.Stage {
-	case recoveryGet, recoveryRoles, recoveryResources, recoveryDataResources:
+	case recoveryGet, recoveryRoles, recoveryResources, recoveryDataResources, recoveryPolicies:
 	default:
 		d.Stage = recoveryGet
 	}

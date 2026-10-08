@@ -92,6 +92,13 @@ func (n *mockNamespace) serve(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		n.list(w, false)
+	case "/api/v3/list-data-policies":
+		// Policies have no namespace filter: refuse teardown if any exist.
+		if r.URL.Query().Get("page") != "1" || r.URL.Query().Get("limit") != "1" {
+			http.Error(w, "wrong policy inventory", 500)
+			return
+		}
+		n.list(w, false)
 	case "/api/v3/delete-permission-namespace":
 		var v struct {
 			Code string `json:"code"`
@@ -276,6 +283,7 @@ func verifyOwnedNamespace(client *authingapi.Client, code, name, marker string) 
 		{"/api/v3/list-permission-namespace-roles", map[string]any{"code": code, "page": 1, "limit": 1}, false},
 		{"/api/v3/list-resources", map[string]any{"namespace": code, "page": 1, "limit": 1}, true},
 		{"/api/v3/list-data-resources", map[string]any{"namespaceCodes": []string{code}, "page": 1, "limit": 1}, false},
+		{"/api/v3/list-data-policies", map[string]any{"page": 1, "limit": 1}, false},
 	} {
 		body, err := client.SendHttpRequest(entry.path, http.MethodGet, entry.query)
 		if err != nil {
@@ -293,7 +301,9 @@ func verifyOwnedNamespace(client *authingapi.Client, code, name, marker string) 
 			TotalCount *int            `json:"totalCount"`
 			List       json.RawMessage `json:"list"`
 		}
-		if json.Unmarshal(response.Data, &data) != nil || (entry.nested && (data.StatusCode == nil || *data.StatusCode != 200)) || data.TotalCount == nil || *data.TotalCount != 0 || string(data.List) != "[]" {
+		if json.Unmarshal(response.Data, &data) != nil ||
+			(entry.nested && (data.StatusCode == nil && classifyResourceShape(response.Data) != resourceShapeMissingNestedStatusEmpty || data.StatusCode != nil && *data.StatusCode != 200)) ||
+			data.TotalCount == nil || *data.TotalCount != 0 || string(data.List) != "[]" {
 			return errors.New("namespace children present or inventory incomplete")
 		}
 	}
