@@ -18,6 +18,7 @@ type mockApplication struct {
 	paths                                  []string
 	failStrategy                           bool
 	failCreateValidation                   bool
+	rejectUnconfiguredNested               bool
 	deletes                                int
 }
 
@@ -43,6 +44,14 @@ func (a *mockApplication) serve(w http.ResponseWriter, r *http.Request) {
 		if a.failCreateValidation {
 			fmt.Fprint(w, `{"statusCode":400,"apiCode":123456,"message":"invalid loginConfig secret-marker https://private.invalid/token app-id-marker"}`)
 			return
+		}
+		if a.rejectUnconfiguredNested {
+			for _, key := range []string{"oidcConfig", "samlConfig", "oauthConfig", "casConfig", "loginConfig", "registerConfig", "brandingConfig"} {
+				if _, present := body[key]; present {
+					fmt.Fprint(w, `{"statusCode":400,"message":"unconfigured nested application options"}`)
+					return
+				}
+			}
 		}
 		if a.id != "" || !strings.HasPrefix(body["appName"].(string), "hermesacc-") || body["appType"] != "web" || body["ssoEnabled"] != false || body["appIdentifier"] != body["appName"] || body["appDescription"] != "hermesacc ownership "+body["appName"].(string) || body["redirectUris"].([]any)[0] != "https://example.invalid/callback" {
 			http.Error(w, "invalid create", 500)

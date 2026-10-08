@@ -144,34 +144,25 @@ func (r *ApplicationResource) Create(ctx context.Context, req resource.CreateReq
 		return
 	}
 
-	createReq := &dto.CreateApplicationDto{
-		AppName:            plan.AppName.ValueString(),
-		RedirectUris:       redirectUris,
-		LogoutRedirectUris: logoutUris,
+	// Build only fields represented by the Terraform configuration. Marshaling
+	// a zero-valued SDK DTO emits nested login/protocol/branding objects even
+	// though none of those settings are configured or managed here.
+	payload := map[string]interface{}{"appName": plan.AppName.ValueString()}
+	if !plan.RedirectUris.IsNull() && !plan.RedirectUris.IsUnknown() && len(redirectUris) > 0 {
+		payload["redirectUris"] = redirectUris
+	}
+	if !plan.LogoutRedirectUris.IsNull() && !plan.LogoutRedirectUris.IsUnknown() && len(logoutUris) > 0 {
+		payload["logoutRedirectUris"] = logoutUris
 	}
 	if !plan.AppType.IsNull() && !plan.AppType.IsUnknown() {
-		createReq.AppType = plan.AppType.ValueString()
+		payload["appType"] = plan.AppType.ValueString()
 	}
 	if !plan.Description.IsNull() && !plan.Description.IsUnknown() {
-		createReq.AppDescription = plan.Description.ValueString()
+		payload["appDescription"] = plan.Description.ValueString()
 	}
 	if !plan.InitLoginUrl.IsNull() && !plan.InitLoginUrl.IsUnknown() {
-		createReq.InitLoginUri = plan.InitLoginUrl.ValueString()
+		payload["initLoginUri"] = plan.InitLoginUrl.ValueString()
 	}
-	// The SDK DTO omits false booleans and empty strings, although these may
-	// be explicitly configured. Preserve its other serialized fields below.
-	var payload map[string]interface{}
-	encoded, err := json.Marshal(createReq)
-	if err != nil {
-		resp.Diagnostics.AddError("Failed to create Authing application", err.Error())
-		return
-	}
-	if err := json.Unmarshal(encoded, &payload); err != nil {
-		resp.Diagnostics.AddError("Failed to create Authing application", err.Error())
-		return
-	}
-	// DTO string fields use omitempty, but a configured empty value is distinct
-	// from leaving an optional setting to Authing's defaults.
 	if !plan.AppIdentifier.IsNull() && !plan.AppIdentifier.IsUnknown() {
 		payload["appIdentifier"] = plan.AppIdentifier.ValueString()
 	}
