@@ -15,6 +15,7 @@ on:
         options:
           - group
           - application
+          - application_strategy
           - namespace
           - user
           - public_account

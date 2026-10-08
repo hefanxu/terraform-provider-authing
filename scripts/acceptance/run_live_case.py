@@ -11,6 +11,7 @@ from pathlib import Path
 CASES = {
     "group": "TestDestructiveLiveGroupTrace",
     "application": "TestDestructiveLiveApplicationTrace",
+    "application_strategy": "TestDestructiveLiveApplicationStrategyTrace",
     "namespace": "TestDestructiveLiveNamespaceTrace",
     "user": "TestDestructiveLiveUserTrace",
     "public_account": "TestDestructiveLivePublicAccountTrace",
