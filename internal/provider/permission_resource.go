@@ -553,6 +553,8 @@ func (r *RoleAssignmentResource) Read(ctx context.Context, req resource.ReadRequ
 	}
 
 	const limit = 50 // Maximum documented page size for both direct lists.
+	found := false
+	total := -1
 	for page, seen := 1, 0; ; page++ {
 		query := map[string]any{"code": state.RoleCode.ValueString(), "page": page, "limit": limit}
 		if !state.Namespace.IsNull() {
@@ -582,7 +584,13 @@ func (r *RoleAssignmentResource) Read(ctx context.Context, req resource.ReadRequ
 			resp.Diagnostics.AddError("Failed to read role assignment", "Incomplete or unsuccessful Authing direct-assignment response")
 			return
 		}
-		found := false
+		if total == -1 {
+			total = *envelope.Data.TotalCount
+		}
+		if total != *envelope.Data.TotalCount {
+			resp.Diagnostics.AddError("Failed to read role assignment", "Direct-assignment count changed during pagination")
+			return
+		}
 		for _, entry := range envelope.Data.List {
 			var identity map[string]json.RawMessage
 			if json.Unmarshal(entry, &identity) != nil {
@@ -599,14 +607,14 @@ func (r *RoleAssignmentResource) Read(ctx context.Context, req resource.ReadRequ
 			}
 		}
 		seen += len(envelope.Data.List)
-		if seen > *envelope.Data.TotalCount || seen < *envelope.Data.TotalCount && len(envelope.Data.List) < limit {
+		if seen > total || seen < total && len(envelope.Data.List) < limit {
 			resp.Diagnostics.AddError("Failed to read role assignment", "Incomplete direct-assignment pagination")
 			return
 		}
-		if found {
-			return // Leave the exact stored identity and namespace unchanged.
-		}
-		if seen == *envelope.Data.TotalCount {
+		if seen == total {
+			if found {
+				return // Leave the exact stored identity and namespace unchanged.
+			}
 			resp.State.RemoveResource(ctx)
 			return
 		}

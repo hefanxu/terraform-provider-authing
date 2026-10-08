@@ -185,6 +185,25 @@ func TestRoleAssignmentReadUncertainResponseKeepsState(t *testing.T) {
 	}
 }
 
+func TestRoleAssignmentFoundEarlyStillRequiresCompletePagination(t *testing.T) {
+	calls := 0
+	c := objectTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		if calls == 1 {
+			fmt.Fprintf(w, `{"statusCode":200,"data":{"totalCount":51,"list":[{"userId":"target/one"},%s]}}`, strings.TrimSuffix(strings.Repeat(`{"userId":"other"},`, 49), ","))
+		} else {
+			fmt.Fprint(w, `{"statusCode":200,"data":{"totalCount":51,"list":[]}}`)
+		}
+	})
+	svc := &RoleAssignmentResource{client: c}
+	st := objectState(t, svc, roleAssignmentModel("USER"))
+	out := resource.ReadResponse{State: st}
+	svc.Read(context.Background(), resource.ReadRequest{State: st}, &out)
+	if calls != 2 || !out.Diagnostics.HasError() || !out.State.Raw.Equal(st.Raw) {
+		t.Fatalf("early match accepted incomplete later page: calls=%d diagnostics=%v", calls, out.Diagnostics)
+	}
+}
+
 func TestRoleAssignmentUnsupportedTargetReadFailsClosed(t *testing.T) {
 	svc := &RoleAssignmentResource{}
 	st := objectState(t, svc, roleAssignmentModel("ORG"))
