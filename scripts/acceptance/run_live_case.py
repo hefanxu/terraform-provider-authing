@@ -30,6 +30,9 @@ CASES = {
     "data_policy": "TestDestructiveLiveDataPolicyTrace",
     "tenant": "TestDestructiveLiveTenantTrace",
     "invitation_invitee": "TestDestructiveLiveInvitationInviteeTrace",
+    "department": "TestDestructiveLiveDepartmentTrace",
+    "role_assignment": "TestDestructiveLiveRoleAssignmentTrace",
+    "tenant_membership": "TestDestructiveLiveTenantMembershipTrace",
 }
 
 # Tracers print generated non-secret identifiers for possible manual cleanup.

@@ -34,6 +34,9 @@ on:
           - data_policy
           - tenant
           - invitation_invitee
+          - department
+          - role_assignment
+          - tenant_membership
       test_object_code:
         description: 'Read-only recovery: exact generated incident code only'
         required: false
