@@ -904,7 +904,8 @@ func (r *DataPolicyResource) Schema(ctx context.Context, req resource.SchemaRequ
 		Description: "Manages an Authing Data Policy (数据策略).",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
-				Computed: true,
+				Computed:      true,
+				PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
 			},
 			"policy_name": schema.StringAttribute{
 				Required:    true,
