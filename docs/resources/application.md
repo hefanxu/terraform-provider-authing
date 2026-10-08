@@ -51,6 +51,16 @@ resource "authing_application" "portal" {
 - `app_id` (String) Authing Application ID.
 - `id` (String) The application ID.
 
+## Sandbox acceptance trace
+
+The application lifecycle test is opt-in and destructive. Use **only a disposable Authing sandbox** with `AUTHING_ACCESS_KEY_ID`, `AUTHING_ACCESS_KEY_SECRET`, and (if needed) `AUTHING_HOST` set in the environment:
+
+```shell
+AUTHING_ACCEPTANCE_CONFIRM=DESTRUCTIVE_SANDBOX go test ./scripts/acceptance -run '^TestDestructiveLiveApplicationTrace$' -count=1 -args -authing-destructive-sandbox
+```
+
+It creates one randomly named `hermesacc-` web application with SSO disabled, `DENY_ALL` access, an inert callback, and no secrets. It checks convergence, exact ID and ownership marker, remote name drift, reconciliation, deletion, and GET absence. Cleanup deletes only the exact ID after ownership verification; if cleanup cannot be confirmed, the test reports `cleanup-incomplete` for manual investigation. Mock tests run without the flag or credentials; the live trace is skipped by default.
+
 ## Import
 
 Applications can be imported using `app_id`:
