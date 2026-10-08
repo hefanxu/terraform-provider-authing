@@ -30,6 +30,9 @@ on:
           - group_member
           - auth_flow_function
           - data_object
+          - data_policy
+          - tenant
+          - invitation_invitee
       test_object_code:
         description: 'Read-only recovery: exact generated incident code only'
         required: false
