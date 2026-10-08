@@ -28,7 +28,7 @@ on:
           - invitation_roster
           - data_resource
       test_object_code:
-        description: 'Read-only application recovery: exact incident code only'
+        description: 'Read-only recovery: exact generated incident code only'
         required: false
         type: string
 
@@ -84,6 +84,30 @@ jobs:
           AUTHING_ACCESS_KEY_SECRET: ${{ secrets.AUTHING_ACCESS_KEY_SECRET }}
           AUTHING_HOST: ${{ vars.AUTHING_HOST }}
         run: go test -count=1 -v -run '^TestReadOnlyApplicationRecovery$' ./scripts/acceptance -args -authing-application-recovery
+
+  namespace-recovery:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feat/management-api-coverage' && inputs.confirm == 'READ_ONLY_SANDBOX' && inputs.test_case == 'namespace' && inputs.test_object_code == 'hermesacc-a69a5cb1b971aa8e' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: authing-sandbox
+    steps:
+      - name: Checkout
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Verify read-only recovery probe offline
+        run: go test -count=1 -run '^(TestNamespaceRecoveryProbeMock|TestNamespaceRecoveryProbeGuard|TestNamespaceRecoveryProbeInventoryFailureIsUnknown|TestNamespaceRecoveryProbeDoesNotConflateFailureWithAbsence)$' ./scripts/acceptance
+      - name: Probe exact incident namespace with GET only
+        env:
+          AUTHING_TEST_OBJECT_CODE: ${{ inputs.test_object_code }}
+          AUTHING_ACCEPTANCE_CONFIRM: ${{ inputs.confirm }}
+          AUTHING_ACCESS_KEY_ID: ${{ secrets.AUTHING_ACCESS_KEY_ID }}
+          AUTHING_ACCESS_KEY_SECRET: ${{ secrets.AUTHING_ACCESS_KEY_SECRET }}
+          AUTHING_HOST: ${{ vars.AUTHING_HOST }}
+        run: go test -count=1 -v -run '^TestNamespaceRecoveryProbe$' ./scripts/acceptance -args -authing-namespace-recovery-sandbox
 
   destructive-case:
     if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feat/management-api-coverage' && inputs.confirm == 'DESTRUCTIVE_SANDBOX' }}
