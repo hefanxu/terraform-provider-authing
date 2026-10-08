@@ -17,7 +17,7 @@ func assignmentModel() DataPolicyAssignmentModel {
 	return DataPolicyAssignmentModel{ID: types.StringUnknown(), PolicyID: types.StringValue("policy:one"), TargetType: types.StringValue("USER"), TargetID: types.StringValue("user/one")}
 }
 
-func TestDataPolicyAssignmentReadAcceptsOptionalTotalCount(t *testing.T) {
+func TestDataPolicyAssignmentReadRejectsMissingTotalCount(t *testing.T) {
 	c := objectTestClient(t, func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/api/v3/list-data-policy-targets" {
 			t.Errorf("unexpected path %s", r.URL.Path)
@@ -30,8 +30,8 @@ func TestDataPolicyAssignmentReadAcceptsOptionalTotalCount(t *testing.T) {
 	st := objectState(t, svc, m)
 	read := resource.ReadResponse{State: st}
 	svc.Read(context.Background(), resource.ReadRequest{State: st}, &read)
-	if read.Diagnostics.HasError() || !read.State.Raw.IsNull() {
-		t.Fatalf("optional totalCount should not invalidate absence: %v", read.Diagnostics)
+	if !read.Diagnostics.HasError() || read.State.Raw.IsNull() {
+		t.Fatalf("missing totalCount must retain state: %v", read.Diagnostics)
 	}
 }
 func TestDataPolicyAssignmentLifecycle(t *testing.T) {
@@ -142,7 +142,11 @@ func TestDataPolicyAssignmentPaginationAndFailures(t *testing.T) {
 		}
 		n := r.URL.Query().Get("page")
 		if n == "1" {
-			fmt.Fprintf(w, `{"statusCode":200,"data":{"totalCount":51,"list":[%s]}}`, strings.TrimSuffix(strings.Repeat(`{"targetIdentifier":"other","targetType":"USER"},`, 50), ","))
+			entries := make([]string, 50)
+			for i := range entries {
+				entries[i] = fmt.Sprintf(`{"targetIdentifier":"other-%d","targetType":"USER"}`, i)
+			}
+			fmt.Fprintf(w, `{"statusCode":200,"data":{"totalCount":51,"list":[%s]}}`, strings.Join(entries, ","))
 			return
 		}
 		if n != "2" {
@@ -151,7 +155,7 @@ func TestDataPolicyAssignmentPaginationAndFailures(t *testing.T) {
 		if present {
 			fmt.Fprint(w, `{"statusCode":200,"data":{"totalCount":51,"list":[{"targetIdentifier":"user/one","targetType":"USER"}]}}`)
 		} else {
-			fmt.Fprint(w, `{"statusCode":200,"data":{"totalCount":51,"list":[{"targetIdentifier":"other","targetType":"USER"}]}}`)
+			fmt.Fprint(w, `{"statusCode":200,"data":{"totalCount":51,"list":[{"targetIdentifier":"other-50","targetType":"USER"}]}}`)
 		}
 	})
 	svc := &DataPolicyAssignmentResource{client: c}

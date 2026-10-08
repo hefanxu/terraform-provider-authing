@@ -111,42 +111,56 @@ func assignmentError(out assignmentEnvelope, err error) string {
 	return fmt.Sprintf("Authing status %d: %s", out.StatusCode, out.Message)
 }
 
-// A list failure is never evidence that the authorization is absent. Query every
-// page indicated by totalCount, but stop on an empty page to avoid infinite loops
-// when concurrent revocations shrink the list.
+// A list failure is never evidence that the authorization is absent. Require
+// every exact policy-scoped page, including those after an early matching row.
 func (r *DataPolicyAssignmentResource) exists(ctx context.Context, m DataPolicyAssignmentModel) (bool, error) {
 	if !validAssignment(m) {
-		return false, errors.New("invalid policy ID, subject ID, or subject type in assignment state")
+		return false, errors.New("invalid assignment scope")
 	}
 	const limit = 50
-	for page, seen := 1, 0; ; page++ {
+	seen := map[string]bool{}
+	total := -1
+	found := false
+	for page := 1; page <= 10000; page++ {
 		out, err := r.send(ctx, "/api/v3/list-data-policy-targets", http.MethodGet, map[string]any{"policyId": m.PolicyID.ValueString(), "page": page, "limit": limit})
 		if err != nil || out.StatusCode != 200 {
-			return false, errors.New(assignmentError(out, err))
+			return false, errors.New("policy target inventory unavailable")
 		}
 		var data struct {
 			TotalCount *int `json:"totalCount"`
-			List       []struct {
+			List       *[]struct {
 				Identifier string `json:"targetIdentifier"`
 				Type       string `json:"targetType"`
 			} `json:"list"`
 		}
-		if err = json.Unmarshal(out.Data, &data); err != nil || data.List == nil || data.TotalCount != nil && *data.TotalCount < 0 {
-			return false, errors.New("invalid data policy targets response")
+		if json.Unmarshal(out.Data, &data) != nil || data.TotalCount == nil || data.List == nil || *data.TotalCount < 0 {
+			return false, errors.New("invalid policy target inventory")
 		}
-		for _, v := range data.List {
+		if total < 0 {
+			total = *data.TotalCount
+		}
+		remaining := total - len(seen)
+		if remaining > limit {
+			remaining = limit
+		}
+		if total != *data.TotalCount || remaining < 0 || len(*data.List) != remaining {
+			return false, errors.New("incomplete policy target page")
+		}
+		for _, v := range *data.List {
+			key := v.Type + "\x00" + v.Identifier
+			if v.Type == "" || v.Identifier == "" || seen[key] {
+				return false, errors.New("invalid policy target identity")
+			}
+			seen[key] = true
 			if v.Identifier == m.TargetID.ValueString() && v.Type == m.TargetType.ValueString() {
-				return true, nil
+				found = true
 			}
 		}
-		seen += len(data.List)
-		if data.TotalCount != nil && seen < *data.TotalCount && len(data.List) < limit {
-			return false, errors.New("incomplete data policy targets pagination")
-		}
-		if data.TotalCount != nil && seen >= *data.TotalCount || len(data.List) == 0 || data.TotalCount == nil && len(data.List) < limit {
-			return false, nil
+		if len(seen) == total {
+			return found, nil
 		}
 	}
+	return false, errors.New("policy target pagination unbounded")
 }
 func (r *DataPolicyAssignmentResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var m DataPolicyAssignmentModel

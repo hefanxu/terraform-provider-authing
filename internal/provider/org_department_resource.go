@@ -557,13 +557,15 @@ func (r *DepartmentMemberResource) Read(ctx context.Context, req resource.ReadRe
 		return
 	}
 
-	// Inspect the raw envelope: a missing/partial list must not imply absence.
+	// A match on an early page is not enough: complete the exact scoped inventory.
 	const limit = 100
-	for page, seen := 1, 0; ; page++ {
-		body, err := r.client.SendHttpRequestContext(ctx, "/api/v3/list-department-members", http.MethodGet, &dto.ListDepartmentMembersDto{
-			OrganizationCode: state.OrganizationCode.ValueString(),
-			DepartmentId:     state.DepartmentId.ValueString(),
-			Page:             page, Limit: limit,
+	seenUsers := map[string]bool{}
+	total := -1
+	found := false
+	for page := 1; page <= 10000; page++ {
+		body, err := r.client.SendHttpRequestContext(ctx, "/api/v3/list-department-members", http.MethodGet, map[string]any{
+			"organizationCode": state.OrganizationCode.ValueString(), "departmentId": state.DepartmentId.ValueString(),
+			"page": page, "limit": limit, "includeChildrenDepartments": false,
 		})
 		var result struct {
 			StatusCode int `json:"statusCode"`
@@ -574,34 +576,39 @@ func (r *DepartmentMemberResource) Read(ctx context.Context, req resource.ReadRe
 				} `json:"list"`
 			} `json:"data"`
 		}
-		if err != nil || json.Unmarshal(body, &result) != nil || result.StatusCode != 200 || result.Data == nil || result.Data.List == nil || result.Data.TotalCount != nil && *result.Data.TotalCount < 0 {
-			resp.Diagnostics.AddError("Failed to read department member", "Authing returned an invalid or unsuccessful membership list")
+		if err != nil || json.Unmarshal(body, &result) != nil || result.StatusCode != 200 || result.Data == nil || result.Data.List == nil || result.Data.TotalCount == nil || *result.Data.TotalCount < 0 {
+			resp.Diagnostics.AddError("Failed to read department member", "Authing returned an incomplete membership list")
+			return
+		}
+		if total < 0 {
+			total = *result.Data.TotalCount
+		}
+		remaining := total - len(seenUsers)
+		if remaining > limit {
+			remaining = limit
+		}
+		if total != *result.Data.TotalCount || remaining < 0 || len(*result.Data.List) != remaining {
+			resp.Diagnostics.AddError("Failed to read department member", "Authing returned an incomplete membership page")
 			return
 		}
 		for _, user := range *result.Data.List {
-			if user.UserId == "" {
-				resp.Diagnostics.AddError("Failed to read department member", "Authing returned a membership entry without a user ID")
+			if user.UserId == "" || seenUsers[user.UserId] {
+				resp.Diagnostics.AddError("Failed to read department member", "Authing returned an invalid membership identity")
 				return
 			}
+			seenUsers[user.UserId] = true
 			if user.UserId == state.UserId.ValueString() {
-				return
+				found = true
 			}
 		}
-		seen += len(*result.Data.List)
-		if result.Data.TotalCount != nil {
-			if seen > *result.Data.TotalCount || seen < *result.Data.TotalCount && len(*result.Data.List) == 0 {
-				resp.Diagnostics.AddError("Failed to read department member", "Authing returned an incomplete membership list")
-				return
-			}
-			if seen == *result.Data.TotalCount {
+		if len(seenUsers) == total {
+			if !found {
 				resp.State.RemoveResource(ctx)
-				return
 			}
-		} else if len(*result.Data.List) < limit {
-			resp.State.RemoveResource(ctx)
 			return
 		}
 	}
+	resp.Diagnostics.AddError("Failed to read department member", "Authing membership pagination exceeded the safe bound")
 }
 
 func (r *DepartmentMemberResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
