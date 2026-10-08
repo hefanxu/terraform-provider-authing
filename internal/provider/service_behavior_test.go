@@ -82,7 +82,7 @@ func TestRegisteredDataSourceReadCallsAuthing(t *testing.T) {
 		metadata := datasource.MetadataResponse{}
 		service.Metadata(ctx, datasource.MetadataRequest{ProviderTypeName: "authing"}, &metadata)
 		// The generic fixture lacks scoped/correlated metadata; dedicated httptest lifecycles cover these data sources.
-		if metadata.TypeName == "authing_data_resource" || metadata.TypeName == "authing_data_resource_extension_field" || metadata.TypeName == "authing_data_object_row" || metadata.TypeName == "authing_tenant" || metadata.TypeName == "authing_public_account" || metadata.TypeName == "authing_tenant_custom_field" || metadata.TypeName == "authing_tenant_department" || metadata.TypeName == "authing_ext_idp_connection" || metadata.TypeName == "authing_global_security_settings" || metadata.TypeName == "authing_global_mfa_settings" {
+		if metadata.TypeName == "authing_data_resource" || metadata.TypeName == "authing_data_resource_extension_field" || metadata.TypeName == "authing_data_object_row" || metadata.TypeName == "authing_tenant" || metadata.TypeName == "authing_public_account" || metadata.TypeName == "authing_tenant_custom_field" || metadata.TypeName == "authing_tenant_department" || metadata.TypeName == "authing_ext_idp_connection" || metadata.TypeName == "authing_global_security_settings" || metadata.TypeName == "authing_global_mfa_settings" || metadata.TypeName == "authing_device_exclusive_rule_settings" || metadata.TypeName == "authing_device_exclusive_valid_scope_settings" {
 			continue
 		}
 
