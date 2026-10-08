@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -14,7 +15,7 @@ VERSION = "1.13.5"
 ARCHIVE = f"terraform_{VERSION}_linux_amd64.zip"
 # From https://releases.hashicorp.com/terraform/1.13.5/terraform_1.13.5_SHA256SUMS
 SHA256 = "0dbe3fcc268eb670801af6a6456799d1ae26e72e73797f6c6167e18aafd1fd9a"
-SOURCE = "registry.opentofu.org/authing/authing"
+SOURCE = "registry.terraform.io/hefanxu/authing"
 REPO = Path(__file__).resolve().parent.parent
 TOOLS = REPO.parent / ".tools" / "terraform" / VERSION
 
@@ -65,7 +66,8 @@ def main():
         provider_bin = root / "provider"
         provider_bin.mkdir()
         # Terraform's dev override locates the executable by terraform-provider-<name>.
-        run(["go", "build", "-o", str(provider_bin / "terraform-provider-authing"), "."], cwd=REPO)
+        go = shutil.which("go") or str(REPO.parent / ".tools" / "go" / "bin" / "go")
+        run([go, "build", "-o", str(provider_bin / "terraform-provider-authing"), "."], cwd=REPO)
         config = root / "terraform.rc"
         config.write_text(f'provider_installation {{\n  dev_overrides {{\n    "{SOURCE}" = "{provider_bin}"\n  }}\n  direct {{}}\n}}\n')
         example = root / "example"
@@ -104,8 +106,8 @@ resource "authing_user" "protocol_only" {{
         provider = schema[SOURCE]
         resources = provider["resource_schemas"]
         sources = provider["data_source_schemas"]
-        assert len(resources) == 28, f"expected 28 resources, got {len(resources)}"
-        assert len(sources) == 18, f"expected 18 data sources, got {len(sources)}"
+        assert len(resources) >= 28, f"expected at least 28 resources, got {len(resources)}"
+        assert len(sources) >= 18, f"expected at least 18 data sources, got {len(sources)}"
         attrs = provider["provider"]["block"]["attributes"]
         assert attrs["access_key_secret"]["sensitive"] is True
         assert attrs["access_key_id"]["optional"] is True

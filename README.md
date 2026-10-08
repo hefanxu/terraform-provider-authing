@@ -36,6 +36,7 @@ The direct client obtains a management access token using AK/SK, caches it until
 - **`authing_data_policy_assignment`** (Resource): Authorize one policy for one subject, with paginated readback and targeted revocation.
 - **`authing_invitation_policy`** (Resource): Manage persistent invitation-policy settings; sending an invitation is not a resource.
 - **`authing_invitation_roster`** (Resource): Manage persistent invitation rosters and their optional policy association; sending invitations is excluded.
+- **`authing_data_object_row`** (Data Source): Read a data-object row by model and row ID. Cell values are sensitive and remain in Terraform state; row writes await a verified field-ID/key contract.
 
 ### 5. Applications & Integration (应用与集成)
 - **`authing_application`** (Resource / Data Source): Self-built applications, OAuth/OIDC redirect URLs.
@@ -46,6 +47,7 @@ The direct client obtains a management access token using AK/SK, caches it until
 - **`authing_pipeline_function`** (Resource): Serverless pipeline extension functions (pre-register, post-auth, etc.).
 - **`authing_auth_flow_function`** (Resource): Manage AuthFlowFunction source and settings; source is sensitive but still stored in Terraform state.
 - **`authing_application_subject_auth`** (Data Source): Read an application's authorization details for a subject.
+- **`authing_custom_domain`** (Resource): Manage the user-pool custom-domain name and public DNS status without storing certificate private keys.
 
 ### 6. Devices (终端)
 - **`authing_device_status`** (Data Source): Read terminal status. The OpenAPI contains an untagged `add-device` (and a deprecated `create-device`) endpoint, but they have no declared management security scheme and the management API does not expose a full device detail readback; this provider intentionally does not model complete device CRUD yet.
