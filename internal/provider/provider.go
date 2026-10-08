@@ -182,6 +182,7 @@ func (p *AuthingProvider) DataSources(ctx context.Context) []func() datasource.D
 		NewDataResourceDataSource,
 		NewDataResourceExtensionFieldDataSource,
 		NewTenantDataSource,
+		NewTenantUserDataSource,
 		NewTenantCustomFieldDataSource,
 		NewTenantDepartmentDataSource,
 		NewDataObjectRowDataSource,
