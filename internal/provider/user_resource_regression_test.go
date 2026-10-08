@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -52,6 +53,128 @@ func getUserModel(t *testing.T, state tfsdk.State) UserModel {
 		t.Fatal(d)
 	}
 	return m
+}
+
+func TestUserCreateResolvesAbsentComputedFieldsFromRemote(t *testing.T) {
+	svc, state, plan := userFixture(t, func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v3/create-user":
+			fmt.Fprint(w, `{"statusCode":200,"data":{"userId":"user-1","username":"alice","nickname":"Alice"}}`)
+		case "/api/v3/get-user":
+			fmt.Fprint(w, `{"statusCode":200,"data":{"userId":"user-1","username":"alice","nickname":"Alice","emailVerified":false,"phoneVerified":false}}`)
+		default:
+			t.Errorf("unexpected request %s", r.URL.Path)
+		}
+	})
+	planned := UserModel{ID: types.StringUnknown(), Username: types.StringValue("alice"),
+		Email: types.StringUnknown(), Phone: types.StringUnknown(), Nickname: types.StringValue("Alice"),
+		Password: types.StringNull(), ExternalId: types.StringUnknown(), Status: types.StringUnknown(),
+		Gender: types.StringUnknown(), EmailVerified: types.BoolUnknown(), PhoneVerified: types.BoolUnknown()}
+	if d := plan.Set(context.Background(), planned); d.HasError() {
+		t.Fatal(d)
+	}
+	resp := resource.CreateResponse{State: state}
+	svc.Create(context.Background(), resource.CreateRequest{Plan: plan}, &resp)
+	if resp.Diagnostics.HasError() {
+		t.Fatal(resp.Diagnostics)
+	}
+	got := getUserModel(t, resp.State)
+	for name, value := range map[string]types.String{"email": got.Email, "phone": got.Phone, "external_id": got.ExternalId, "status": got.Status, "gender": got.Gender} {
+		if !value.IsNull() {
+			t.Errorf("%s must be known null, got %#v", name, value)
+		}
+	}
+	if got.ID.ValueString() != "user-1" || got.Username.ValueString() != "alice" || got.Nickname.ValueString() != "Alice" || got.EmailVerified.IsUnknown() || got.PhoneVerified.IsUnknown() {
+		t.Fatalf("incomplete remote state: %+v", got)
+	}
+}
+
+func TestUserCreateSendsConfiguredFalseAndKeepsRemoteComputedValues(t *testing.T) {
+	var payload map[string]any
+	svc, state, plan := userFixture(t, func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v3/create-user":
+			if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+				t.Error(err)
+			}
+			fmt.Fprint(w, `{"statusCode":200,"data":{"userId":"user-1"}}`)
+		case "/api/v3/get-user":
+			fmt.Fprint(w, `{"statusCode":200,"data":{"userId":"user-1","username":"alice","emailVerified":false,"phoneVerified":true,"status":"Activated"}}`)
+		default:
+			t.Errorf("unexpected request %s", r.URL.Path)
+		}
+	})
+	planned := UserModel{ID: types.StringUnknown(), Username: types.StringValue("alice"), Email: types.StringUnknown(), Phone: types.StringUnknown(),
+		Nickname: types.StringUnknown(), Password: types.StringNull(), ExternalId: types.StringUnknown(), Status: types.StringUnknown(), Gender: types.StringUnknown(),
+		EmailVerified: types.BoolValue(false), PhoneVerified: types.BoolUnknown()}
+	if d := plan.Set(context.Background(), planned); d.HasError() {
+		t.Fatal(d)
+	}
+	resp := resource.CreateResponse{State: state}
+	svc.Create(context.Background(), resource.CreateRequest{Plan: plan}, &resp)
+	if resp.Diagnostics.HasError() {
+		t.Fatal(resp.Diagnostics)
+	}
+	if v, ok := payload["emailVerified"]; !ok || v != false {
+		t.Errorf("configured false omitted: %#v", payload)
+	}
+	got := getUserModel(t, resp.State)
+	if got.Status.ValueString() != "Activated" || !got.PhoneVerified.ValueBool() || !got.Email.IsNull() {
+		t.Fatalf("state did not reflect GET: %+v", got)
+	}
+}
+
+func TestUserCreateRejectsUnverifiedConfiguredFields(t *testing.T) {
+	for _, tc := range []struct{ name, readback string }{
+		{"mismatched username", `{"statusCode":200,"data":{"userId":"user-1","username":"other","email":"alice@example.com","nickname":"Alice"}}`},
+		{"missing configured email", `{"statusCode":200,"data":{"userId":"user-1","username":"alice","nickname":"Alice"}}`},
+		{"readback forbidden", `{"statusCode":403,"message":"forbidden"}`},
+		{"readback unavailable", `{"statusCode":503,"message":"unavailable"}`},
+		{"different identity", `{"statusCode":200,"data":{"userId":"other","username":"alice","email":"alice@example.com","nickname":"Alice"}}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			svc, state, plan := userFixture(t, func(w http.ResponseWriter, r *http.Request) {
+				switch r.URL.Path {
+				case "/api/v3/create-user":
+					fmt.Fprint(w, `{"statusCode":200,"data":{"userId":"user-1","username":"alice","email":"alice@example.com","nickname":"Alice"}}`)
+				case "/api/v3/get-user":
+					fmt.Fprint(w, tc.readback)
+				default:
+					t.Errorf("unexpected request %s", r.URL.Path)
+				}
+			})
+			planned := UserModel{ID: types.StringUnknown(), Username: types.StringValue("alice"), Email: types.StringValue("alice@example.com"),
+				Phone: types.StringUnknown(), Nickname: types.StringValue("Alice"), Password: types.StringNull(), ExternalId: types.StringUnknown(),
+				Status: types.StringUnknown(), Gender: types.StringUnknown(), EmailVerified: types.BoolUnknown(), PhoneVerified: types.BoolUnknown()}
+			if d := plan.Set(context.Background(), planned); d.HasError() {
+				t.Fatal(d)
+			}
+			resp := resource.CreateResponse{State: state}
+			svc.Create(context.Background(), resource.CreateRequest{Plan: plan}, &resp)
+			if !resp.Diagnostics.HasError() || !strings.Contains(resp.Diagnostics.Errors()[0].Detail(), "user-1") || !resp.State.Raw.IsNull() {
+				t.Fatalf("failed create readback must report recovery ID without committing state: %v", resp.Diagnostics)
+			}
+		})
+	}
+}
+
+func TestUserReadClearsRemovedStatusAndGender(t *testing.T) {
+	svc, state, _ := userFixture(t, func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, `{"statusCode":200,"data":{"userId":"user-1","username":"alice"}}`)
+	})
+	original := userModel()
+	original.Status = types.StringValue("Activated")
+	original.Gender = types.StringValue("M")
+	setUserModel(t, &state, original)
+	resp := resource.ReadResponse{State: state}
+	svc.Read(context.Background(), resource.ReadRequest{State: state}, &resp)
+	if resp.Diagnostics.HasError() {
+		t.Fatal(resp.Diagnostics)
+	}
+	got := getUserModel(t, resp.State)
+	if !got.Status.IsNull() || !got.Gender.IsNull() {
+		t.Fatalf("removed remote fields retained in state: %+v", got)
+	}
 }
 
 func TestUserReadOnlyExplicit404RemovesState(t *testing.T) {

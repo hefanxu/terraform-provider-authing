@@ -282,31 +282,32 @@ func mockUserCredentials(url string) map[string]string {
 	return map[string]string{"AUTHING_ACCESS_KEY_ID": "key-marker", "AUTHING_ACCESS_KEY_SECRET": "credential-marker", "AUTHING_HOST": url}
 }
 
-// The current provider leaves optional+computed email, phone, external_id,
-// gender and status unknown after create when the API returns no values. Keep
-// this regression test until Create resolves them to known nulls.
-func TestMockUserNoPasswordCreateBlockedButCleansKnownID(t *testing.T) {
+func TestMockUserNoPasswordTerraformLifecycle(t *testing.T) {
 	u := &mockUser{}
 	s := httptest.NewServer(http.HandlerFunc(u.serve))
 	defer s.Close()
 	err := runUserTrace(t.TempDir(), mockUserCredentials(s.URL), "hermesacc-1234567890abcdef")
-	if err == nil || !strings.Contains(err.Error(), "apply-create") {
-		t.Fatalf("expected provider create blocker (output suppressed): %v", err)
-	}
-	for _, secret := range []string{"key-marker", "credential-marker", "mock-token", "secret-marker"} {
-		if strings.Contains(err.Error(), secret) {
-			t.Fatal("diagnostic leaked secret")
+	if err != nil {
+		for _, secret := range []string{"key-marker", "credential-marker", "mock-token", "secret-marker"} {
+			if strings.Contains(err.Error(), secret) {
+				t.Fatal("diagnostic leaked secret")
+			}
 		}
+		t.Fatal(err)
 	}
 	u.Lock()
 	defer u.Unlock()
-	if u.id != "" || u.deletes != 1 {
-		t.Fatal("failed to clean up state-derived ID")
+	if u.id != "" || u.deletes != 1 || u.nickname != "hermesacc-1234567890abcdef" {
+		t.Fatal("lifecycle did not reconcile drift and delete exact ID")
 	}
+	updates := 0
 	for _, p := range u.paths {
 		if p == "POST /api/v3/update-user" {
-			t.Fatal("drift ran despite failed create")
+			updates++
 		}
+	}
+	if updates != 2 {
+		t.Fatalf("expected drift and reconciliation updates, got %d", updates)
 	}
 }
 func TestMockUserFailedDriftCleansKnownID(t *testing.T) {
@@ -408,9 +409,6 @@ func TestDestructiveLiveUserTrace(t *testing.T) {
 	if err := destructiveGuard(*destructiveLive, env); err != nil {
 		t.Fatal(err)
 	}
-	// The mock reproduces a create failure before drift. No real account should
-	// be created until Create resolves unknown optional+computed attributes.
-	t.Skip("user Create leaves email/phone/external_id/gender/status unknown; fix provider before live use")
 	username, err := newGroupCode()
 	if err != nil {
 		t.Fatal("random username generation failed")

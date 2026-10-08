@@ -129,73 +129,93 @@ func (r *UserResource) Create(ctx context.Context, req resource.CreateRequest, r
 		return
 	}
 
-	createReq := &dto.CreateUserReqDto{}
-	if !plan.Username.IsNull() {
-		createReq.Username = plan.Username.ValueString()
+	// Build the payload explicitly: SDK omitempty drops configured false values.
+	createReq := map[string]any{}
+	for _, field := range []struct {
+		key   string
+		value types.String
+	}{
+		{"username", plan.Username}, {"email", plan.Email}, {"phone", plan.Phone},
+		{"nickname", plan.Nickname}, {"password", plan.Password},
+		{"externalId", plan.ExternalId}, {"status", plan.Status}, {"gender", plan.Gender},
+	} {
+		if !field.value.IsNull() && !field.value.IsUnknown() {
+			createReq[field.key] = field.value.ValueString()
+		}
 	}
-	if !plan.Email.IsNull() {
-		createReq.Email = plan.Email.ValueString()
+	if !plan.EmailVerified.IsNull() && !plan.EmailVerified.IsUnknown() {
+		createReq["emailVerified"] = plan.EmailVerified.ValueBool()
 	}
-	if !plan.Phone.IsNull() {
-		createReq.Phone = plan.Phone.ValueString()
-	}
-	if !plan.Nickname.IsNull() {
-		createReq.Nickname = plan.Nickname.ValueString()
-	}
-	if !plan.Password.IsNull() {
-		createReq.Password = plan.Password.ValueString()
-	}
-	if !plan.ExternalId.IsNull() {
-		createReq.ExternalId = plan.ExternalId.ValueString()
-	}
-	if !plan.Status.IsNull() {
-		createReq.Status = plan.Status.ValueString()
-	}
-	if !plan.Gender.IsNull() {
-		createReq.Gender = plan.Gender.ValueString()
-	}
-	if !plan.EmailVerified.IsNull() {
-		createReq.EmailVerified = plan.EmailVerified.ValueBool()
-	}
-	if !plan.PhoneVerified.IsNull() {
-		createReq.PhoneVerified = plan.PhoneVerified.ValueBool()
+	if !plan.PhoneVerified.IsNull() && !plan.PhoneVerified.IsUnknown() {
+		createReq["phoneVerified"] = plan.PhoneVerified.ValueBool()
 	}
 
-	res := r.client.CreateUser(createReq)
-	if res == nil || res.StatusCode != 200 || res.Data.UserId == "" {
-		errMsg := "Unknown error"
-		if res != nil {
-			errMsg = fmt.Sprintf("code=%d msg=%s", res.StatusCode, res.Message)
+	body, err := r.client.SendHttpRequestContext(ctx, "/api/v3/create-user", "POST", createReq)
+	var result dto.UserSingleRespDto
+	if err != nil || json.Unmarshal(body, &result) != nil || result.StatusCode != 200 || result.Data.UserId == "" {
+		errMsg := "Invalid or unavailable response"
+		if err != nil {
+			errMsg = err.Error()
+		} else if result.StatusCode != 0 {
+			errMsg = fmt.Sprintf("code=%d msg=%s", result.StatusCode, result.Message)
 		}
 		resp.Diagnostics.AddError("Failed to create Authing user", errMsg)
 		return
 	}
 
-	user := res.Data
-	plan.ID = types.StringValue(user.UserId)
-	if user.Username != "" {
-		plan.Username = types.StringValue(user.Username)
+	// The create envelope is an acknowledgement, not a confirmed snapshot.
+	// Resolve computed attributes from GET and verify every configured field.
+	id := result.Data.UserId
+	body, err = r.client.SendHttpRequestContext(ctx, "/api/v3/get-user", "GET", &dto.GetUserDto{UserId: id})
+	var readback struct {
+		StatusCode int             `json:"statusCode"`
+		Data       json.RawMessage `json:"data"`
 	}
-	if user.Email != "" {
-		plan.Email = types.StringValue(user.Email)
+	var user dto.UserDto
+	var fields map[string]json.RawMessage
+	if err != nil || json.Unmarshal(body, &readback) != nil || readback.StatusCode != 200 ||
+		json.Unmarshal(readback.Data, &fields) != nil || json.Unmarshal(readback.Data, &user) != nil || user.UserId != id {
+		resp.Diagnostics.AddError("Failed to verify Authing user creation", fmt.Sprintf("GET readback failed or returned another user; created user ID %q may require import", id))
+		return
 	}
-	if user.Phone != "" {
-		plan.Phone = types.StringValue(user.Phone)
+	for _, field := range []struct {
+		key  string
+		want types.String
+		got  string
+	}{
+		{"username", plan.Username, user.Username}, {"email", plan.Email, user.Email},
+		{"phone", plan.Phone, user.Phone}, {"nickname", plan.Nickname, user.Nickname},
+		{"externalId", plan.ExternalId, user.ExternalId}, {"status", plan.Status, user.Status},
+		{"gender", plan.Gender, user.Gender},
+	} {
+		if field.want.IsNull() || field.want.IsUnknown() {
+			continue
+		}
+		value, ok := fields[field.key]
+		if !ok || string(value) == "null" || field.want.ValueString() != field.got {
+			resp.Diagnostics.AddError("Failed to verify Authing user creation", fmt.Sprintf("GET readback did not match configured %s; created user ID %q may require import", field.key, id))
+			return
+		}
 	}
-	if user.Nickname != "" {
-		plan.Nickname = types.StringValue(user.Nickname)
+	for _, field := range []struct {
+		key  string
+		want types.Bool
+		got  bool
+	}{
+		{"emailVerified", plan.EmailVerified, user.EmailVerified},
+		{"phoneVerified", plan.PhoneVerified, user.PhoneVerified},
+	} {
+		if field.want.IsNull() || field.want.IsUnknown() {
+			continue
+		}
+		value, ok := fields[field.key]
+		if !ok || string(value) == "null" || field.want.ValueBool() != field.got {
+			resp.Diagnostics.AddError("Failed to verify Authing user creation", fmt.Sprintf("GET readback did not match configured %s; created user ID %q may require import", field.key, id))
+			return
+		}
 	}
-	if user.ExternalId != "" {
-		plan.ExternalId = types.StringValue(user.ExternalId)
-	}
-	if user.Status != "" {
-		plan.Status = types.StringValue(user.Status)
-	}
-	if user.Gender != "" {
-		plan.Gender = types.StringValue(user.Gender)
-	}
-	plan.EmailVerified = types.BoolValue(user.EmailVerified)
-	plan.PhoneVerified = types.BoolValue(user.PhoneVerified)
+	plan.ID = types.StringValue(id)
+	userModelFromRemote(&plan, user)
 
 	diags = resp.State.Set(ctx, plan)
 	resp.Diagnostics.Append(diags...)
@@ -259,9 +279,13 @@ func userModelFromRemote(state *UserModel, user dto.UserDto) {
 	}
 	if user.Status != "" {
 		state.Status = types.StringValue(user.Status)
+	} else {
+		state.Status = types.StringNull()
 	}
 	if user.Gender != "" {
 		state.Gender = types.StringValue(user.Gender)
+	} else {
+		state.Gender = types.StringNull()
 	}
 	state.EmailVerified = types.BoolValue(user.EmailVerified)
 	state.PhoneVerified = types.BoolValue(user.PhoneVerified)
