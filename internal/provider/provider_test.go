@@ -49,6 +49,7 @@ func TestRegisteredResourcesExposeMetadataAndSchema(t *testing.T) {
 		"authing_ext_idp",
 		"authing_group",
 		"authing_group_member",
+		"authing_invitation_policy",
 		"authing_namespace",
 		"authing_organization",
 		"authing_pipeline_function",
