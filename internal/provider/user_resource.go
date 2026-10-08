@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/Authing/authing-golang-sdk/v3/dto"
@@ -211,12 +212,26 @@ func (r *UserResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 	res := r.client.GetUser(&dto.GetUserDto{
 		UserId: state.ID.ValueString(),
 	})
-	if res == nil || res.StatusCode != 200 || res.Data.UserId == "" {
+	if res != nil && res.StatusCode == 404 {
 		resp.State.RemoveResource(ctx)
 		return
 	}
+	if res == nil || res.StatusCode != 200 || res.Data.UserId != state.ID.ValueString() {
+		detail := "Invalid or unavailable response"
+		if res != nil {
+			detail = fmt.Sprintf("code=%d msg=%s userId=%q", res.StatusCode, res.Message, res.Data.UserId)
+		}
+		resp.Diagnostics.AddError("Failed to read Authing user", detail)
+		return
+	}
 
-	user := res.Data
+	userModelFromRemote(&state, res.Data)
+	diags = resp.State.Set(ctx, &state)
+	resp.Diagnostics.Append(diags...)
+}
+
+// userModelFromRemote maps a confirmed GET response, retaining the write-only password.
+func userModelFromRemote(state *UserModel, user dto.UserDto) {
 	if user.Username != "" {
 		state.Username = types.StringValue(user.Username)
 	} else {
@@ -250,9 +265,6 @@ func (r *UserResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 	}
 	state.EmailVerified = types.BoolValue(user.EmailVerified)
 	state.PhoneVerified = types.BoolValue(user.PhoneVerified)
-
-	diags = resp.State.Set(ctx, &state)
-	resp.Diagnostics.Append(diags...)
 }
 
 func (r *UserResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
@@ -263,53 +275,91 @@ func (r *UserResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		return
 	}
 
-	updateReq := &dto.UpdateUserReqDto{
-		UserId: plan.ID.ValueString(),
+	// The SDK DTO uses omitempty on bools, which silently drops an explicit false.
+	updateReq := map[string]any{"userId": plan.ID.ValueString()}
+	for _, field := range []struct {
+		key   string
+		value types.String
+	}{
+		{"username", plan.Username}, {"email", plan.Email}, {"phone", plan.Phone},
+		{"nickname", plan.Nickname}, {"externalId", plan.ExternalId},
+		{"status", plan.Status}, {"gender", plan.Gender},
+	} {
+		if !field.value.IsNull() && !field.value.IsUnknown() {
+			updateReq[field.key] = field.value.ValueString()
+		}
 	}
-	if !plan.Username.IsNull() {
-		updateReq.Username = plan.Username.ValueString()
+	if !plan.EmailVerified.IsNull() && !plan.EmailVerified.IsUnknown() {
+		updateReq["emailVerified"] = plan.EmailVerified.ValueBool()
 	}
-	if !plan.Nickname.IsNull() {
-		updateReq.Nickname = plan.Nickname.ValueString()
-	}
-	if !plan.ExternalId.IsNull() {
-		updateReq.ExternalId = plan.ExternalId.ValueString()
-	}
-	if !plan.Status.IsNull() {
-		updateReq.Status = plan.Status.ValueString()
-	}
-	if !plan.Gender.IsNull() {
-		updateReq.Gender = plan.Gender.ValueString()
+	if !plan.PhoneVerified.IsNull() && !plan.PhoneVerified.IsUnknown() {
+		updateReq["phoneVerified"] = plan.PhoneVerified.ValueBool()
 	}
 
-	res := r.client.UpdateUser(updateReq)
-	if res == nil || res.StatusCode != 200 || res.Data.UserId == "" {
-		errMsg := "Unknown error"
-		if res != nil {
-			errMsg = fmt.Sprintf("code=%d msg=%s", res.StatusCode, res.Message)
+	body, err := r.client.SendHttpRequestContext(ctx, "/api/v3/update-user", "POST", updateReq)
+	var result dto.UserSingleRespDto
+	if err != nil || json.Unmarshal(body, &result) != nil || result.StatusCode != 200 || result.Data.UserId != plan.ID.ValueString() {
+		detail := "Invalid or unavailable response"
+		if err != nil {
+			detail = err.Error()
+		} else if result.StatusCode != 0 {
+			detail = fmt.Sprintf("code=%d msg=%s userId=%q", result.StatusCode, result.Message, result.Data.UserId)
 		}
-		resp.Diagnostics.AddError("Failed to update Authing user", errMsg)
+		resp.Diagnostics.AddError("Failed to update Authing user", detail)
 		return
 	}
 
-	user := res.Data
-	if user.Username != "" {
-		plan.Username = types.StringValue(user.Username)
+	// An update acknowledgement is not proof that Authing applied each field.
+	// Read once, check the response and field presence before committing state.
+	body, err = r.client.SendHttpRequestContext(ctx, "/api/v3/get-user", "GET", &dto.GetUserDto{UserId: plan.ID.ValueString()})
+	var readback struct {
+		StatusCode int             `json:"statusCode"`
+		Data       json.RawMessage `json:"data"`
 	}
-	if user.Nickname != "" {
-		plan.Nickname = types.StringValue(user.Nickname)
+	var user dto.UserDto
+	var fields map[string]json.RawMessage
+	if err != nil || json.Unmarshal(body, &readback) != nil || readback.StatusCode != 200 ||
+		json.Unmarshal(readback.Data, &fields) != nil || json.Unmarshal(readback.Data, &user) != nil || user.UserId != plan.ID.ValueString() {
+		resp.Diagnostics.AddError("Failed to verify Authing user update", "GET readback failed or returned a different user")
+		return
 	}
-	if user.ExternalId != "" {
-		plan.ExternalId = types.StringValue(user.ExternalId)
+	for key := range updateReq {
+		if key == "userId" {
+			continue
+		}
+		value, ok := fields[key]
+		if !ok || string(value) == "null" {
+			resp.Diagnostics.AddError("Failed to verify Authing user update", fmt.Sprintf("GET readback omitted configured %s", key))
+			return
+		}
 	}
-	if user.Status != "" {
-		plan.Status = types.StringValue(user.Status)
+	var actual UserModel
+	diags = req.State.Get(ctx, &actual)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
 	}
-	if user.Gender != "" {
-		plan.Gender = types.StringValue(user.Gender)
+	userModelFromRemote(&actual, user)
+	for _, field := range []struct {
+		name      string
+		want, got types.String
+	}{
+		{"username", plan.Username, actual.Username}, {"email", plan.Email, actual.Email},
+		{"phone", plan.Phone, actual.Phone}, {"nickname", plan.Nickname, actual.Nickname},
+		{"external_id", plan.ExternalId, actual.ExternalId},
+		{"status", plan.Status, actual.Status}, {"gender", plan.Gender, actual.Gender},
+	} {
+		if !field.want.IsNull() && !field.want.IsUnknown() && !field.want.Equal(field.got) {
+			resp.Diagnostics.AddError("Failed to verify Authing user update", fmt.Sprintf("Readback did not match configured %s", field.name))
+			return
+		}
 	}
-
-	diags = resp.State.Set(ctx, plan)
+	if !plan.EmailVerified.IsNull() && !plan.EmailVerified.IsUnknown() && !plan.EmailVerified.Equal(actual.EmailVerified) ||
+		!plan.PhoneVerified.IsNull() && !plan.PhoneVerified.IsUnknown() && !plan.PhoneVerified.Equal(actual.PhoneVerified) {
+		resp.Diagnostics.AddError("Failed to verify Authing user update", "Readback did not match configured verification flags")
+		return
+	}
+	diags = resp.State.Set(ctx, &actual)
 	resp.Diagnostics.Append(diags...)
 }
 
