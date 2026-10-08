@@ -120,12 +120,22 @@ func TestOrgDepartmentExtIdpDeleteFailureReported(t *testing.T) {
 			{"transport", ``, 0, false},
 		} {
 			t.Run(kind+"/"+tc.name, func(t *testing.T) {
+				orgReads := 0
 				client := lifecycleFixture(t, func(w http.ResponseWriter, r *http.Request) {
 					if kind == "ext-idp" && r.URL.Path == "/api/v3/get-ext-idp" {
 						if tc.name == "missing" {
 							fmt.Fprint(w, `{"statusCode":404,"message":"missing"}`)
 						} else {
 							fmt.Fprint(w, `{"statusCode":200,"data":{"id":"idp","name":"old","type":"oidc"}}`)
+						}
+						return
+					}
+					if kind == "organization" && r.URL.Path == "/api/v3/get-organization" {
+						orgReads++
+						if tc.name == "missing" || orgReads > 1 {
+							fmt.Fprint(w, `{"statusCode":404}`)
+						} else {
+							fmt.Fprint(w, `{"statusCode":200,"data":{"organizationCode":"org","organizationName":"Old","hasChildren":false}}`)
 						}
 						return
 					}

@@ -44,7 +44,7 @@ func (r *OrganizationResource) Metadata(ctx context.Context, req resource.Metada
 
 func (r *OrganizationResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		Description: "Manages an Authing Organization.",
+		Description: "Manages an Authing Organization. Deletion is refused if child departments exist or their status cannot be confirmed; Authing deletes the entire organization tree.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Computed: true,
@@ -53,8 +53,7 @@ func (r *OrganizationResource) Schema(ctx context.Context, req resource.SchemaRe
 				},
 			},
 			"organization_code": schema.StringAttribute{
-				Optional:    true,
-				Computed:    true,
+				Required:    true,
 				Description: "Unique code for the organization.",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
@@ -94,10 +93,13 @@ func (r *OrganizationResource) Create(ctx context.Context, req resource.CreateRe
 	}
 
 	createReq := &dto.CreateOrganizationReqDto{
+		OrganizationCode: plan.OrganizationCode.ValueString(),
 		OrganizationName: plan.OrganizationName.ValueString(),
+		Metadata:         map[string]any{},
 	}
-	if !plan.OrganizationCode.IsNull() {
-		createReq.OrganizationCode = plan.OrganizationCode.ValueString()
+	if plan.OrganizationCode.IsNull() || plan.OrganizationCode.IsUnknown() || plan.OrganizationCode.ValueString() == "" {
+		resp.Diagnostics.AddError("Invalid organization code", "organization_code must be nonempty")
+		return
 	}
 	if !plan.Description.IsNull() {
 		createReq.Description = plan.Description.ValueString()
@@ -192,12 +194,63 @@ func (r *OrganizationResource) Delete(ctx context.Context, req resource.DeleteRe
 		return
 	}
 
-	res := r.client.DeleteOrganization(&dto.DeleteOrganizationReqDto{
-		OrganizationCode: state.OrganizationCode.ValueString(),
-	})
-	if res == nil || res.StatusCode != 404 && (res.StatusCode != 200 || !res.Data.Success) {
-		resp.Diagnostics.AddError("Failed to delete Authing organization", "Authing returned an invalid or unsuccessful response")
+	code := state.OrganizationCode.ValueString()
+	if state.OrganizationCode.IsNull() || state.OrganizationCode.IsUnknown() || code == "" || !state.ID.IsNull() && !state.ID.IsUnknown() && state.ID.ValueString() != code {
+		resp.Diagnostics.AddError("Invalid organization identity", "id and organization_code must identify the same nonempty organization")
+		return
 	}
+	before, missing, err := r.organizationDeleteCheck(ctx, code)
+	if err != nil {
+		resp.Diagnostics.AddError("Check organization before delete failed", err.Error())
+		return
+	}
+	if missing {
+		return
+	}
+	if before.HasChildren == nil || *before.HasChildren {
+		resp.Diagnostics.AddError("Unsafe organization deletion", "Authing deletes the entire organization tree; child-department status is unknown or children exist. Remove departments first.")
+		return
+	}
+	res := r.client.DeleteOrganization(&dto.DeleteOrganizationReqDto{
+		OrganizationCode: code,
+	})
+	if res == nil || res.StatusCode != 200 || !res.Data.Success {
+		resp.Diagnostics.AddError("Failed to delete Authing organization", "Authing returned an invalid or unsuccessful response")
+		return
+	}
+	_, missing, err = r.organizationDeleteCheck(ctx, code)
+	if err != nil || !missing {
+		resp.Diagnostics.AddError("Verify organization deletion failed", "Authing did not confirm absence of the exact organization")
+	}
+}
+
+type organizationDeleteData struct {
+	OrganizationCode string `json:"organizationCode"`
+	HasChildren      *bool  `json:"hasChildren"`
+}
+
+// A raw envelope preserves the difference between absent and false hasChildren;
+// the SDK's bool field erases that distinction.
+func (r *OrganizationResource) organizationDeleteCheck(ctx context.Context, code string) (organizationDeleteData, bool, error) {
+	var data organizationDeleteData
+	body, err := r.client.SendHttpRequestContext(ctx, "/api/v3/get-organization", http.MethodGet, &dto.GetOrganizationDto{OrganizationCode: code})
+	if err != nil {
+		return data, false, fmt.Errorf("get-organization failed: %w", err)
+	}
+	var out struct {
+		StatusCode int                     `json:"statusCode"`
+		Data       *organizationDeleteData `json:"data"`
+	}
+	if err := json.Unmarshal(body, &out); err != nil {
+		return data, false, fmt.Errorf("invalid get-organization response: %w", err)
+	}
+	if out.StatusCode == 404 {
+		return data, true, nil
+	}
+	if out.StatusCode != 200 || out.Data == nil || out.Data.OrganizationCode != code {
+		return data, false, fmt.Errorf("get-organization returned failure or mismatched organization code (status %d)", out.StatusCode)
+	}
+	return *out.Data, false, nil
 }
 
 func (r *OrganizationResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {

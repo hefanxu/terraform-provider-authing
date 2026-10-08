@@ -32,3 +32,4 @@ output "group_name" {
 - `description` (String) Group description.
 - `id` (String) The group code.
 - `name` (String) Group name.
+- `type` (String) Group type returned by Authing.

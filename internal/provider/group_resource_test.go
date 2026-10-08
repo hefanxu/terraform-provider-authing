@@ -49,6 +49,7 @@ func TestGroupResourceCreate(t *testing.T) {
 	planDiags := plan.Set(ctx, &GroupModel{
 		Code:        types.StringValue("engineering"),
 		Name:        types.StringValue("Engineering"),
+		Type:        types.StringValue("static"),
 		Description: types.StringValue("Platform team"),
 	})
 	if planDiags.HasError() {
@@ -60,7 +61,7 @@ func TestGroupResourceCreate(t *testing.T) {
 	if response.Diagnostics.HasError() {
 		t.Fatalf("create group returned diagnostics: %v", response.Diagnostics)
 	}
-	if createRequest["code"] != "engineering" || createRequest["name"] != "Engineering" || createRequest["description"] != "Platform team" {
+	if createRequest["code"] != "engineering" || createRequest["name"] != "Engineering" || createRequest["description"] != "Platform team" || createRequest["type"] != "static" {
 		t.Fatalf("unexpected Authing request: %#v", createRequest)
 	}
 

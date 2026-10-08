@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/Authing/authing-golang-sdk/v3/dto"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
@@ -13,6 +14,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"terraform-provider-authing/internal/authingapi"
 )
@@ -35,6 +37,21 @@ type GroupModel struct {
 	Code        types.String `tfsdk:"code"`
 	Name        types.String `tfsdk:"name"`
 	Description types.String `tfsdk:"description"`
+	Type        types.String `tfsdk:"type"`
+}
+
+type nonemptyGroupTypeValidator struct{}
+
+func (nonemptyGroupTypeValidator) Description(context.Context) string {
+	return "Group type must be nonempty; Authing documents no default or enum."
+}
+func (v nonemptyGroupTypeValidator) MarkdownDescription(ctx context.Context) string {
+	return v.Description(ctx)
+}
+func (nonemptyGroupTypeValidator) ValidateString(_ context.Context, req validator.StringRequest, resp *validator.StringResponse) {
+	if !req.ConfigValue.IsNull() && !req.ConfigValue.IsUnknown() && strings.TrimSpace(req.ConfigValue.ValueString()) == "" {
+		resp.Diagnostics.AddAttributeError(req.Path, "Invalid group type", "Provide a nonempty Authing group type; the API does not document a default or enum.")
+	}
 }
 
 func (r *GroupResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -65,7 +82,13 @@ func (r *GroupResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 			"description": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
-				Description: "Description of the group.",
+				Description: "Description of the group; omitted values are sent as an empty string (required by Authing).",
+			},
+			"type": schema.StringAttribute{
+				Required:      true,
+				Description:   "Authing group type (for example, static). Explicitly required; the API does not document a default or enum.",
+				Validators:    []validator.String{nonemptyGroupTypeValidator{}},
+				PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()},
 			},
 		},
 	}
@@ -90,13 +113,16 @@ func (r *GroupResource) Create(ctx context.Context, req resource.CreateRequest, 
 	if resp.Diagnostics.HasError() {
 		return
 	}
+	if plan.Type.IsNull() || plan.Type.IsUnknown() || plan.Type.ValueString() == "" {
+		resp.Diagnostics.AddError("Invalid group type", "type must be a nonempty Authing group type; no default is documented")
+		return
+	}
 
 	createReq := &dto.CreateGroupReqDto{
-		Code: plan.Code.ValueString(),
-		Name: plan.Name.ValueString(),
-	}
-	if !plan.Description.IsNull() {
-		createReq.Description = plan.Description.ValueString()
+		Code:        plan.Code.ValueString(),
+		Name:        plan.Name.ValueString(),
+		Type:        plan.Type.ValueString(),
+		Description: plan.Description.ValueString(),
 	}
 
 	res := r.client.CreateGroup(createReq)
@@ -112,9 +138,7 @@ func (r *GroupResource) Create(ctx context.Context, req resource.CreateRequest, 
 	plan.ID = types.StringValue(res.Data.Code)
 	plan.Code = types.StringValue(res.Data.Code)
 	plan.Name = types.StringValue(res.Data.Name)
-	if res.Data.Description != "" {
-		plan.Description = types.StringValue(res.Data.Description)
-	}
+	plan.Description = types.StringValue(res.Data.Description)
 
 	diags = resp.State.Set(ctx, plan)
 	resp.Diagnostics.Append(diags...)
@@ -143,11 +167,10 @@ func (r *GroupResource) Read(ctx context.Context, req resource.ReadRequest, resp
 	state.ID = types.StringValue(res.Data.Code)
 	state.Code = types.StringValue(res.Data.Code)
 	state.Name = types.StringValue(res.Data.Name)
-	if res.Data.Description != "" {
-		state.Description = types.StringValue(res.Data.Description)
-	} else {
-		state.Description = types.StringNull()
+	if res.Data.Type != "" {
+		state.Type = types.StringValue(res.Data.Type)
 	}
+	state.Description = types.StringValue(res.Data.Description)
 
 	diags = resp.State.Set(ctx, &state)
 	resp.Diagnostics.Append(diags...)
@@ -162,11 +185,9 @@ func (r *GroupResource) Update(ctx context.Context, req resource.UpdateRequest, 
 	}
 
 	updateReq := &dto.UpdateGroupReqDto{
-		Code: plan.Code.ValueString(),
-		Name: plan.Name.ValueString(),
-	}
-	if !plan.Description.IsNull() {
-		updateReq.Description = plan.Description.ValueString()
+		Code:        plan.Code.ValueString(),
+		Name:        plan.Name.ValueString(),
+		Description: plan.Description.ValueString(),
 	}
 
 	res := r.client.UpdateGroup(updateReq)
@@ -179,6 +200,7 @@ func (r *GroupResource) Update(ctx context.Context, req resource.UpdateRequest, 
 		return
 	}
 
+	plan.Description = types.StringValue(plan.Description.ValueString())
 	diags = resp.State.Set(ctx, plan)
 	resp.Diagnostics.Append(diags...)
 }
@@ -396,6 +418,10 @@ func (d *GroupDataSource) Schema(ctx context.Context, req datasource.SchemaReque
 				Computed:    true,
 				Description: "Group description.",
 			},
+			"type": dschema.StringAttribute{
+				Computed:    true,
+				Description: "Group type.",
+			},
 		},
 	}
 }
@@ -430,6 +456,7 @@ func (d *GroupDataSource) Read(ctx context.Context, req datasource.ReadRequest, 
 
 	state.ID = types.StringValue(res.Data.Code)
 	state.Name = types.StringValue(res.Data.Name)
+	state.Type = types.StringValue(res.Data.Type)
 	if res.Data.Description != "" {
 		state.Description = types.StringValue(res.Data.Description)
 	}
