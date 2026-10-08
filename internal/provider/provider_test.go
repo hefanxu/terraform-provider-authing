@@ -74,8 +74,8 @@ func TestRegisteredDataSourcesExposeMetadataAndSchema(t *testing.T) {
 	provider := &AuthingProvider{}
 	dataSourceFactories := provider.DataSources(context.Background())
 
-	if len(dataSourceFactories) != 19 {
-		t.Fatalf("expected 19 registered data sources, got %d", len(dataSourceFactories))
+	if len(dataSourceFactories) != 20 {
+		t.Fatalf("expected 20 registered data sources, got %d", len(dataSourceFactories))
 	}
 
 	dataSourceNames := make([]string, 0, len(dataSourceFactories))
@@ -116,6 +116,7 @@ func TestRegisteredDataSourcesExposeMetadataAndSchema(t *testing.T) {
 		"authing_role",
 		"authing_tenant",
 		"authing_tenant_custom_field",
+		"authing_tenant_department",
 		"authing_user",
 		"authing_users",
 	})

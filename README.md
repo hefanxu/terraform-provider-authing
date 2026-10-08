@@ -58,6 +58,7 @@ The direct client obtains a management access token using AK/SK, caches it until
 - **`authing_tenant_admin`** (Resource): Grant or revoke tenant administrator privilege for an existing member.
 - **`authing_tenant_organization`** (Resource): Manage an organization with explicit tenant scope and refuse deletion when its child departments are present or unknown.
 - **`authing_tenant_custom_field`** (Data Source): Look up a tenant-scoped custom-field definition; writes are deferred until safe round-trip semantics are established.
+- **`authing_tenant_department`** (Data Source): Read a department with explicit tenant and organization queries; the department response has no tenant ID, so this is not proof of tenant ownership. Tenant department writes remain unsupported pending cross-tenant isolation verification.
 
 ---
 
