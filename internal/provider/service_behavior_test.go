@@ -28,7 +28,7 @@ func TestRegisteredResourceCreateCallsAuthing(t *testing.T) {
 		metadata := resource.MetadataResponse{}
 		service.Metadata(ctx, resource.MetadataRequest{ProviderTypeName: "authing"}, &metadata)
 		// These require correlated or type-specific API responses; dedicated httptest lifecycles cover them.
-		if metadata.TypeName == "authing_auth_flow_function" || metadata.TypeName == "authing_data_object_field" || metadata.TypeName == "authing_data_resource" || metadata.TypeName == "authing_data_policy_assignment" || metadata.TypeName == "authing_tenant" || metadata.TypeName == "authing_tenant_membership" || metadata.TypeName == "authing_tenant_organization" || metadata.TypeName == "authing_tenant_admin" || metadata.TypeName == "authing_public_account" || metadata.TypeName == "authing_invitation_policy" || metadata.TypeName == "authing_invitation_roster" {
+		if metadata.TypeName == "authing_auth_flow_function" || metadata.TypeName == "authing_data_object_field" || metadata.TypeName == "authing_data_resource" || metadata.TypeName == "authing_data_policy_assignment" || metadata.TypeName == "authing_tenant" || metadata.TypeName == "authing_tenant_membership" || metadata.TypeName == "authing_tenant_organization" || metadata.TypeName == "authing_custom_domain" || metadata.TypeName == "authing_tenant_admin" || metadata.TypeName == "authing_public_account" || metadata.TypeName == "authing_invitation_policy" || metadata.TypeName == "authing_invitation_roster" {
 			continue
 		}
 

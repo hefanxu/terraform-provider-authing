@@ -224,7 +224,7 @@ func (c *Client) send(ctx context.Context, path, method string, value any, token
 				endpoint += "?" + params.Encode()
 			}
 		}
-	} else {
+	} else if value != nil {
 		encoded, err := json.Marshal(value)
 		if err != nil {
 			return nil, errors.New("invalid authing request payload")

@@ -13,8 +13,8 @@ func TestRegisteredResourcesExposeMetadataAndSchema(t *testing.T) {
 	provider := &AuthingProvider{}
 	resourceFactories := provider.Resources(context.Background())
 
-	if len(resourceFactories) != 28 {
-		t.Fatalf("expected 28 registered resources, got %d", len(resourceFactories))
+	if len(resourceFactories) != 29 {
+		t.Fatalf("expected 29 registered resources, got %d", len(resourceFactories))
 	}
 
 	resourceNames := make([]string, 0, len(resourceFactories))
@@ -64,6 +64,7 @@ func TestRegisteredResourcesExposeMetadataAndSchema(t *testing.T) {
 		"authing_tenant_admin",
 		"authing_tenant_membership",
 		"authing_tenant_organization",
+		"authing_custom_domain",
 		"authing_user",
 		"authing_webhook",
 	})

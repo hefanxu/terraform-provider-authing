@@ -149,6 +149,7 @@ func (p *AuthingProvider) Resources(ctx context.Context) []func() resource.Resou
 		NewDataPolicyAssignmentResource,
 		NewTenantMembershipResource,
 		NewTenantOrganizationResource,
+		NewCustomDomainResource,
 		NewTenantAdminResource,
 		NewRoleAssignmentResource,
 		NewGroupMemberResource,
