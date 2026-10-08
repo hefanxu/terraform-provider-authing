@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   read-only-plan:
-    if: ${{ inputs.confirm == 'READ_ONLY_SANDBOX' }}
+    if: ${{ github.ref == 'refs/heads/feat/management-api-coverage' && inputs.confirm == 'READ_ONLY_SANDBOX' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: authing-sandbox
