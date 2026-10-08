@@ -700,8 +700,23 @@ func (r *WebhookResource) Create(ctx context.Context, req resource.CreateRequest
 		createReq.Enabled = plan.Enabled.ValueBool()
 	}
 
-	res := r.client.CreateWebhook(createReq)
-	if res == nil || res.StatusCode != 200 || res.Data.WebhookId == "" {
+	// The SDK DTO's omitempty drops an explicitly configured false. Webhook
+	// delivery must remain disabled even when the service default is true.
+	payload := map[string]any{"name": createReq.Name, "url": createReq.Url, "events": events, "contentType": contentType}
+	if !plan.Enabled.IsNull() && !plan.Enabled.IsUnknown() {
+		payload["enabled"] = plan.Enabled.ValueBool()
+	}
+	if createReq.Secret != "" {
+		payload["secret"] = createReq.Secret
+	}
+	body, err := r.client.SendHttpRequest("/api/v3/create-webhook", "POST", payload)
+	var result dto.CreateWebhookRespDto
+	if err != nil || json.Unmarshal(body, &result) != nil {
+		resp.Diagnostics.AddError("Failed to create Authing webhook", "Invalid or unavailable API response")
+		return
+	}
+	res := &result
+	if res.StatusCode != 200 || res.Data.WebhookId == "" {
 		errMsg := "Unknown error"
 		if res != nil {
 			errMsg = fmt.Sprintf("code=%d msg=%s", res.StatusCode, res.Message)
@@ -712,6 +727,9 @@ func (r *WebhookResource) Create(ctx context.Context, req resource.CreateRequest
 
 	plan.ID = types.StringValue(res.Data.WebhookId)
 	plan.WebhookId = types.StringValue(res.Data.WebhookId)
+	if plan.ContentType.IsUnknown() || plan.ContentType.IsNull() {
+		plan.ContentType = types.StringValue(contentType)
+	}
 	diags = resp.State.Set(ctx, plan)
 	resp.Diagnostics.Append(diags...)
 }
@@ -737,6 +755,7 @@ func (r *WebhookResource) Read(ctx context.Context, req resource.ReadRequest, re
 	}
 
 	state.ID = types.StringValue(res.Data.WebhookId)
+	state.WebhookId = types.StringValue(res.Data.WebhookId)
 	state.Name = types.StringValue(res.Data.Name)
 	state.Url = types.StringValue(res.Data.Url)
 	state.Enabled = types.BoolValue(res.Data.Enabled)
@@ -746,10 +765,15 @@ func (r *WebhookResource) Read(ctx context.Context, req resource.ReadRequest, re
 }
 
 func (r *WebhookResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var plan WebhookModel
+	var plan, state WebhookModel
 	diags := req.Plan.Get(ctx, &plan)
 	resp.Diagnostics.Append(diags...)
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
+		return
+	}
+	if state.WebhookId.ValueString() == "" || state.ID.ValueString() != state.WebhookId.ValueString() {
+		resp.Diagnostics.AddError("Failed to update Authing webhook", "Missing or mismatched webhook identity in state")
 		return
 	}
 
@@ -757,7 +781,7 @@ func (r *WebhookResource) Update(ctx context.Context, req resource.UpdateRequest
 	plan.Events.ElementsAs(ctx, &events, false)
 
 	updateReq := &dto.UpdateWebhookDto{
-		WebhookId: plan.WebhookId.ValueString(),
+		WebhookId: state.WebhookId.ValueString(),
 		Name:      plan.Name.ValueString(),
 		Url:       plan.Url.ValueString(),
 		Events:    events,
@@ -769,8 +793,18 @@ func (r *WebhookResource) Update(ctx context.Context, req resource.UpdateRequest
 		updateReq.Enabled = plan.Enabled.ValueBool()
 	}
 
-	res := r.client.UpdateWebhook(updateReq)
-	if res == nil || res.StatusCode != 200 {
+	payload := map[string]any{"webhookId": updateReq.WebhookId, "name": updateReq.Name, "url": updateReq.Url, "events": events, "enabled": updateReq.Enabled}
+	if updateReq.Secret != "" {
+		payload["secret"] = updateReq.Secret
+	}
+	body, err := r.client.SendHttpRequest("/api/v3/update-webhook", "POST", payload)
+	var result dto.UpdateWebhooksRespDto
+	if err != nil || json.Unmarshal(body, &result) != nil {
+		resp.Diagnostics.AddError("Failed to update Authing webhook", "Invalid or unavailable API response")
+		return
+	}
+	res := &result
+	if res.StatusCode != 200 {
 		errMsg := "Unknown error"
 		if res != nil {
 			errMsg = fmt.Sprintf("code=%d msg=%s", res.StatusCode, res.Message)
@@ -779,6 +813,8 @@ func (r *WebhookResource) Update(ctx context.Context, req resource.UpdateRequest
 		return
 	}
 
+	plan.ID = state.ID
+	plan.WebhookId = state.WebhookId
 	diags = resp.State.Set(ctx, plan)
 	resp.Diagnostics.Append(diags...)
 }

@@ -22,7 +22,7 @@ group_member,group+user,removal,relation,verify_complete_group_list;user_must_su
 department_member,department+user,removal,relation,verify_complete_member_list;user_must_survive,not_run
 application,,app_name,in_place,separate_strategy_write;orphan_risk,implemented_not_run
 ext_idp,,name,in_place,avoid_external_connection_credentials,not_run
-webhook,,name,in_place,disable_delivery;events_not_read_back,not_run
+webhook,,name,in_place,disable_delivery;events_not_read_back,implemented_not_run
 pipeline_function,,func_name,in_place,trigger_may_execute_code;source_not_read_back,not_run
 auth_flow_function,,func_name,in_place,disable_trigger;source_sensitive_in_state,not_run
 data_resource,namespace,resource_name,in_place,extensions_must_be_absent;delete_cascades,not_run
