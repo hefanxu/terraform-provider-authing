@@ -32,7 +32,8 @@ The direct client obtains a management access token using AK/SK, caches it until
 - **`authing_role_assignment`** (Resource): Assign roles to users or departments.
 - **`authing_resource`** (Resource / Data Source): Define API, DATA, UI, BUTTON, and MENU resources with actions.
 - **`authing_data_policy`** (Resource): Fine-grained data access policies (ALLOW/DENY statement lists).
-- **`authing_data_resource`** (Resource / Data Source): Manage STRING, ARRAY and validated TREE permission data resources; nonempty extension fields are not yet supported.
+- **`authing_data_resource`** (Resource / Data Source): Manage STRING, ARRAY and validated TREE data resources; existing extensions can be read, but parent updates are blocked while extensions exist.
+- **`authing_data_resource_extension_field`** (Data Source): Read a TREE extension definition by exact key. A parent data resource can refresh with extensions present, but updates remain blocked to avoid dropping them.
 - **`authing_data_policy_assignment`** (Resource): Authorize one policy for one subject, with paginated readback and targeted revocation.
 - **`authing_invitation_policy`** (Resource): Manage persistent invitation-policy settings; sending an invitation is not a resource.
 - **`authing_invitation_roster`** (Resource): Manage persistent invitation rosters and their optional policy association; sending invitations is excluded.
@@ -40,6 +41,7 @@ The direct client obtains a management access token using AK/SK, caches it until
 
 ### 5. Applications & Integration (应用与集成)
 - **`authing_application`** (Resource / Data Source): Self-built applications, OAuth/OIDC redirect URLs.
+- **`authing_application.permission_strategy`** (Attribute): Manage the persistent default access strategy within the application lifecycle.
 - **`authing_ext_idp`** (Resource): External enterprise identity providers (SAML, OIDC, WeChat, DingTalk, LDAP).
 - **`authing_ext_idp_connection`** (Data Source): Read allowlisted connection metadata by parent and connection ID; secret-containing fields are not exposed.
 - **`authing_global_security_settings`** / **`authing_global_mfa_settings`** (Data Sources): Read nonsecret user-pool security flags and enabled MFA factors. Neither endpoint verifies tenant scope or offers managed lifecycle operations.
