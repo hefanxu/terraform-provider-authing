@@ -158,7 +158,10 @@ func runRoleAssignmentTrace(root string, creds map[string]string, ns, username s
 	_, file, _, _ := runtime.Caller(0)
 	repo := filepath.Clean(filepath.Join(filepath.Dir(file), "../.."))
 	tf := filepath.Join(repo, "../.tools/terraform/1.13.5/terraform")
-	goBin := filepath.Join(repo, "../.tools/go/bin/go")
+	goBin, goErr := exec.LookPath("go")
+	if goErr != nil {
+		goBin = filepath.Join(repo, "../.tools/go/bin/go")
+	}
 	if _, err := os.Stat(tf); err != nil {
 		return errors.New("Terraform CLI unavailable")
 	}

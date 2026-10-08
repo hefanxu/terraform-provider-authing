@@ -159,7 +159,10 @@ func runDepartmentTrace(root string, credentials map[string]string, org string, 
 	if _, err := os.Stat(terraform); err != nil {
 		return fmt.Errorf("department phase=terraform-cli code=%s (output suppressed)", org)
 	}
-	goBinary := filepath.Join(repo, "../.tools/go/bin/go")
+	goBinary, goErr := exec.LookPath("go")
+	if goErr != nil {
+		goBinary = filepath.Join(repo, "../.tools/go/bin/go")
+	}
 	if _, err := os.Stat(goBinary); err != nil {
 		return fmt.Errorf("department phase=go-toolchain code=%s (output suppressed)", org)
 	}

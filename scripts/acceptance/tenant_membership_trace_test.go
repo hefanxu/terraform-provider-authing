@@ -189,7 +189,10 @@ func runTenantMembershipTrace(root string, credentials map[string]string, userna
 	_, file, _, _ := runtime.Caller(0)
 	repo := filepath.Clean(filepath.Join(filepath.Dir(file), "../.."))
 	terraform := filepath.Join(repo, "../.tools/terraform/1.13.5/terraform")
-	goBinary := filepath.Join(repo, "../.tools/go/bin/go")
+	goBinary, goErr := exec.LookPath("go")
+	if goErr != nil {
+		goBinary = filepath.Join(repo, "../.tools/go/bin/go")
+	}
 	if _, err := os.Stat(terraform); err != nil {
 		return fmt.Errorf("tenant-membership phase=terraform-cli code=%s", name)
 	}
