@@ -21,7 +21,28 @@ const applicationCallback = "https://example.invalid/callback"
 
 // Read only exact Terraform diagnostic headings. The response body, HCL,
 // identifiers and URLs are untrusted and must never enter the returned error.
-var applicationAPICode = regexp.MustCompile(`(?m)^[│ ]*code=([0-9]{3,6}) msg=`)
+var applicationAPICode = regexp.MustCompile(`(?m)^[│ ]*code=([0-9]{3,6})(?: apiCode=([0-9]{1,10}))? msg=([^\n]{0,500})`)
+
+var applicationErrorFields = []string{
+	"appIdentifier", "appName", "appType", "appDescription", "defaultProtocol",
+	"redirectUris", "logoutRedirectUris", "ssoEnabled", "oidcConfig", "samlConfig",
+	"oauthConfig", "casConfig", "loginConfig", "registerConfig", "brandingConfig",
+}
+
+func applicationFieldHint(message string) string {
+	match := ""
+	for _, field := range applicationErrorFields {
+		pattern := regexp.MustCompile(`(^|[^A-Za-z0-9_])` + regexp.QuoteMeta(field) + `($|[^A-Za-z0-9_])`)
+		if !pattern.MatchString(message) {
+			continue
+		}
+		if match != "" {
+			return "multiple"
+		}
+		match = field
+	}
+	return match
+}
 
 func classifyApplicationApply(output []byte) string {
 	category := "unclassified"
@@ -43,8 +64,15 @@ func classifyApplicationApply(output []byte) string {
 	if category == "unclassified" {
 		return "failure=unclassified"
 	}
-	if match := applicationAPICode.FindSubmatch(output); len(match) == 2 {
-		return "failure=" + category + " api_code=" + string(match[1])
+	if match := applicationAPICode.FindSubmatch(output); len(match) == 4 {
+		result := "failure=" + category + " api_code=" + string(match[1])
+		if len(match[2]) != 0 && string(match[2]) != "0" {
+			result += " detail_code=" + string(match[2])
+		}
+		if field := applicationFieldHint(string(match[3])); field != "" {
+			result += " field=" + field
+		}
+		return result
 	}
 	return "failure=" + category
 }

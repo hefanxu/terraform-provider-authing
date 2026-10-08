@@ -39,6 +39,10 @@ SAFE_FAILURE = re.compile(
     r"\bfailure=(application-create|permission-strategy-update|permission-strategy-readback|permission-strategy-mismatch|inconsistent-result|unclassified)\b"
 )
 SAFE_API_CODE = re.compile(r"\bapi_code=([0-9]{3,6})\b")
+SAFE_DETAIL_CODE = re.compile(r"\bdetail_code=([0-9]{1,10})\b")
+SAFE_FIELD = re.compile(
+    r"\bfield=(appIdentifier|appName|appType|appDescription|defaultProtocol|redirectUris|logoutRedirectUris|ssoEnabled|oidcConfig|samlConfig|oauthConfig|casConfig|loginConfig|registerConfig|brandingConfig|multiple)\b"
+)
 
 
 def run(env=None, runner=subprocess.run):
@@ -67,10 +71,16 @@ def run(env=None, runner=subprocess.run):
             outcome = f"; cleanup={cleanup[-1]}" if cleanup else ""
             failure = SAFE_FAILURE.findall(controlled)
             api_code = SAFE_API_CODE.findall(controlled)
+            detail_code = SAFE_DETAIL_CODE.findall(controlled)
+            field = SAFE_FIELD.findall(controlled)
             if failure:
                 outcome += f"; failure={failure[-1]}"
                 if api_code:
                     outcome += f"; api_code={api_code[-1]}"
+                if detail_code:
+                    outcome += f"; detail_code={detail_code[-1]}"
+                if field:
+                    outcome += f"; field={field[-1]}"
             raise RuntimeError(f"sandbox case {case} failed at {phase}; inspect only owned {identifier}{outcome}")
         raise RuntimeError(f"sandbox case {case} failed (output suppressed)")
     print(f"sandbox case {case} passed")

@@ -155,7 +155,7 @@ func TestApplicationCreateValidationClassifiedWithoutResponseLeak(t *testing.T) 
 	defer server.Close()
 	name := "hermesacc-1234567890abcdef"
 	err := runApplicationTrace(t.TempDir(), map[string]string{"AUTHING_ACCESS_KEY_ID": "key-marker", "AUTHING_ACCESS_KEY_SECRET": "credential-marker", "AUTHING_HOST": server.URL}, name)
-	if err == nil || !strings.Contains(err.Error(), "phase=apply-create") || !strings.Contains(err.Error(), "failure=application-create") || !strings.Contains(err.Error(), "api_code=400") || !strings.Contains(err.Error(), "cleanup=incomplete") {
+	if err == nil || !strings.Contains(err.Error(), "phase=apply-create") || !strings.Contains(err.Error(), "failure=application-create") || !strings.Contains(err.Error(), "api_code=400") || !strings.Contains(err.Error(), "detail_code=123456") || !strings.Contains(err.Error(), "field=loginConfig") || !strings.Contains(err.Error(), "cleanup=incomplete") {
 		t.Fatalf("missing safe validation classification: %v", err)
 	}
 	for _, secret := range []string{"secret-marker", "private.invalid", "app-id-marker", "key-marker", "credential-marker", "mock-token"} {

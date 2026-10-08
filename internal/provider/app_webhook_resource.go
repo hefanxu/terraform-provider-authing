@@ -198,7 +198,7 @@ func (r *ApplicationResource) Create(ctx context.Context, req resource.CreateReq
 	if res == nil || res.StatusCode != 200 || res.Data.AppId == "" {
 		errMsg := "Unknown error"
 		if res != nil {
-			errMsg = fmt.Sprintf("code=%d msg=%s", res.StatusCode, res.Message)
+			errMsg = fmt.Sprintf("code=%d apiCode=%d msg=%s", res.StatusCode, res.ApiCode, res.Message)
 		}
 		resp.Diagnostics.AddError("Failed to create Authing application", errMsg)
 		return

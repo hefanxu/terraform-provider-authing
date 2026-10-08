@@ -41,7 +41,7 @@ func (a *mockApplication) serve(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]any{"statusCode": 200, "data": map[string]any{"list": list, "totalCount": len(list)}})
 	case "/api/v3/create-application":
 		if a.failCreateValidation {
-			fmt.Fprint(w, `{"statusCode":400,"message":"secret-marker https://private.invalid/token app-id-marker"}`)
+			fmt.Fprint(w, `{"statusCode":400,"apiCode":123456,"message":"invalid loginConfig secret-marker https://private.invalid/token app-id-marker"}`)
 			return
 		}
 		if a.id != "" || !strings.HasPrefix(body["appName"].(string), "hermesacc-") || body["appType"] != "web" || body["ssoEnabled"] != false || body["appIdentifier"] != body["appName"] || body["appDescription"] != "hermesacc ownership "+body["appName"].(string) || body["redirectUris"].([]any)[0] != "https://example.invalid/callback" {
