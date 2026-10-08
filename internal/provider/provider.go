@@ -133,6 +133,7 @@ func (p *AuthingProvider) Resources(ctx context.Context) []func() resource.Resou
 	return []func() resource.Resource{
 		// Identity & Users
 		NewUserResource,
+		NewPublicAccountResource,
 		// Groups & Organizations & Departments & Posts
 		NewGroupResource,
 		NewDepartmentResource,
@@ -164,6 +165,7 @@ func (p *AuthingProvider) Resources(ctx context.Context) []func() resource.Resou
 func (p *AuthingProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
 		NewUserDataSource,
+		NewPublicAccountDataSource,
 		NewUsersDataSource,
 		NewGroupDataSource,
 		NewDepartmentDataSource,

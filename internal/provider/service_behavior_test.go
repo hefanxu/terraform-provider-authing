@@ -28,7 +28,7 @@ func TestRegisteredResourceCreateCallsAuthing(t *testing.T) {
 		metadata := resource.MetadataResponse{}
 		service.Metadata(ctx, resource.MetadataRequest{ProviderTypeName: "authing"}, &metadata)
 		// These require correlated or type-specific API responses; dedicated httptest lifecycles cover them.
-		if metadata.TypeName == "authing_data_object_field" || metadata.TypeName == "authing_data_resource" || metadata.TypeName == "authing_data_policy_assignment" || metadata.TypeName == "authing_tenant" || metadata.TypeName == "authing_tenant_membership" || metadata.TypeName == "authing_tenant_admin" {
+		if metadata.TypeName == "authing_data_object_field" || metadata.TypeName == "authing_data_resource" || metadata.TypeName == "authing_data_policy_assignment" || metadata.TypeName == "authing_tenant" || metadata.TypeName == "authing_tenant_membership" || metadata.TypeName == "authing_tenant_admin" || metadata.TypeName == "authing_public_account" {
 			continue
 		}
 
@@ -82,7 +82,7 @@ func TestRegisteredDataSourceReadCallsAuthing(t *testing.T) {
 		metadata := datasource.MetadataResponse{}
 		service.Metadata(ctx, datasource.MetadataRequest{ProviderTypeName: "authing"}, &metadata)
 		// The generic fixture has no valid data-resource struct; dedicated httptest covers it.
-		if metadata.TypeName == "authing_data_resource" || metadata.TypeName == "authing_tenant" {
+		if metadata.TypeName == "authing_data_resource" || metadata.TypeName == "authing_tenant" || metadata.TypeName == "authing_public_account" {
 			continue
 		}
 
