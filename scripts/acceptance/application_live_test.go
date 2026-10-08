@@ -17,6 +17,7 @@ type mockApplication struct {
 	id, name, marker, identifier, strategy string
 	paths                                  []string
 	failStrategy                           bool
+	failStrategyDriftSuccess               bool
 	failCreateValidation                   bool
 	rejectUnconfiguredNested               bool
 	failDriftUpdate                        bool
@@ -78,11 +79,15 @@ func (a *mockApplication) serve(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "secret-marker", 500)
 			return
 		}
-		if body["appId"] != a.id || body["permissionStrategy"] != "DENY_ALL" {
+		if body["appId"] != a.id || body["permissionStrategy"] != "DENY_ALL" && body["permissionStrategy"] != "ALLOW_ALL" {
 			http.Error(w, "invalid strategy", 500)
 			return
 		}
-		a.strategy = "DENY_ALL"
+		if a.failStrategyDriftSuccess && body["permissionStrategy"] == "ALLOW_ALL" {
+			fmt.Fprint(w, `{"statusCode":200,"data":{"success":false}}`)
+			return
+		}
+		a.strategy = body["permissionStrategy"].(string)
 		fmt.Fprint(w, `{"statusCode":200,"data":{"success":true}}`)
 	case "/api/v3/update-application":
 		if a.failDriftUpdate {

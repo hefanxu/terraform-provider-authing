@@ -234,7 +234,15 @@ func applicationStateID(root string, env []string, terraform string) (string, er
 	return "", errors.New("application ID absent from Terraform state")
 }
 
-func runApplicationTrace(root string, credentials map[string]string, name string) (result error) {
+func runApplicationTrace(root string, credentials map[string]string, name string) error {
+	return runApplicationTraceMode(root, credentials, name, false)
+}
+
+func runApplicationStrategyTrace(root string, credentials map[string]string, name string) error {
+	return runApplicationTraceMode(root, credentials, name, true)
+}
+
+func runApplicationTraceMode(root string, credentials map[string]string, name string, strategyOnly bool) (result error) {
 	if !sandboxCode.MatchString(name) {
 		return errors.New("application tracer requires generated hermesacc name")
 	}
@@ -326,6 +334,89 @@ resource "authing_application" "sandbox" {
 		return run(want, "plan", "-lock=false", "-input=false", "-no-color", "-detailed-exitcode")
 	}
 	started = true
+	if strategyOnly {
+		verifyStrategy := func(want string) error {
+			body, err := client.SendHttpRequest("/api/v3/get-application-permission-strategy", "GET", map[string]string{"appId": id})
+			if err != nil {
+				return errors.New("strategy read failed")
+			}
+			var res struct {
+				StatusCode int `json:"statusCode"`
+				Data       *struct {
+					PermissionStrategy string `json:"permissionStrategy"`
+				} `json:"data"`
+			}
+			if json.Unmarshal(body, &res) != nil || res.StatusCode != 200 || res.Data == nil || res.Data.PermissionStrategy != want {
+				return errors.New("strategy readback mismatch")
+			}
+			return nil
+		}
+		result = executeApplicationTrace(traceCase{name: "application-strategy", code: name, phases: []tracePhase{
+			{"apply-create", func() error { return applicationApplyExit(root, env, terraform) }},
+			{"plan-converged", plan(0)},
+			{"verify-id-and-strategy", func() error {
+				var e error
+				id, e = applicationStateID(root, env, terraform)
+				if e != nil {
+					return e
+				}
+				found, e := findApplication(client, name)
+				if e != nil || found != id {
+					return errors.New("application ID not uniquely resolved")
+				}
+				if e = ownedApplication(client, id, name, marker); e != nil {
+					return e
+				}
+				return verifyStrategy("DENY_ALL")
+			}},
+			{"remote-drift", func() error {
+				if ownedApplication(client, id, name, marker) != nil || verifyStrategy("DENY_ALL") != nil {
+					return applicationDriftFailure("ownership-unverified")
+				}
+				body, err := client.SendHttpRequest("/api/v3/update-application-permission-strategy", "POST", map[string]string{"appId": id, "permissionStrategy": "ALLOW_ALL"})
+				if err != nil {
+					return applicationDriftFailure("update-transport")
+				}
+				var res struct {
+					StatusCode int `json:"statusCode"`
+					Data       *struct {
+						Success bool `json:"success"`
+					} `json:"data"`
+				}
+				if json.Unmarshal(body, &res) != nil {
+					return applicationDriftFailure("update-invalid")
+				}
+				if res.StatusCode != 200 {
+					return applicationDriftFailure("update-rejected")
+				}
+				if res.Data == nil || !res.Data.Success {
+					return applicationDriftFailure("update-unsuccessful")
+				}
+				if ownedApplication(client, id, name, marker) != nil || verifyStrategy("ALLOW_ALL") != nil {
+					return applicationDriftFailure("readback-unavailable")
+				}
+				return nil
+			}},
+			{"plan-drift", plan(2)},
+			{"apply-reconcile", run(0, "apply", "-auto-approve", "-lock=false", "-input=false", "-no-color")},
+			{"plan-reconverged", plan(0)},
+			{"verify-owned-before-destroy", func() error {
+				if err := ownedApplication(client, id, name, marker); err != nil {
+					return err
+				}
+				return verifyStrategy("DENY_ALL")
+			}},
+			{"destroy", run(0, "destroy", "-auto-approve", "-lock=false", "-input=false", "-no-color")},
+			{"verify-absent", func() error {
+				got := client.GetApplication(&dto.GetApplicationDto{AppId: id})
+				if got == nil || got.StatusCode != 404 {
+					return errors.New("application still present")
+				}
+				return nil
+			}},
+		}})
+		return result
+	}
 	result = executeApplicationTrace(traceCase{name: "application", code: name, phases: []tracePhase{
 		{"apply-create", func() error { return applicationApplyExit(root, env, terraform) }},
 		{"plan-converged", plan(0)},

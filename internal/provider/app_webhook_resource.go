@@ -299,6 +299,25 @@ func (r *ApplicationResource) Update(ctx context.Context, req resource.UpdateReq
 		return
 	}
 	strategyChanged := !plan.PermissionStrategy.IsNull() && !plan.PermissionStrategy.IsUnknown() && plan.PermissionStrategy != state.PermissionStrategy
+	// Terraform can mark computed attributes unknown on an update even when the
+	// only configured change is permission_strategy. Retain their prior values
+	// rather than treating unknowns as unrelated application edits.
+	plan.ID, plan.AppId = state.ID, state.AppId
+	for _, field := range []struct {
+		planned *types.String
+		prior   types.String
+	}{
+		{&plan.AppType, state.AppType}, {&plan.InitLoginUrl, state.InitLoginUrl},
+		{&plan.Description, state.Description}, {&plan.AppIdentifier, state.AppIdentifier},
+		{&plan.AppLogo, state.AppLogo}, {&plan.DefaultProtocol, state.DefaultProtocol},
+	} {
+		if field.planned.IsUnknown() {
+			*field.planned = field.prior
+		}
+	}
+	if plan.SsoEnabled.IsUnknown() {
+		plan.SsoEnabled = state.SsoEnabled
+	}
 	otherPlan, otherState := plan, state
 	otherPlan.PermissionStrategy, otherState.PermissionStrategy = types.StringNull(), types.StringNull()
 	strategyOnly := strategyChanged && reflect.DeepEqual(otherPlan, otherState)
