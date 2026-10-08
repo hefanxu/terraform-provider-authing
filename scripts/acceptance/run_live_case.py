@@ -52,7 +52,9 @@ def run(env=None, runner=subprocess.run):
         matches = SAFE_DIAGNOSTIC.findall(result.stdout + "\n" + result.stderr)
         if matches:
             phase, identifier = matches[-1]
-            raise RuntimeError(f"sandbox case {case} failed at {phase}; inspect only owned {identifier}")
+            cleanup = re.findall(r"\bcleanup=(confirmed|incomplete)\b", result.stdout + "\n" + result.stderr)
+            outcome = f"; cleanup={cleanup[-1]}" if cleanup else ""
+            raise RuntimeError(f"sandbox case {case} failed at {phase}; inspect only owned {identifier}{outcome}")
         raise RuntimeError(f"sandbox case {case} failed (output suppressed)")
     print(f"sandbox case {case} passed")
 
