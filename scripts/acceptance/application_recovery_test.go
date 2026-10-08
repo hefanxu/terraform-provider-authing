@@ -146,3 +146,47 @@ func TestMockApplicationFailurePreservesPhase(t *testing.T) {
 		t.Fatal("deleted application without state-backed ID")
 	}
 }
+
+func TestApplicationCreateValidationClassifiedWithoutResponseLeak(t *testing.T) {
+	a := &mockApplication{failCreateValidation: true}
+	server := httptest.NewServer(http.HandlerFunc(a.serve))
+	defer server.Close()
+	name := "hermesacc-1234567890abcdef"
+	err := runApplicationTrace(t.TempDir(), map[string]string{"AUTHING_ACCESS_KEY_ID": "key-marker", "AUTHING_ACCESS_KEY_SECRET": "credential-marker", "AUTHING_HOST": server.URL}, name)
+	if err == nil || !strings.Contains(err.Error(), "phase=apply-create") || !strings.Contains(err.Error(), "failure=application-create") || !strings.Contains(err.Error(), "api_code=400") || !strings.Contains(err.Error(), "cleanup=incomplete") {
+		t.Fatalf("missing safe validation classification: %v", err)
+	}
+	for _, secret := range []string{"secret-marker", "private.invalid", "app-id-marker", "key-marker", "credential-marker", "mock-token"} {
+		if strings.Contains(err.Error(), secret) {
+			t.Fatal("application failure leaked response or credential")
+		}
+	}
+	a.Lock()
+	defer a.Unlock()
+	if a.id != "" || a.deletes != 0 {
+		t.Fatal("validation failure unexpectedly created or deleted application")
+	}
+}
+
+func TestApplicationApplyClassifierAllowlist(t *testing.T) {
+	for _, tc := range []struct{ input, want string }{
+		{"Error: Failed to create Authing application\ncode=400 msg=secret-marker https://private.invalid/token app-id-marker", "failure=application-create api_code=400"},
+		{"Error: Provider produced inconsistent result after apply\nsecret-marker code=400 msg=private", "failure=inconsistent-result"},
+		{"Error: user provided secret-marker code=401 msg=private", "failure=unclassified"},
+		{"Error: Failed to create Authing application secret-marker\ncode=401 msg=private", "failure=unclassified"},
+	} {
+		got := classifyApplicationApply([]byte(tc.input))
+		if got != tc.want || strings.Contains(got, "secret-marker") || strings.Contains(got, "private") || strings.Contains(got, "app-id-marker") {
+			t.Errorf("unsafe/missing classification: got=%q want=%q", got, tc.want)
+		}
+	}
+}
+
+func TestApplicationTraceRejectsUnclassifiedPhaseError(t *testing.T) {
+	err := executeApplicationTrace(traceCase{name: "application", code: "hermesacc-1234567890abcdef", phases: []tracePhase{{name: "apply-create", run: func() error {
+		return fmt.Errorf("secret-marker https://private.invalid app-id-marker")
+	}}}})
+	if err == nil || !strings.Contains(err.Error(), "failure=unclassified") || strings.Contains(err.Error(), "secret-marker") || strings.Contains(err.Error(), "private.invalid") || strings.Contains(err.Error(), "app-id-marker") {
+		t.Fatal("application trace included an untrusted phase error")
+	}
+}

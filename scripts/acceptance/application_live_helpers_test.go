@@ -7,7 +7,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 
@@ -16,6 +18,68 @@ import (
 )
 
 const applicationCallback = "https://example.invalid/callback"
+
+// Read only exact Terraform diagnostic headings. The response body, HCL,
+// identifiers and URLs are untrusted and must never enter the returned error.
+var applicationAPICode = regexp.MustCompile(`(?m)^[│ ]*code=([0-9]{3,6}) msg=`)
+
+func classifyApplicationApply(output []byte) string {
+	category := "unclassified"
+	for _, line := range strings.Split(string(output), "\n") {
+		line = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), "│"))
+		switch line {
+		case "Error: Failed to create Authing application":
+			category = "application-create"
+		case "Error: Failed to set application permission strategy":
+			category = "permission-strategy-update"
+		case "Error: Failed to read application permission strategy":
+			category = "permission-strategy-readback"
+		case "Error: Failed to confirm application permission strategy":
+			category = "permission-strategy-mismatch"
+		case "Error: Provider produced inconsistent result after apply":
+			return "failure=inconsistent-result"
+		}
+	}
+	if category == "unclassified" {
+		return "failure=unclassified"
+	}
+	if match := applicationAPICode.FindSubmatch(output); len(match) == 2 {
+		return "failure=" + category + " api_code=" + string(match[1])
+	}
+	return "failure=" + category
+}
+
+type applicationApplyFailure struct{ classification string }
+
+func (e applicationApplyFailure) Error() string { return e.classification }
+
+func applicationApplyExit(root string, env []string, terraform string) error {
+	cmd := exec.Command(terraform, "apply", "-auto-approve", "-lock=false", "-input=false", "-no-color")
+	cmd.Dir = filepath.Join(root, "example")
+	cmd.Env = env
+	output, err := cmd.CombinedOutput() // In memory only; never log, persist or wrap.
+	if err != nil {
+		return applicationApplyFailure{classification: classifyApplicationApply(output)}
+	}
+	return nil
+}
+
+func executeApplicationTrace(c traceCase) error {
+	for _, phase := range c.phases {
+		if err := phase.run(); err != nil {
+			if phase.name == "apply-create" {
+				classification := "failure=unclassified"
+				var classified applicationApplyFailure
+				if errors.As(err, &classified) {
+					classification = classified.classification
+				}
+				return fmt.Errorf("application phase=%s code=%s %s (output suppressed)", phase.name, c.code, classification)
+			}
+			return fmt.Errorf("application phase=%s code=%s (output suppressed)", phase.name, c.code)
+		}
+	}
+	return nil
+}
 
 // Query the entire unfiltered result set; a missing/incomplete page is never absence.
 func findApplication(client *authingapi.Client, name string) (string, error) {
@@ -219,8 +283,8 @@ resource "authing_application" "sandbox" {
 		return run(want, "plan", "-lock=false", "-input=false", "-no-color", "-detailed-exitcode")
 	}
 	started = true
-	result = (traceCase{name: "application", code: name, phases: []tracePhase{
-		{"apply-create", run(0, "apply", "-auto-approve", "-lock=false", "-input=false", "-no-color")},
+	result = executeApplicationTrace(traceCase{name: "application", code: name, phases: []tracePhase{
+		{"apply-create", func() error { return applicationApplyExit(root, env, terraform) }},
 		{"plan-converged", plan(0)},
 		{"verify-id-and-marker", func() error {
 			var e error
@@ -278,7 +342,7 @@ resource "authing_application" "sandbox" {
 			}
 			return nil
 		}},
-	}}).execute()
+	}})
 	return result
 }
 
