@@ -32,7 +32,7 @@ The direct client obtains a management access token using AK/SK, caches it until
 - **`authing_role_assignment`** (Resource): Assign roles to users or departments.
 - **`authing_resource`** (Resource / Data Source): Define API, DATA, UI, BUTTON, and MENU resources with actions.
 - **`authing_data_policy`** (Resource): Fine-grained data access policies (ALLOW/DENY statement lists).
-- **`authing_data_resource`** (Resource / Data Source): Manage STRING and ARRAY permission data resources; TREE resources are not yet supported.
+- **`authing_data_resource`** (Resource / Data Source): Manage STRING, ARRAY and validated TREE permission data resources; nonempty extension fields are not yet supported.
 - **`authing_data_policy_assignment`** (Resource): Authorize one policy for one subject, with paginated readback and targeted revocation.
 - **`authing_invitation_policy`** (Resource): Manage persistent invitation-policy settings; sending an invitation is not a resource.
 - **`authing_invitation_roster`** (Resource): Manage persistent invitation rosters and their optional policy association; sending invitations is excluded.
@@ -54,6 +54,7 @@ The direct client obtains a management access token using AK/SK, caches it until
 - **`authing_tenant`** (Resource / Data Source): Manage tenants and their complete associated application ID set.
 - **`authing_tenant_membership`** (Resource): Attach an existing user-pool user to a tenant without deleting the user on detach.
 - **`authing_tenant_admin`** (Resource): Grant or revoke tenant administrator privilege for an existing member.
+- **`authing_tenant_organization`** (Resource): Manage an organization with explicit tenant scope and refuse deletion when its child departments are present or unknown.
 - **`authing_tenant_custom_field`** (Data Source): Look up a tenant-scoped custom-field definition; writes are deferred until safe round-trip semantics are established.
 
 ---
