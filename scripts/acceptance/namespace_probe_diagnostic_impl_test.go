@@ -33,16 +33,17 @@ const (
 type namespaceResourceShape string
 
 const (
-	resourceShapeUnavailable         namespaceResourceShape = "unavailable"
-	resourceShapeMalformedJSON       namespaceResourceShape = "malformed-json"
-	resourceShapeDataNotObject       namespaceResourceShape = "data-not-object"
-	resourceShapeMissingNestedStatus namespaceResourceShape = "missing-nested-status"
-	resourceShapeNestedStatusInvalid namespaceResourceShape = "nested-status-invalid"
-	resourceShapeMissingTotal        namespaceResourceShape = "missing-total"
-	resourceShapeTotalInvalid        namespaceResourceShape = "total-invalid"
-	resourceShapeMissingList         namespaceResourceShape = "missing-list"
-	resourceShapeListNull            namespaceResourceShape = "list-null"
-	resourceShapeListNotArray        namespaceResourceShape = "list-not-array"
+	resourceShapeUnavailable              namespaceResourceShape = "unavailable"
+	resourceShapeMalformedJSON            namespaceResourceShape = "malformed-json"
+	resourceShapeDataNotObject            namespaceResourceShape = "data-not-object"
+	resourceShapeMissingNestedStatus      namespaceResourceShape = "missing-nested-status"
+	resourceShapeMissingNestedStatusEmpty namespaceResourceShape = "missing-nested-status-empty-page"
+	resourceShapeNestedStatusInvalid      namespaceResourceShape = "nested-status-invalid"
+	resourceShapeMissingTotal             namespaceResourceShape = "missing-total"
+	resourceShapeTotalInvalid             namespaceResourceShape = "total-invalid"
+	resourceShapeMissingList              namespaceResourceShape = "missing-list"
+	resourceShapeListNull                 namespaceResourceShape = "list-null"
+	resourceShapeListNotArray             namespaceResourceShape = "list-not-array"
 )
 
 type namespaceRecoveryDiagnostic struct {
@@ -79,6 +80,13 @@ func classifyResourceShape(data json.RawMessage) namespaceResourceShape {
 	}
 	status, exists := fields["statusCode"]
 	if !exists {
+		var page struct {
+			TotalCount *int              `json:"totalCount"`
+			List       []json.RawMessage `json:"list"`
+		}
+		if len(fields) == 2 && json.Unmarshal(data, &page) == nil && page.TotalCount != nil && *page.TotalCount == 0 && page.List != nil && len(page.List) == 0 {
+			return resourceShapeMissingNestedStatusEmpty
+		}
 		return resourceShapeMissingNestedStatus
 	}
 	var code int
@@ -270,7 +278,7 @@ func formatNamespaceRecoveryLog(d namespaceRecoveryDiagnostic, code string) stri
 	}
 	if d.Stage == recoveryResources && d.Cause == recoveryInvalidEnvelope {
 		switch d.Shape {
-		case resourceShapeMalformedJSON, resourceShapeDataNotObject, resourceShapeMissingNestedStatus,
+		case resourceShapeMalformedJSON, resourceShapeDataNotObject, resourceShapeMissingNestedStatus, resourceShapeMissingNestedStatusEmpty,
 			resourceShapeNestedStatusInvalid, resourceShapeMissingTotal, resourceShapeTotalInvalid,
 			resourceShapeMissingList, resourceShapeListNull, resourceShapeListNotArray:
 		default:

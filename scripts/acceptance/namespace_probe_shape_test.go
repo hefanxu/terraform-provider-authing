@@ -14,6 +14,7 @@ func TestNamespaceResourceShapeDiagnostics(t *testing.T) {
 		name, body, shape string
 	}{
 		{"missing-nested-status", `{"statusCode":200,"data":{"totalCount":0,"list":[],"message":"secret-marker"}}`, "missing-nested-status"},
+		{"missing-nested-status-empty-page", `{"statusCode":200,"data":{"totalCount":0,"list":[]}}`, "missing-nested-status-empty-page"},
 		{"data-not-object", `{"statusCode":200,"data":[]}`, "data-not-object"},
 		{"data-null", `{"statusCode":200,"data":null}`, "data-not-object"},
 		{"whitespace-before-object", `{"statusCode":200,"data": {"statusCode":200,"totalCount":0,"list":null}}`, "list-null"},
