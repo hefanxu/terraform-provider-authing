@@ -2,7 +2,9 @@ package provider
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"net/http"
 
 	"github.com/Authing/authing-golang-sdk/v3/dto"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
@@ -522,6 +524,88 @@ func (r *RoleAssignmentResource) Read(ctx context.Context, req resource.ReadRequ
 	var state RoleAssignmentModel
 	diags := req.State.Get(ctx, &state)
 	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	if r.client == nil || state.RoleCode.IsNull() || state.RoleCode.IsUnknown() || state.RoleCode.ValueString() == "" ||
+		state.TargetId.IsNull() || state.TargetId.IsUnknown() || state.TargetId.ValueString() == "" ||
+		state.Namespace.IsUnknown() {
+		resp.Diagnostics.AddError("Failed to read role assignment", "Missing client or invalid assignment identity in state")
+		return
+	}
+
+	// These endpoints return *direct* grants. get-user-roles can include roles
+	// inherited from departments and cannot prove this assignment still exists.
+	endpoint, key := "", ""
+	switch state.TargetType.ValueString() {
+	case "USER":
+		endpoint, key = "/api/v3/list-role-members", "userId"
+	case "DEPARTMENT":
+		endpoint, key = "/api/v3/list-role-departments", "id"
+	default:
+		resp.Diagnostics.AddError("Failed to read role assignment", "Unsupported target type: cannot verify a direct assignment")
+		return
+	}
+
+	const limit = 50 // Maximum documented page size for both direct lists.
+	for page, seen := 1, 0; ; page++ {
+		query := map[string]any{"code": state.RoleCode.ValueString(), "page": page, "limit": limit}
+		if !state.Namespace.IsNull() {
+			query["namespace"] = state.Namespace.ValueString()
+		}
+		body, err := r.client.SendHttpRequestContext(ctx, endpoint, http.MethodGet, query)
+		if err != nil {
+			resp.Diagnostics.AddError("Failed to read role assignment", "Authing direct-assignment request failed: "+err.Error())
+			return
+		}
+		var envelope struct {
+			StatusCode int `json:"statusCode"`
+			Data       *struct {
+				TotalCount *int              `json:"totalCount"`
+				List       []json.RawMessage `json:"list"`
+			} `json:"data"`
+		}
+		if json.Unmarshal(body, &envelope) != nil {
+			resp.Diagnostics.AddError("Failed to read role assignment", "Invalid Authing direct-assignment response")
+			return
+		}
+		if envelope.StatusCode == http.StatusNotFound && page == 1 {
+			resp.State.RemoveResource(ctx)
+			return
+		}
+		if envelope.StatusCode != http.StatusOK || envelope.Data == nil || envelope.Data.TotalCount == nil || *envelope.Data.TotalCount < 0 || envelope.Data.List == nil {
+			resp.Diagnostics.AddError("Failed to read role assignment", "Incomplete or unsuccessful Authing direct-assignment response")
+			return
+		}
+		found := false
+		for _, entry := range envelope.Data.List {
+			var identity map[string]json.RawMessage
+			if json.Unmarshal(entry, &identity) != nil {
+				resp.Diagnostics.AddError("Failed to read role assignment", "Invalid direct-assignment entry")
+				return
+			}
+			var id string
+			if json.Unmarshal(identity[key], &id) != nil || id == "" {
+				resp.Diagnostics.AddError("Failed to read role assignment", "Direct-assignment entry lacks a target ID")
+				return
+			}
+			if id == state.TargetId.ValueString() {
+				found = true
+			}
+		}
+		seen += len(envelope.Data.List)
+		if seen > *envelope.Data.TotalCount || seen < *envelope.Data.TotalCount && len(envelope.Data.List) < limit {
+			resp.Diagnostics.AddError("Failed to read role assignment", "Incomplete direct-assignment pagination")
+			return
+		}
+		if found {
+			return // Leave the exact stored identity and namespace unchanged.
+		}
+		if seen == *envelope.Data.TotalCount {
+			resp.State.RemoveResource(ctx)
+			return
+		}
+	}
 }
 
 func (r *RoleAssignmentResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
