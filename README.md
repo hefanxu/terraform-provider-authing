@@ -37,6 +37,7 @@ The direct client obtains a management access token using AK/SK, caches it until
 - **`authing_data_policy_assignment`** (Resource): Authorize one policy for one subject, with paginated readback and targeted revocation.
 - **`authing_invitation_policy`** (Resource): Manage persistent invitation-policy settings; sending an invitation is not a resource.
 - **`authing_invitation_roster`** (Resource): Manage persistent invitation rosters and their optional policy association; sending invitations is excluded.
+- **`authing_invitation_invitee`** (Resource): Manage a persistent invitee roster entry without sending an invitation; names, email addresses and phone numbers remain in Terraform state.
 - **`authing_data_object_row`** (Data Source): Read a data-object row by model and row ID. Cell values are sensitive and remain in Terraform state; row writes await a verified field-ID/key contract.
 
 ### 5. Applications & Integration (应用与集成)
@@ -53,11 +54,13 @@ The direct client obtains a management access token using AK/SK, caches it until
 
 ### 6. Devices (终端)
 - **`authing_device_status`** (Data Source): Read terminal status. The OpenAPI contains an untagged `add-device` (and a deprecated `create-device`) endpoint, but they have no declared management security scheme and the management API does not expose a full device detail readback; this provider intentionally does not model complete device CRUD yet.
+- **`authing_device_exclusive_rule_settings`** / **`authing_device_exclusive_valid_scope_settings`** (Data Sources): Read nonsecret device-exclusivity rules and app scope; no unsupported singleton destroy semantics.
 
 ### 7. Multi-tenancy (多租户)
 - **`authing_tenant`** (Resource / Data Source): Manage tenants and their complete associated application ID set.
 - **`authing_tenant_membership`** (Resource): Attach an existing user-pool user to a tenant without deleting the user on detach.
 - **`authing_tenant_admin`** (Resource): Grant or revoke tenant administrator privilege for an existing member.
+- **`authing_tenant_user`** (Data Source): Look up a tenant member by exactly one identifier without placing password or salt in state.
 - **`authing_tenant_organization`** (Resource): Manage an organization with explicit tenant scope and refuse deletion when its child departments are present or unknown.
 - **`authing_tenant_custom_field`** (Data Source): Look up a tenant-scoped custom-field definition; writes are deferred until safe round-trip semantics are established.
 - **`authing_tenant_department`** (Data Source): Read a department with explicit tenant and organization queries; the department response has no tenant ID, so this is not proof of tenant ownership. Tenant department writes remain unsupported pending cross-tenant isolation verification.
