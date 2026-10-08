@@ -7,7 +7,7 @@ description: |-
 
 # authing_pipeline_function (Resource)
 
-Manages an Authing Pipeline serverless extension function.
+Manages an Authing Pipeline serverless extension function. Creation and updates explicitly send `enabled=false`; this provider does not expose activation. An opt-in disposable sandbox tracer uses an inert `PRE_REGISTER` source without triggering registration, verifies exact-ID GET and deletion, and tests name drift only. GET does not round-trip `source_code`, so source drift detection is **not** established. Do not use this tracer in a tenant with unrelated registration activity.
 
 ## Example Usage
 

@@ -1133,10 +1133,12 @@ func (r *PipelineFunctionResource) Schema(ctx context.Context, req resource.Sche
 		Description: "Manages an Authing Pipeline serverless extension function.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
-				Computed: true,
+				Computed:      true,
+				PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
 			},
 			"func_id": schema.StringAttribute{
-				Computed: true,
+				Computed:      true,
+				PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
 			},
 			"func_name": schema.StringAttribute{
 				Required:    true,
@@ -1184,23 +1186,24 @@ func (r *PipelineFunctionResource) Create(ctx context.Context, req resource.Crea
 		return
 	}
 
-	createReq := &dto.CreatePipelineFunctionDto{
-		FuncName:   plan.FuncName.ValueString(),
-		Scene:      plan.Scene.ValueString(),
-		SourceCode: plan.SourceCode.ValueString(),
+	// The generated DTO omits false, including enabled=false. Never allow a
+	// freshly created extension to become active by relying on API defaults.
+	createReq := map[string]any{"funcName": plan.FuncName.ValueString(), "scene": plan.Scene.ValueString(), "sourceCode": plan.SourceCode.ValueString(), "enabled": false, "isAsynchronous": plan.IsAsynchronous.ValueBool()}
+	if !plan.FuncDescription.IsNull() && !plan.FuncDescription.IsUnknown() {
+		createReq["funcDescription"] = plan.FuncDescription.ValueString()
 	}
-	if !plan.FuncDescription.IsNull() {
-		createReq.FuncDescription = plan.FuncDescription.ValueString()
+	response, requestErr := r.client.SendHttpRequestContext(ctx, "/api/v3/create-pipeline-function", "POST", createReq)
+	var res *dto.PipelineFunctionSingleRespDto
+	if requestErr == nil {
+		res = &dto.PipelineFunctionSingleRespDto{}
+		if json.Unmarshal(response, res) != nil {
+			res = nil
+		}
 	}
-	if !plan.IsAsynchronous.IsNull() {
-		createReq.IsAsynchronous = plan.IsAsynchronous.ValueBool()
-	}
-
-	res := r.client.CreatePipelineFunction(createReq)
 	if res == nil || res.StatusCode != 200 || res.Data.FuncId == "" {
 		errMsg := "Unknown error"
 		if res != nil {
-			errMsg = fmt.Sprintf("code=%d msg=%s", res.StatusCode, res.Message)
+			errMsg = fmt.Sprintf("code=%d (response suppressed)", res.StatusCode)
 		}
 		resp.Diagnostics.AddError("Failed to create pipeline function", errMsg)
 		return
@@ -1250,23 +1253,22 @@ func (r *PipelineFunctionResource) Update(ctx context.Context, req resource.Upda
 		return
 	}
 
-	updateReq := &dto.UpdatePipelineFunctionDto{
-		FuncId:     plan.FuncId.ValueString(),
-		FuncName:   plan.FuncName.ValueString(),
-		SourceCode: plan.SourceCode.ValueString(),
+	updateReq := map[string]any{"funcId": plan.FuncId.ValueString(), "funcName": plan.FuncName.ValueString(), "sourceCode": plan.SourceCode.ValueString(), "isAsynchronous": plan.IsAsynchronous.ValueBool(), "enabled": false}
+	if !plan.FuncDescription.IsNull() && !plan.FuncDescription.IsUnknown() {
+		updateReq["funcDescription"] = plan.FuncDescription.ValueString()
 	}
-	if !plan.FuncDescription.IsNull() {
-		updateReq.FuncDescription = plan.FuncDescription.ValueString()
+	response, requestErr := r.client.SendHttpRequestContext(ctx, "/api/v3/update-pipeline-function", "POST", updateReq)
+	var res *dto.PipelineFunctionSingleRespDto
+	if requestErr == nil {
+		res = &dto.PipelineFunctionSingleRespDto{}
+		if json.Unmarshal(response, res) != nil {
+			res = nil
+		}
 	}
-	if !plan.IsAsynchronous.IsNull() {
-		updateReq.IsAsynchronous = plan.IsAsynchronous.ValueBool()
-	}
-
-	res := r.client.UpdatePipelineFunction(updateReq)
 	if res == nil || res.StatusCode != 200 {
 		errMsg := "Unknown error"
 		if res != nil {
-			errMsg = fmt.Sprintf("code=%d msg=%s", res.StatusCode, res.Message)
+			errMsg = fmt.Sprintf("code=%d (response suppressed)", res.StatusCode)
 		}
 		resp.Diagnostics.AddError("Failed to update pipeline function", errMsg)
 		return

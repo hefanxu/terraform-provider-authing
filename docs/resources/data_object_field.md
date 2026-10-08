@@ -36,7 +36,7 @@ resource "authing_data_object_field" "sku" {
 
 - `id` (String) Authing field ID.
 
-Refresh lists fields by `model_id` and matches the field ID. Only an explicit 404 or a successful list without the ID removes state; transport or API errors retain state and report diagnostics. No live Authing validation has been run.
+Refresh lists fields by `model_id` and `from=terraform`, matching the exact field ID. Only an explicit 404 or a successful list without the ID removes state; transport or API errors retain state and report diagnostics. The opt-in disposable-model acceptance case verifies creation, a planned and applied replacement on `key`, and field-before-model deletion after proving the model has zero rows and no foreign fields. This is **replacement only**, not in-place Update or out-of-band field-attribute drift detection. No live Authing validation has been run.
 
 ## Import
 
