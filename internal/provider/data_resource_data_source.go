@@ -46,7 +46,7 @@ func (d *DataResourceDataSource) Read(ctx context.Context, req datasource.ReadRe
 		resp.Diagnostics.AddError("Invalid lookup", "Namespace and resource code must not be empty")
 		return
 	}
-	result, status, err := readDataResource(ctx, d.client, ns, code, nil)
+	result, status, err := readDataResource(ctx, d.client, ns, code, nil, true)
 	if status == 404 {
 		resp.Diagnostics.AddError("Data resource not found", fmt.Sprintf("%s / %s", ns, code))
 		return

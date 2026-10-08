@@ -1,6 +1,6 @@
 # authing_data_resource
 
-Manages an Authing permission data resource. This is separate from `authing_resource` (RBAC resource) and `authing_data_object` (metadata model). Deleting it removes the remote data resource. `STRING`, `ARRAY`, and `TREE` are supported. Nonempty `extendFieldList` and `extendFieldValue` are deliberately rejected rather than discarded; tree extension definitions and values cannot be managed by this schema.
+Manages an Authing permission data resource. This is separate from `authing_resource` (RBAC resource) and `authing_data_object` (metadata model). Deleting it removes the remote data resource **including any attached extension definitions and tree-node values**. `STRING`, `ARRAY`, and `TREE` are supported. The parent schema owns only its core attributes; extension definitions are readable through `authing_data_resource_extension_field` but are not owned or writable here. Nonempty tree-node `extendFieldValue` remains unsupported and is rejected on refresh. A parent refresh tolerates strictly validated extension definitions, but **parent update is blocked whenever any are present**: Authing does not document whether `update-data-resource` preserves omitted `extendFieldList` entries. Remove extensions explicitly outside this provider before updating the parent; never expect a parent update to preserve them.
 
 ```hcl
 resource "authing_data_resource" "documents" {
@@ -22,7 +22,7 @@ resource "authing_data_resource" "documents" {
 - `actions` — required set of action strings, at most 50. Supply `[]` explicitly to allow no actions.
 - `description` — optional string. Omission on create leaves the field unset; setting `""` clears it on update.
 
-`id` is computed as a JSON array of namespace and resource code. Import with `terraform import authing_data_resource.documents '["default","documents"]'`. Slash characters in codes are safe because the ID uses JSON, not a slash separator. Changes to immutable fields require replacement. Before an update, the provider reads the remote resource and refuses to modify a missing, retagged, or extension-bearing resource. An imported tree with nonempty extension definitions or values fails safely rather than silently losing them.
+`id` is computed as a JSON array of namespace and resource code. Import with `terraform import authing_data_resource.documents '["default","documents"]'`. Slash characters in codes are safe because the ID uses JSON, not a slash separator. Changes to immutable fields require replacement. Before an update, the provider reads the remote resource and refuses to modify a missing, retagged, or extension-bearing resource. A parent refresh tolerates valid extension definitions but does not put them in parent state; malformed/unknown extension definitions or nonempty node values fail safely. **Deleting the parent is destructive even when extensions are present.**
 
 ## Data source
 

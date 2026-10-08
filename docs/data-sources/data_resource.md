@@ -13,4 +13,4 @@ output "document_actions" {
 }
 ```
 
-An absent resource is an error; the data source does not create or delete anything.
+An absent resource is an error; the data source does not create or delete anything. Valid extension definitions do not appear in its state; query an individual definition with [`authing_data_resource_extension_field`](data_resource_extension_field.md). Malformed definitions or nonempty tree-node `extendFieldValue` fail rather than being silently discarded.

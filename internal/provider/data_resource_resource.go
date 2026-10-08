@@ -45,7 +45,7 @@ func (r *DataResourceResource) Schema(_ context.Context, _ resource.SchemaReques
 		"namespace_code": schema.StringAttribute{Required: true, PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()}},
 		"resource_code":  schema.StringAttribute{Required: true, PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()}},
 		"resource_name":  schema.StringAttribute{Required: true},
-		"type":           schema.StringAttribute{Required: true, Description: "STRING, ARRAY or TREE. Nonempty extendFieldList and extendFieldValue are not managed.", PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()}},
+		"type":           schema.StringAttribute{Required: true, Description: "STRING, ARRAY or TREE. Extension definitions may be read but block parent updates; nonempty extendFieldValue is not managed.", PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()}},
 		"struct":         schema.StringAttribute{Required: true, Description: "JSON string for STRING, distinct string array for ARRAY (up to 50), or TREE root object with code, name, optional value and children (up to five levels)."},
 		"actions":        schema.SetAttribute{Required: true, ElementType: types.StringType, Description: "Permission action names (up to 50)."},
 		"description":    schema.StringAttribute{Optional: true},
@@ -180,7 +180,7 @@ func dataResourceWriteError(status int, err error) string {
 	}
 	return fmt.Sprintf("Authing statusCode=%d", status)
 }
-func readDataResource(ctx context.Context, c *authingapi.Client, ns, code string, previous *DataResourceModel) (DataResourceModel, int, error) {
+func readDataResource(ctx context.Context, c *authingapi.Client, ns, code string, previous *DataResourceModel, allowExtensions ...bool) (DataResourceModel, int, error) {
 	var result DataResourceModel
 	status, remote, err := dataResourceRequest(ctx, c, "/api/v3/get-data-resource", http.MethodGet, map[string]string{"namespaceCode": ns, "resourceCode": code})
 	if err != nil || status == 404 {
@@ -191,8 +191,22 @@ func readDataResource(ctx context.Context, c *authingapi.Client, ns, code string
 	}
 	if len(remote.ExtendFieldList) > 0 && string(remote.ExtendFieldList) != "null" {
 		var fields []json.RawMessage
-		if err := json.Unmarshal(remote.ExtendFieldList, &fields); err != nil || fields == nil || len(fields) != 0 {
-			return result, status, errors.New("resource has invalid or unmanaged extendFieldList; refusing incomplete state")
+		if err := json.Unmarshal(remote.ExtendFieldList, &fields); err != nil || fields == nil {
+			return result, status, errors.New("resource has invalid extendFieldList")
+		}
+		seen := map[string]bool{}
+		for _, raw := range fields {
+			field, err := validateExtensionField(raw)
+			if err != nil {
+				return result, status, fmt.Errorf("resource has invalid extendFieldList: %w", err)
+			}
+			if seen[*field.Key] {
+				return result, status, errors.New("resource has duplicate extension key")
+			}
+			seen[*field.Key] = true
+		}
+		if len(fields) > 0 && (len(allowExtensions) == 0 || !allowExtensions[0]) {
+			return result, status, errors.New("resource has extension definitions; parent update is blocked because update-data-resource may overwrite them")
 		}
 	}
 	_, canonical, err := dataResourceStruct(remote.Type, string(remote.Struct))
@@ -268,7 +282,7 @@ func (r *DataResourceResource) Read(ctx context.Context, req resource.ReadReques
 		resp.Diagnostics.AddError("Invalid data resource ID", err.Error())
 		return
 	}
-	next, status, err := readDataResource(ctx, r.client, ns, code, &s)
+	next, status, err := readDataResource(ctx, r.client, ns, code, &s, true)
 	if status == 404 {
 		resp.State.RemoveResource(ctx)
 		return
