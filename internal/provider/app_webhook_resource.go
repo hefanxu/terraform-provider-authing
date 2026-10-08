@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
 
 	"github.com/Authing/authing-golang-sdk/v3/dto"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
@@ -14,6 +15,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -43,6 +45,7 @@ type ApplicationModel struct {
 	AppLogo            types.String `tfsdk:"app_logo"`
 	DefaultProtocol    types.String `tfsdk:"default_protocol"`
 	SsoEnabled         types.Bool   `tfsdk:"sso_enabled"`
+	PermissionStrategy types.String `tfsdk:"permission_strategy"`
 }
 
 func (r *ApplicationResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -97,6 +100,11 @@ func (r *ApplicationResource) Schema(ctx context.Context, req resource.SchemaReq
 			"app_logo":         schema.StringAttribute{Optional: true, Computed: true, Description: "Application logo URL."},
 			"default_protocol": schema.StringAttribute{Optional: true, Computed: true, Description: "Default application protocol (oidc, oauth, saml, cas, asa)."},
 			"sso_enabled":      schema.BoolAttribute{Optional: true, Computed: true, Description: "Whether SSO is enabled."},
+			"permission_strategy": schema.StringAttribute{
+				Optional: true, Computed: true,
+				Description: "Default application access authorization policy: ALLOW_ALL or DENY_ALL. Omission adopts Authing's value; no independent reset endpoint exists.",
+				Validators:  []validator.String{applicationPermissionStrategyValidator{}},
+			},
 		},
 	}
 }
@@ -196,6 +204,22 @@ func (r *ApplicationResource) Create(ctx context.Context, req resource.CreateReq
 
 	plan.ID = types.StringValue(res.Data.AppId)
 	plan.AppId = types.StringValue(res.Data.AppId)
+	if !plan.PermissionStrategy.IsNull() && !plan.PermissionStrategy.IsUnknown() {
+		if err := r.updatePermissionStrategy(ctx, res.Data.AppId, plan.PermissionStrategy.ValueString()); err != nil {
+			resp.Diagnostics.AddError("Failed to set application permission strategy", fmt.Sprintf("Application %q was created but strategy update failed: %v. Import this ID before retrying to avoid duplicate creation.", res.Data.AppId, err))
+			return
+		}
+	}
+	strategy, err := r.getPermissionStrategy(ctx, res.Data.AppId)
+	if err != nil {
+		resp.Diagnostics.AddError("Failed to read application permission strategy", fmt.Sprintf("Application %q was created but strategy readback failed: %v. Import this ID before retrying to avoid duplicate creation.", res.Data.AppId, err))
+		return
+	}
+	if !plan.PermissionStrategy.IsNull() && !plan.PermissionStrategy.IsUnknown() && strategy != plan.PermissionStrategy.ValueString() {
+		resp.Diagnostics.AddError("Failed to confirm application permission strategy", fmt.Sprintf("Application %q was created but strategy readback returned %q rather than %q. Import this ID before retrying to avoid duplicate creation.", res.Data.AppId, strategy, plan.PermissionStrategy.ValueString()))
+		return
+	}
+	plan.PermissionStrategy = types.StringValue(strategy)
 	// app_name is required configuration; do not overwrite it with a server-normalized
 	// value during Create, which would produce an inconsistent Terraform plan.
 	if plan.AppType.IsUnknown() || plan.AppType.IsNull() {
@@ -243,8 +267,14 @@ func (r *ApplicationResource) Read(ctx context.Context, req resource.ReadRequest
 		resp.Diagnostics.AddError("Failed to read Authing application", applicationResponseError(res))
 		return
 	}
+	strategy, err := r.getPermissionStrategy(ctx, res.Data.AppId)
+	if err != nil {
+		resp.Diagnostics.AddError("Failed to read application permission strategy", err.Error())
+		return
+	}
 
 	state.ID = types.StringValue(res.Data.AppId)
+	state.PermissionStrategy = types.StringValue(strategy)
 	state.AppId = types.StringValue(res.Data.AppId)
 	state.AppName = types.StringValue(res.Data.AppName)
 	state.AppType = types.StringValue(res.Data.AppType)
@@ -275,6 +305,10 @@ func (r *ApplicationResource) Update(ctx context.Context, req resource.UpdateReq
 	if resp.Diagnostics.HasError() {
 		return
 	}
+	strategyChanged := !plan.PermissionStrategy.IsNull() && !plan.PermissionStrategy.IsUnknown() && plan.PermissionStrategy != state.PermissionStrategy
+	otherPlan, otherState := plan, state
+	otherPlan.PermissionStrategy, otherState.PermissionStrategy = types.StringNull(), types.StringNull()
+	strategyOnly := strategyChanged && reflect.DeepEqual(otherPlan, otherState)
 	if !plan.AppType.IsUnknown() && !plan.AppType.IsNull() && plan.AppType != state.AppType {
 		resp.Diagnostics.AddError("Cannot update app_type", "Authing does not support changing app_type; replace the application instead.")
 		return
@@ -325,19 +359,38 @@ func (r *ApplicationResource) Update(ctx context.Context, req resource.UpdateReq
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	body, err := r.client.SendHttpRequest("/api/v3/update-application", "POST", payload)
-	if err != nil {
-		resp.Diagnostics.AddError("Failed to update Authing application", err.Error())
-		return
+	if !strategyOnly {
+		body, err := r.client.SendHttpRequest("/api/v3/update-application", "POST", payload)
+		if err != nil {
+			resp.Diagnostics.AddError("Failed to update Authing application", err.Error())
+			return
+		}
+		var result dto.IsSuccessRespDto
+		if err := json.Unmarshal(body, &result); err != nil {
+			resp.Diagnostics.AddError("Failed to update Authing application", err.Error())
+			return
+		}
+		if result.StatusCode != 200 || !result.Data.Success {
+			resp.Diagnostics.AddError("Failed to update Authing application", fmt.Sprintf("code=%d msg=%s success=%t", result.StatusCode, result.Message, result.Data.Success))
+			return
+		}
 	}
-	var result dto.IsSuccessRespDto
-	if err := json.Unmarshal(body, &result); err != nil {
-		resp.Diagnostics.AddError("Failed to update Authing application", err.Error())
-		return
-	}
-	if result.StatusCode != 200 || !result.Data.Success {
-		resp.Diagnostics.AddError("Failed to update Authing application", fmt.Sprintf("code=%d msg=%s success=%t", result.StatusCode, result.Message, result.Data.Success))
-		return
+	if strategyChanged {
+		if err := r.updatePermissionStrategy(ctx, appID, plan.PermissionStrategy.ValueString()); err != nil {
+			resp.Diagnostics.AddError("Failed to update application permission strategy", err.Error())
+			return
+		}
+		strategy, err := r.getPermissionStrategy(ctx, appID)
+		if err != nil {
+			resp.Diagnostics.AddError("Failed to confirm application permission strategy", err.Error())
+			return
+		}
+		if strategy != plan.PermissionStrategy.ValueString() {
+			resp.Diagnostics.AddError("Failed to confirm application permission strategy", fmt.Sprintf("App %q returned %q instead of %q", appID, strategy, plan.PermissionStrategy.ValueString()))
+			return
+		}
+	} else {
+		plan.PermissionStrategy = state.PermissionStrategy
 	}
 	plan.ID = types.StringValue(appID)
 	plan.AppId = types.StringValue(appID)
@@ -377,6 +430,7 @@ func (r *ApplicationResource) ImportState(ctx context.Context, req resource.Impo
 		RedirectUris: types.ListNull(types.StringType), LogoutRedirectUris: types.ListNull(types.StringType),
 		AppIdentifier: types.StringNull(), AppLogo: types.StringNull(),
 		DefaultProtocol: types.StringNull(), SsoEnabled: types.BoolNull(),
+		PermissionStrategy: types.StringNull(),
 	})...)
 }
 
@@ -392,6 +446,67 @@ func applicationResponseError(res *dto.ApplicationSingleRespDto) string {
 		return "Empty or invalid API response"
 	}
 	return fmt.Sprintf("code=%d msg=%s", res.StatusCode, res.Message)
+}
+
+type applicationPermissionStrategyValidator struct{}
+
+func (applicationPermissionStrategyValidator) Description(context.Context) string {
+	return "Must be ALLOW_ALL or DENY_ALL."
+}
+func (v applicationPermissionStrategyValidator) MarkdownDescription(ctx context.Context) string {
+	return v.Description(ctx)
+}
+func (applicationPermissionStrategyValidator) ValidateString(ctx context.Context, req validator.StringRequest, resp *validator.StringResponse) {
+	if !req.ConfigValue.IsNull() && !req.ConfigValue.IsUnknown() && !validPermissionStrategy(req.ConfigValue.ValueString()) {
+		resp.Diagnostics.AddAttributeError(req.Path, "Invalid permission strategy", "Expected ALLOW_ALL or DENY_ALL.")
+	}
+}
+
+func validPermissionStrategy(s string) bool { return s == "ALLOW_ALL" || s == "DENY_ALL" }
+
+func (r *ApplicationResource) getPermissionStrategy(ctx context.Context, appID string) (string, error) {
+	body, err := r.client.SendHttpRequestContext(ctx, "/api/v3/get-application-permission-strategy", "GET", map[string]string{"appId": appID})
+	if err != nil {
+		return "", err
+	}
+	var result struct {
+		StatusCode int    `json:"statusCode"`
+		Message    string `json:"message"`
+		Data       *struct {
+			PermissionStrategy string `json:"permissionStrategy"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(body, &result); err != nil {
+		return "", err
+	}
+	if result.StatusCode != 200 {
+		return "", fmt.Errorf("code=%d msg=%s", result.StatusCode, result.Message)
+	}
+	if result.Data == nil || !validPermissionStrategy(result.Data.PermissionStrategy) {
+		return "", fmt.Errorf("missing or invalid permissionStrategy in API response")
+	}
+	return result.Data.PermissionStrategy, nil
+}
+
+func (r *ApplicationResource) updatePermissionStrategy(ctx context.Context, appID, strategy string) error {
+	body, err := r.client.SendHttpRequestContext(ctx, "/api/v3/update-application-permission-strategy", "POST", map[string]string{"appId": appID, "permissionStrategy": strategy})
+	if err != nil {
+		return err
+	}
+	var result struct {
+		StatusCode int    `json:"statusCode"`
+		Message    string `json:"message"`
+		Data       *struct {
+			Success bool `json:"success"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(body, &result); err != nil {
+		return err
+	}
+	if result.StatusCode != 200 || result.Data == nil || !result.Data.Success {
+		return fmt.Errorf("code=%d msg=%s success=false", result.StatusCode, result.Message)
+	}
+	return nil
 }
 
 // --- Webhook Resource ---

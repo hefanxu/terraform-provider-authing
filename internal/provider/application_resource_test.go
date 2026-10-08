@@ -17,11 +17,19 @@ import (
 )
 
 func applicationFixture(t *testing.T, handler func(http.ResponseWriter, *http.Request)) (*ApplicationResource, tfsdk.State, tfsdk.Plan) {
+	return applicationFixtureWithStrategy(t, handler, true)
+}
+
+func applicationFixtureWithStrategy(t *testing.T, handler func(http.ResponseWriter, *http.Request), fallback ...bool) (*ApplicationResource, tfsdk.State, tfsdk.Plan) {
 	t.Helper()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		if r.URL.Path == "/api/v3/get-management-token" {
 			fmt.Fprint(w, `{"statusCode":200,"data":{"access_token":"test-token","expires_in":3600}}`)
+			return
+		}
+		if len(fallback) > 0 && fallback[0] && r.URL.Path == "/api/v3/get-application-permission-strategy" {
+			fmt.Fprint(w, `{"statusCode":200,"data":{"permissionStrategy":"ALLOW_ALL"}}`)
 			return
 		}
 		handler(w, r)
