@@ -62,11 +62,13 @@ class SandboxDispatchTests(unittest.TestCase):
     def test_failed_case_only_reports_owned_identifier(self):
         test = mod.CASES["group"]
         runner = Mock(side_effect=[subprocess.CompletedProcess([], 0, test + "\n", ""),
-                                   subprocess.CompletedProcess([], 1, "credential-marker phase=apply-create code=hermesacc-1234567890abcdef cleanup=incomplete secret-marker", "secret-marker")])
+                                   subprocess.CompletedProcess([], 1, "credential-marker phase=apply-create code=hermesacc-1234567890abcdef failure=application-create api_code=400 cleanup=incomplete secret-marker", "secret-marker")])
         with self.assertRaises(RuntimeError) as caught:
             mod.run(self.env(), runner)
         self.assertIn("hermesacc-1234567890abcdef", str(caught.exception))
         self.assertIn("cleanup=incomplete", str(caught.exception))
+        self.assertIn("failure=application-create", str(caught.exception))
+        self.assertIn("api_code=400", str(caught.exception))
         self.assertNotIn("secret-marker", str(caught.exception))
         self.assertNotIn("credential-marker", str(caught.exception))
 

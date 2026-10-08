@@ -32,6 +32,10 @@ CASES = {
 SAFE_DIAGNOSTIC = re.compile(
     r"\bphase=([a-z][a-z0-9-]{0,50})\s+(?:code|username|name)=(hermesacc-[0-9a-f]{16})(?:\s|$)"
 )
+SAFE_FAILURE = re.compile(
+    r"\bfailure=(application-create|permission-strategy-update|permission-strategy-readback|permission-strategy-mismatch|inconsistent-result|unclassified)\b"
+)
+SAFE_API_CODE = re.compile(r"\bapi_code=([0-9]{3,6})\b")
 
 
 def run(env=None, runner=subprocess.run):
@@ -55,8 +59,15 @@ def run(env=None, runner=subprocess.run):
         matches = SAFE_DIAGNOSTIC.findall(result.stdout + "\n" + result.stderr)
         if matches:
             phase, identifier = matches[-1]
-            cleanup = re.findall(r"\bcleanup=(confirmed|incomplete)\b", result.stdout + "\n" + result.stderr)
+            controlled = result.stdout + "\n" + result.stderr
+            cleanup = re.findall(r"\bcleanup=(confirmed|incomplete)\b", controlled)
             outcome = f"; cleanup={cleanup[-1]}" if cleanup else ""
+            failure = SAFE_FAILURE.findall(controlled)
+            api_code = SAFE_API_CODE.findall(controlled)
+            if failure:
+                outcome += f"; failure={failure[-1]}"
+                if api_code:
+                    outcome += f"; api_code={api_code[-1]}"
             raise RuntimeError(f"sandbox case {case} failed at {phase}; inspect only owned {identifier}{outcome}")
         raise RuntimeError(f"sandbox case {case} failed (output suppressed)")
     print(f"sandbox case {case} passed")
