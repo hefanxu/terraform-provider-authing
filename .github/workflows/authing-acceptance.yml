@@ -1,10 +1,10 @@
-name: Authing read-only sandbox acceptance
+name: Authing sandbox acceptance
 
 on:
   workflow_dispatch:
     inputs:
       confirm:
-        description: 'Type READ_ONLY_SANDBOX to authorize one read-only plan against the isolated Authing sandbox'
+        description: 'Type READ_ONLY_SANDBOX for a read-only plan or DESTRUCTIVE_SANDBOX for group create/drift/delete in the isolated sandbox'
         required: true
         type: string
 
@@ -36,3 +36,28 @@ jobs:
           AUTHING_ACCESS_KEY_SECRET: ${{ secrets.AUTHING_ACCESS_KEY_SECRET }}
           AUTHING_HOST: ${{ vars.AUTHING_HOST }}
         run: go test -count=1 -run '^TestReadOnlyPlan$' ./scripts/acceptance -args -authing-read-only-sandbox
+
+  destructive-group:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feat/management-api-coverage' && inputs.confirm == 'DESTRUCTIVE_SANDBOX' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: authing-sandbox
+    steps:
+      - name: Checkout
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Install checksum-verified Terraform and verify provider protocol offline
+        run: python3 scripts/protocol_smoke.py
+      - name: Verify mock group lifecycle, cleanup, and guards
+        run: go test -count=1 -run '^(TestDestructiveGuard|TestMockDestructive.*)$' ./scripts/acceptance
+      - name: Trace group CRUD and drift in isolated Authing sandbox
+        env:
+          AUTHING_ACCEPTANCE_CONFIRM: ${{ inputs.confirm }}
+          AUTHING_ACCESS_KEY_ID: ${{ secrets.AUTHING_ACCESS_KEY_ID }}
+          AUTHING_ACCESS_KEY_SECRET: ${{ secrets.AUTHING_ACCESS_KEY_SECRET }}
+          AUTHING_HOST: ${{ vars.AUTHING_HOST }}
+        run: go test -count=1 -run '^TestDestructiveLiveGroupTrace$' ./scripts/acceptance -args -authing-destructive-sandbox
