@@ -35,12 +35,14 @@ The direct client obtains a management access token using AK/SK, caches it until
 - **`authing_data_resource`** (Resource / Data Source): Manage STRING and ARRAY permission data resources; TREE resources are not yet supported.
 - **`authing_data_policy_assignment`** (Resource): Authorize one policy for one subject, with paginated readback and targeted revocation.
 - **`authing_invitation_policy`** (Resource): Manage persistent invitation-policy settings; sending an invitation is not a resource.
+- **`authing_invitation_roster`** (Resource): Manage persistent invitation rosters and their optional policy association; sending invitations is excluded.
 
 ### 5. Applications & Integration (应用与集成)
 - **`authing_application`** (Resource / Data Source): Self-built applications, OAuth/OIDC redirect URLs.
 - **`authing_ext_idp`** (Resource): External enterprise identity providers (SAML, OIDC, WeChat, DingTalk, LDAP).
 - **`authing_webhook`** (Resource): Webhook subscriptions for identity event streams.
 - **`authing_pipeline_function`** (Resource): Serverless pipeline extension functions (pre-register, post-auth, etc.).
+- **`authing_auth_flow_function`** (Resource): Manage AuthFlowFunction source and settings; source is sensitive but still stored in Terraform state.
 - **`authing_application_subject_auth`** (Data Source): Read an application's authorization details for a subject.
 
 ### 6. Devices (终端)
