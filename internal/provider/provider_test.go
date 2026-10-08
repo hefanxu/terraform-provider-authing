@@ -39,6 +39,7 @@ func TestRegisteredResourcesExposeMetadataAndSchema(t *testing.T) {
 
 	assertServiceNames(t, resourceNames, []string{
 		"authing_application",
+		"authing_auth_flow_function",
 		"authing_data_object",
 		"authing_data_object_field",
 		"authing_data_resource",
