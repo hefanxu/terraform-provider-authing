@@ -130,8 +130,12 @@ func (r *NamespaceResource) Read(ctx context.Context, req resource.ReadRequest, 
 	res := r.client.GetPermissionNamespace(&dto.GetPermissionNamespaceDto{
 		Code: state.Code.ValueString(),
 	})
-	if res == nil || res.StatusCode != 200 || res.Data.Code == "" {
+	if res != nil && res.StatusCode == 404 {
 		resp.State.RemoveResource(ctx)
+		return
+	}
+	if res == nil || res.StatusCode != 200 || res.Data.Code == "" {
+		resp.Diagnostics.AddError("Failed to read Authing namespace", "Authing returned an invalid or unsuccessful response")
 		return
 	}
 
@@ -183,9 +187,12 @@ func (r *NamespaceResource) Delete(ctx context.Context, req resource.DeleteReque
 		return
 	}
 
-	_ = r.client.DeletePermissionNamespace(&dto.DeletePermissionNamespaceDto{
+	res := r.client.DeletePermissionNamespace(&dto.DeletePermissionNamespaceDto{
 		Code: state.Code.ValueString(),
 	})
+	if res == nil || res.StatusCode != 404 && (res.StatusCode != 200 || !res.Data.Success) {
+		resp.Diagnostics.AddError("Failed to delete Authing namespace", "Authing returned an invalid or unsuccessful response")
+	}
 }
 
 func (r *NamespaceResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
@@ -328,8 +335,12 @@ func (r *RoleResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 	}
 
 	res := r.client.GetRole(getReq)
-	if res == nil || res.StatusCode != 200 || res.Data.Code == "" {
+	if res != nil && res.StatusCode == 404 {
 		resp.State.RemoveResource(ctx)
+		return
+	}
+	if res == nil || res.StatusCode != 200 || res.Data.Code == "" {
+		resp.Diagnostics.AddError("Failed to read Authing role", "Authing returned an invalid or unsuccessful response")
 		return
 	}
 
@@ -389,7 +400,10 @@ func (r *RoleResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 		delReq.Namespace = state.Namespace.ValueString()
 	}
 
-	_ = r.client.DeleteRolesBatch(delReq)
+	res := r.client.DeleteRolesBatch(delReq)
+	if res == nil || res.StatusCode != 404 && (res.StatusCode != 200 || !res.Data.Success) {
+		resp.Diagnostics.AddError("Failed to delete Authing role", "Authing returned an invalid or unsuccessful response")
+	}
 }
 
 func (r *RoleResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
@@ -534,7 +548,10 @@ func (r *RoleAssignmentResource) Delete(ctx context.Context, req resource.Delete
 		revokeReq.Namespace = state.Namespace.ValueString()
 	}
 
-	_ = r.client.RevokeRole(revokeReq)
+	res := r.client.RevokeRole(revokeReq)
+	if res == nil || res.StatusCode != 404 && (res.StatusCode != 200 || !res.Data.Success) {
+		resp.Diagnostics.AddError("Failed to revoke Authing role", "Authing returned an invalid or unsuccessful response")
+	}
 }
 
 // --- Authing Resource (ACL / RBAC Resource Definition) ---
@@ -681,8 +698,12 @@ func (r *ResourceResource) Read(ctx context.Context, req resource.ReadRequest, r
 	}
 
 	res := r.client.GetResource(getReq)
-	if res == nil || res.StatusCode != 200 || res.Data.Code == "" {
+	if res != nil && res.StatusCode == 404 {
 		resp.State.RemoveResource(ctx)
+		return
+	}
+	if res == nil || res.StatusCode != 200 || res.Data.Code == "" {
+		resp.Diagnostics.AddError("Failed to read Authing resource", "Authing returned an invalid or unsuccessful response")
 		return
 	}
 
@@ -753,7 +774,10 @@ func (r *ResourceResource) Delete(ctx context.Context, req resource.DeleteReques
 		delReq.Namespace = state.Namespace.ValueString()
 	}
 
-	_ = r.client.DeleteResource(delReq)
+	res := r.client.DeleteResource(delReq)
+	if res == nil || res.StatusCode != 404 && (res.StatusCode != 200 || !res.Data.Success) {
+		resp.Diagnostics.AddError("Failed to delete Authing resource", "Authing returned an invalid or unsuccessful response")
+	}
 }
 
 // --- Data Policy Resource ---
@@ -887,8 +911,12 @@ func (r *DataPolicyResource) Read(ctx context.Context, req resource.ReadRequest,
 	res := r.client.GetDataPolicy(&dto.GetDataPolicyDto{
 		PolicyId: state.ID.ValueString(),
 	})
-	if res == nil || res.StatusCode != 200 || res.Data.PolicyId == "" {
+	if res != nil && res.StatusCode == 404 {
 		resp.State.RemoveResource(ctx)
+		return
+	}
+	if res == nil || res.StatusCode != 200 || res.Data.PolicyId == "" {
+		resp.Diagnostics.AddError("Failed to read Authing data policy", "Authing returned an invalid or unsuccessful response")
 		return
 	}
 
@@ -952,9 +980,12 @@ func (r *DataPolicyResource) Delete(ctx context.Context, req resource.DeleteRequ
 		return
 	}
 
-	_ = r.client.DeleteDataPolicy(&dto.DeleteDataPolicyDto{
+	res := r.client.DeleteDataPolicy(&dto.DeleteDataPolicyDto{
 		PolicyId: state.ID.ValueString(),
 	})
+	if res == nil || res.StatusCode != 404 && res.StatusCode != 200 {
+		resp.Diagnostics.AddError("Failed to delete Authing data policy", "Authing returned an invalid or unsuccessful response")
+	}
 }
 
 // --- Data Sources for Namespace, Role & Resource ---

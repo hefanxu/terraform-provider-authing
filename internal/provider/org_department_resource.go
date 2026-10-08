@@ -665,13 +665,22 @@ func (r *PostResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 		return
 	}
 
-	res := r.client.GetPost(&dto.GetPostDto{
-		Code: state.Code.ValueString(),
-	})
-	if res == nil || res.Code == "" {
+	// GetPost's SDK return type is CreatePostDto, which has no statusCode.
+	// Decode the envelope directly so an API failure cannot look like absence.
+	body, err := r.client.SendHttpRequestContext(ctx, "/api/v3/get-post", http.MethodGet, &dto.GetPostDto{Code: state.Code.ValueString()})
+	var result struct {
+		StatusCode int                `json:"statusCode"`
+		Data       *dto.CreatePostDto `json:"data"`
+	}
+	if json.Unmarshal(body, &result) == nil && result.StatusCode == 404 {
 		resp.State.RemoveResource(ctx)
 		return
 	}
+	if err != nil || result.StatusCode != 200 || result.Data == nil || result.Data.Code == "" {
+		resp.Diagnostics.AddError("Failed to read Authing post", "Authing returned an invalid or unsuccessful response")
+		return
+	}
+	res := result.Data
 
 	state.ID = types.StringValue(res.Code)
 	state.Name = types.StringValue(res.Name)
@@ -717,9 +726,12 @@ func (r *PostResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 		return
 	}
 
-	_ = r.client.RemovePost(&dto.RemovePostDto{
+	res := r.client.RemovePost(&dto.RemovePostDto{
 		Code: state.Code.ValueString(),
 	})
+	if res == nil || res.StatusCode != 404 && res.StatusCode != 200 {
+		resp.Diagnostics.AddError("Failed to remove Authing post", "Authing returned an invalid or unsuccessful response")
+	}
 }
 
 // --- Data Sources for Org & Dept ---

@@ -450,8 +450,12 @@ func (r *WebhookResource) Read(ctx context.Context, req resource.ReadRequest, re
 	res := r.client.GetWebhook(&dto.GetWebhookDto{
 		WebhookId: state.WebhookId.ValueString(),
 	})
-	if res == nil || res.StatusCode != 200 || res.Data.WebhookId == "" {
+	if res != nil && res.StatusCode == 404 {
 		resp.State.RemoveResource(ctx)
+		return
+	}
+	if res == nil || res.StatusCode != 200 || res.Data.WebhookId == "" {
+		resp.Diagnostics.AddError("Failed to read Authing webhook", "Authing returned an invalid or unsuccessful response")
 		return
 	}
 
@@ -510,9 +514,12 @@ func (r *WebhookResource) Delete(ctx context.Context, req resource.DeleteRequest
 		return
 	}
 
-	_ = r.client.DeleteWebhook(&dto.DeleteWebhookDto{
+	res := r.client.DeleteWebhook(&dto.DeleteWebhookDto{
 		WebhookIds: []string{state.WebhookId.ValueString()},
 	})
+	if res == nil || res.StatusCode != 404 && res.StatusCode != 200 {
+		resp.Diagnostics.AddError("Failed to delete Authing webhook", "Authing returned an invalid or unsuccessful response")
+	}
 }
 
 // --- ExtIdp Resource (External Identity Provider) ---
@@ -798,8 +805,12 @@ func (r *PipelineFunctionResource) Read(ctx context.Context, req resource.ReadRe
 	res := r.client.GetPipelineFunction(&dto.GetPipelineFunctionDto{
 		FuncId: state.FuncId.ValueString(),
 	})
-	if res == nil || res.StatusCode != 200 || res.Data.FuncId == "" {
+	if res != nil && res.StatusCode == 404 {
 		resp.State.RemoveResource(ctx)
+		return
+	}
+	if res == nil || res.StatusCode != 200 || res.Data.FuncId == "" {
+		resp.Diagnostics.AddError("Failed to read Authing pipeline function", "Authing returned an invalid or unsuccessful response")
 		return
 	}
 
@@ -855,9 +866,12 @@ func (r *PipelineFunctionResource) Delete(ctx context.Context, req resource.Dele
 		return
 	}
 
-	_ = r.client.DeletePipelineFunction(&dto.DeletePipelineFunctionDto{
+	res := r.client.DeletePipelineFunction(&dto.DeletePipelineFunctionDto{
 		FuncId: state.FuncId.ValueString(),
 	})
+	if res == nil || res.StatusCode != 404 && res.StatusCode != 200 {
+		resp.Diagnostics.AddError("Failed to delete Authing pipeline function", "Authing returned an invalid or unsuccessful response")
+	}
 }
 
 // --- Application Data Source ---

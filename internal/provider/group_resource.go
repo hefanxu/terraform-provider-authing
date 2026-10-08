@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/Authing/authing-golang-sdk/v3/dto"
@@ -130,8 +131,12 @@ func (r *GroupResource) Read(ctx context.Context, req resource.ReadRequest, resp
 	res := r.client.GetGroup(&dto.GetGroupDto{
 		Code: state.Code.ValueString(),
 	})
-	if res == nil || res.StatusCode != 200 || res.Data.Code == "" {
+	if res != nil && res.StatusCode == 404 {
 		resp.State.RemoveResource(ctx)
+		return
+	}
+	if res == nil || res.StatusCode != 200 || res.Data.Code == "" {
+		resp.Diagnostics.AddError("Failed to read Authing group", "Authing returned an invalid or unsuccessful response")
 		return
 	}
 
@@ -189,10 +194,13 @@ func (r *GroupResource) Delete(ctx context.Context, req resource.DeleteRequest, 
 	res := r.client.DeleteGroupsBatch(&dto.DeleteGroupsReqDto{
 		CodeList: []string{state.Code.ValueString()},
 	})
-	if res == nil || res.StatusCode != 200 {
+	if res != nil && res.StatusCode == 404 {
+		return
+	}
+	if res == nil || res.StatusCode != 200 || !res.Data.Success {
 		errMsg := "Unknown error"
 		if res != nil {
-			errMsg = fmt.Sprintf("code=%d msg=%s", res.StatusCode, res.Message)
+			errMsg = fmt.Sprintf("code=%d msg=%s success=%t", res.StatusCode, res.Message, res.Data.Success)
 		}
 		resp.Diagnostics.AddError("Failed to delete Authing group", errMsg)
 		return
@@ -292,16 +300,32 @@ func (r *GroupMemberResource) Read(ctx context.Context, req resource.ReadRequest
 		return
 	}
 
-	res := r.client.GetUserGroups(&dto.GetUserGroupsDto{
-		UserId: state.UserId.ValueString(),
-	})
-	if res == nil || res.StatusCode != 200 {
+	// The SDK DTO erases absent lists and totals, so inspect the envelope.
+	body, err := r.client.SendHttpRequestContext(ctx, "/api/v3/get-user-groups", "GET", &dto.GetUserGroupsDto{UserId: state.UserId.ValueString()})
+	var res struct {
+		StatusCode int `json:"statusCode"`
+		Data       *struct {
+			TotalCount *int `json:"totalCount"`
+			List       *[]struct {
+				Code string `json:"code"`
+			} `json:"list"`
+		} `json:"data"`
+	}
+	if json.Unmarshal(body, &res) == nil && res.StatusCode == 404 {
 		resp.State.RemoveResource(ctx)
+		return
+	}
+	if err != nil || res.StatusCode != 200 || res.Data == nil || res.Data.List == nil || res.Data.TotalCount == nil || *res.Data.TotalCount < 0 || *res.Data.TotalCount != len(*res.Data.List) {
+		resp.Diagnostics.AddError("Failed to read group member", "Authing returned an invalid or incomplete membership list")
 		return
 	}
 
 	found := false
-	for _, g := range res.Data.List {
+	for _, g := range *res.Data.List {
+		if g.Code == "" {
+			resp.Diagnostics.AddError("Failed to read group member", "Authing returned a group without a code")
+			return
+		}
 		if g.Code == state.GroupCode.ValueString() {
 			found = true
 			break
@@ -328,10 +352,13 @@ func (r *GroupMemberResource) Delete(ctx context.Context, req resource.DeleteReq
 		return
 	}
 
-	_ = r.client.RemoveGroupMembers(&dto.RemoveGroupMembersReqDto{
+	res := r.client.RemoveGroupMembers(&dto.RemoveGroupMembersReqDto{
 		Code:    state.GroupCode.ValueString(),
 		UserIds: []string{state.UserId.ValueString()},
 	})
+	if res == nil || res.StatusCode != 404 && (res.StatusCode != 200 || !res.Data.Success) {
+		resp.Diagnostics.AddError("Failed to remove group member", "Authing returned an invalid or unsuccessful response")
+	}
 }
 
 // --- Group Data Source ---
