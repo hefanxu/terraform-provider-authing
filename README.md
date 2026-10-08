@@ -42,7 +42,7 @@ The direct client obtains a management access token using AK/SK, caches it until
 - **`authing_application_subject_auth`** (Data Source): Read an application's authorization details for a subject.
 
 ### 6. Devices (终端)
-- **`authing_device_status`** (Data Source): Read terminal status. The management API does not expose a complete device creation lifecycle; this is intentionally not a managed device resource.
+- **`authing_device_status`** (Data Source): Read terminal status. The OpenAPI contains an untagged `add-device` (and a deprecated `create-device`) endpoint, but they have no declared management security scheme and the management API does not expose a full device detail readback; this provider intentionally does not model complete device CRUD yet.
 
 ---
 
