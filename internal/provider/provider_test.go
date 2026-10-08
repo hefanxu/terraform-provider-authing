@@ -102,6 +102,7 @@ func TestRegisteredDataSourcesExposeMetadataAndSchema(t *testing.T) {
 		"authing_data_resource",
 		"authing_department",
 		"authing_device_status",
+		"authing_ext_idp_connection",
 		"authing_group",
 		"authing_namespace",
 		"authing_organization",
