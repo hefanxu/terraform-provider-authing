@@ -278,9 +278,9 @@ func runDataPolicyTrace(root string, creds map[string]string, code string) (resu
 	if _, err := os.Stat(terraform); err != nil {
 		return fmt.Errorf("data-policy phase=terraform-cli code=%s (output suppressed)", code)
 	}
-	goBinary := "/home/azureuser/workplace/.tools/go/bin/go"
-	if _, err := os.Stat(goBinary); err != nil {
-		goBinary = "/home/azureuser/.local/go/bin/go"
+	goBinary, err := exec.LookPath("go")
+	if err != nil {
+		goBinary = filepath.Join(repo, "../.tools/go/bin/go")
 		if _, err = os.Stat(goBinary); err != nil {
 			return fmt.Errorf("data-policy phase=go-toolchain code=%s (output suppressed)", code)
 		}

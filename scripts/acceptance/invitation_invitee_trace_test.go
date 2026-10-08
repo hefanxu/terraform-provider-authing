@@ -171,7 +171,10 @@ func runInvitationInviteeTrace(root string, credentials map[string]string, name 
 	if _, err := os.Stat(terraform); err != nil {
 		return fmt.Errorf("invitation-invitee phase=terraform-cli code=%s (output suppressed)", name)
 	}
-	goBinary := filepath.Join(repo, "../.tools/go/bin/go")
+	goBinary, goErr := exec.LookPath("go")
+	if goErr != nil {
+		goBinary = filepath.Join(repo, "../.tools/go/bin/go")
+	}
 	if _, err := os.Stat(goBinary); err != nil {
 		return fmt.Errorf("invitation-invitee phase=go-toolchain code=%s (output suppressed)", name)
 	}
