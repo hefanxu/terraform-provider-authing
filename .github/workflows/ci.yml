@@ -11,9 +11,9 @@ permissions:
 
 jobs:
   validate:
-    name: Go format, vet, test, race and build
+    name: Go format, vet, test, race, build and Terraform protocol
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - name: Checkout
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
@@ -34,3 +34,5 @@ jobs:
         run: go test -race -count=1 ./...
       - name: Build
         run: go build ./...
+      - name: Terraform plugin protocol smoke (no Authing API)
+        run: python3 scripts/protocol_smoke.py
