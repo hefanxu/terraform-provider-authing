@@ -1,11 +1,11 @@
 resource,dependency,drift_oracle,update_mode,safety_limit,live_result
-user,,nickname,in_place,write_only_password_not_testable,not_run
+user,,nickname,in_place,write_only_password_not_testable,implemented_not_run
 public_account,,name,in_place,separate_identity_from_user,not_run
-group,,name,in_place,type_code_replacement;type_enum_unverified,not_run
+group,,name,in_place,type_code_replacement;type_enum_unverified,implemented_not_run
 department,organization,name,in_place,parent_id_and_identity_require_care,not_run
 organization,,organization_name,in_place,delete_cascades_tree;children_must_be_absent,not_run
 post,,name,in_place,code_identity_change_not_safe,not_run
-namespace,,name,in_place,delete_dependents_first,not_run
+namespace,,name,in_place,delete_dependents_first,implemented_not_run
 role,namespace,description,in_place,role_name_not_read_back,not_run
 resource,namespace,description,in_place,actions_not_read_back,not_run
 data_policy,namespace+resource,policy_name,in_place,statement_list_not_read_back,not_run
@@ -20,7 +20,7 @@ tenant_admin,tenant_membership,revocation,relation,never_use_sole_admin;membersh
 role_assignment,role+user,revocation,relation,verify_direct_member_list;not_inherited_roles,not_run
 group_member,group+user,removal,relation,verify_complete_group_list;user_must_survive,not_run
 department_member,department+user,removal,relation,verify_complete_member_list;user_must_survive,not_run
-application,,app_name,in_place,separate_strategy_write;orphan_risk,not_run
+application,,app_name,in_place,separate_strategy_write;orphan_risk,implemented_not_run
 ext_idp,,name,in_place,avoid_external_connection_credentials,not_run
 webhook,,name,in_place,disable_delivery;events_not_read_back,not_run
 pipeline_function,,func_name,in_place,trigger_may_execute_code;source_not_read_back,not_run

@@ -4,9 +4,19 @@ on:
   workflow_dispatch:
     inputs:
       confirm:
-        description: 'Type READ_ONLY_SANDBOX for a read-only plan or DESTRUCTIVE_SANDBOX for group create/drift/delete in the isolated sandbox'
+        description: 'READ_ONLY_SANDBOX: one GET plan; DESTRUCTIVE_SANDBOX: selected disposable resource CRUD/drift'
         required: true
         type: string
+      test_case:
+        description: 'One disposable resource to test (used only with DESTRUCTIVE_SANDBOX)'
+        required: true
+        default: group
+        type: choice
+        options:
+          - group
+          - application
+          - namespace
+          - user
 
 permissions:
   contents: read
@@ -38,7 +48,7 @@ jobs:
         run: go test -count=1 -run '^TestReadOnlyPlan$' ./scripts/acceptance -args -authing-read-only-sandbox
 
   destructive-group:
-    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feat/management-api-coverage' && inputs.confirm == 'DESTRUCTIVE_SANDBOX' }}
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feat/management-api-coverage' && inputs.confirm == 'DESTRUCTIVE_SANDBOX' && inputs.test_case == 'group' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: authing-sandbox
@@ -61,3 +71,66 @@ jobs:
           AUTHING_ACCESS_KEY_SECRET: ${{ secrets.AUTHING_ACCESS_KEY_SECRET }}
           AUTHING_HOST: ${{ vars.AUTHING_HOST }}
         run: go test -count=1 -run '^TestDestructiveLiveGroupTrace$' ./scripts/acceptance -args -authing-destructive-sandbox
+
+  destructive-application:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feat/management-api-coverage' && inputs.confirm == 'DESTRUCTIVE_SANDBOX' && inputs.test_case == 'application' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: authing-sandbox
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: python3 scripts/protocol_smoke.py
+      - run: go test -count=1 -run '^TestMockApplication.*$' ./scripts/acceptance
+      - name: Trace application CRUD and drift in isolated sandbox
+        env:
+          AUTHING_ACCEPTANCE_CONFIRM: ${{ inputs.confirm }}
+          AUTHING_ACCESS_KEY_ID: ${{ secrets.AUTHING_ACCESS_KEY_ID }}
+          AUTHING_ACCESS_KEY_SECRET: ${{ secrets.AUTHING_ACCESS_KEY_SECRET }}
+          AUTHING_HOST: ${{ vars.AUTHING_HOST }}
+        run: go test -count=1 -run '^TestDestructiveLiveApplicationTrace$' ./scripts/acceptance -args -authing-destructive-sandbox
+
+  destructive-namespace:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feat/management-api-coverage' && inputs.confirm == 'DESTRUCTIVE_SANDBOX' && inputs.test_case == 'namespace' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: authing-sandbox
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: python3 scripts/protocol_smoke.py
+      - run: go test -count=1 -run '^TestMockNamespace.*$' ./scripts/acceptance
+      - name: Trace namespace CRUD and drift in isolated sandbox
+        env:
+          AUTHING_ACCEPTANCE_CONFIRM: ${{ inputs.confirm }}
+          AUTHING_ACCESS_KEY_ID: ${{ secrets.AUTHING_ACCESS_KEY_ID }}
+          AUTHING_ACCESS_KEY_SECRET: ${{ secrets.AUTHING_ACCESS_KEY_SECRET }}
+          AUTHING_HOST: ${{ vars.AUTHING_HOST }}
+        run: go test -count=1 -run '^TestDestructiveLiveNamespaceTrace$' ./scripts/acceptance -args -authing-destructive-sandbox
+
+  destructive-user:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feat/management-api-coverage' && inputs.confirm == 'DESTRUCTIVE_SANDBOX' && inputs.test_case == 'user' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: authing-sandbox
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: python3 scripts/protocol_smoke.py
+      - run: go test -count=1 -run '^TestMockUser.*$' ./scripts/acceptance
+      - name: Trace user CRUD and drift in isolated sandbox
+        env:
+          AUTHING_ACCEPTANCE_CONFIRM: ${{ inputs.confirm }}
+          AUTHING_ACCESS_KEY_ID: ${{ secrets.AUTHING_ACCESS_KEY_ID }}
+          AUTHING_ACCESS_KEY_SECRET: ${{ secrets.AUTHING_ACCESS_KEY_SECRET }}
+          AUTHING_HOST: ${{ vars.AUTHING_HOST }}
+        run: go test -count=1 -run '^TestDestructiveLiveUserTrace$' ./scripts/acceptance -args -authing-destructive-sandbox
