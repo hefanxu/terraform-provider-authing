@@ -4,11 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       confirm:
-        description: 'READ_ONLY_SANDBOX: one GET plan; DESTRUCTIVE_SANDBOX: selected disposable resource CRUD/drift'
+        description: 'READ_ONLY_SANDBOX: one GET plan; DESTRUCTIVE_SANDBOX: one disposable resource lifecycle'
         required: true
         type: string
       test_case:
-        description: 'One disposable resource to test (used only with DESTRUCTIVE_SANDBOX)'
+        description: 'Select exactly one resource for a destructive sandbox test'
         required: true
         default: group
         type: choice
@@ -17,6 +17,9 @@ on:
           - application
           - namespace
           - user
+          - public_account
+          - ext_idp
+          - webhook
 
 permissions:
   contents: read
@@ -47,10 +50,10 @@ jobs:
           AUTHING_HOST: ${{ vars.AUTHING_HOST }}
         run: go test -count=1 -run '^TestReadOnlyPlan$' ./scripts/acceptance -args -authing-read-only-sandbox
 
-  destructive-group:
-    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feat/management-api-coverage' && inputs.confirm == 'DESTRUCTIVE_SANDBOX' && inputs.test_case == 'group' }}
+  destructive-case:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feat/management-api-coverage' && inputs.confirm == 'DESTRUCTIVE_SANDBOX' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     environment: authing-sandbox
     steps:
       - name: Checkout
@@ -62,75 +65,15 @@ jobs:
           cache: true
       - name: Install checksum-verified Terraform and verify provider protocol offline
         run: python3 scripts/protocol_smoke.py
-      - name: Verify mock group lifecycle, cleanup, and guards
-        run: go test -count=1 -run '^(TestDestructiveGuard|TestMockDestructive.*)$' ./scripts/acceptance
-      - name: Trace group CRUD and drift in isolated Authing sandbox
+      - name: Verify selection, guard, and redacted diagnostics offline
+        run: python3 -m unittest discover -s scripts/acceptance -p test_run_live_case.py
+      - name: Verify mock Terraform lifecycles offline
+        run: go test -count=1 -run '^(TestDestructiveGuard|TestMock.*)$' ./scripts/acceptance
+      - name: Trace one selected lifecycle in isolated Authing sandbox
         env:
+          ACCEPTANCE_TEST_CASE: ${{ inputs.test_case }}
           AUTHING_ACCEPTANCE_CONFIRM: ${{ inputs.confirm }}
           AUTHING_ACCESS_KEY_ID: ${{ secrets.AUTHING_ACCESS_KEY_ID }}
           AUTHING_ACCESS_KEY_SECRET: ${{ secrets.AUTHING_ACCESS_KEY_SECRET }}
           AUTHING_HOST: ${{ vars.AUTHING_HOST }}
-        run: go test -count=1 -run '^TestDestructiveLiveGroupTrace$' ./scripts/acceptance -args -authing-destructive-sandbox
-
-  destructive-application:
-    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feat/management-api-coverage' && inputs.confirm == 'DESTRUCTIVE_SANDBOX' && inputs.test_case == 'application' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    environment: authing-sandbox
-    steps:
-      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
-      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
-        with:
-          go-version-file: go.mod
-          cache: true
-      - run: python3 scripts/protocol_smoke.py
-      - run: go test -count=1 -run '^TestMockApplication.*$' ./scripts/acceptance
-      - name: Trace application CRUD and drift in isolated sandbox
-        env:
-          AUTHING_ACCEPTANCE_CONFIRM: ${{ inputs.confirm }}
-          AUTHING_ACCESS_KEY_ID: ${{ secrets.AUTHING_ACCESS_KEY_ID }}
-          AUTHING_ACCESS_KEY_SECRET: ${{ secrets.AUTHING_ACCESS_KEY_SECRET }}
-          AUTHING_HOST: ${{ vars.AUTHING_HOST }}
-        run: go test -count=1 -run '^TestDestructiveLiveApplicationTrace$' ./scripts/acceptance -args -authing-destructive-sandbox
-
-  destructive-namespace:
-    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feat/management-api-coverage' && inputs.confirm == 'DESTRUCTIVE_SANDBOX' && inputs.test_case == 'namespace' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    environment: authing-sandbox
-    steps:
-      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
-      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
-        with:
-          go-version-file: go.mod
-          cache: true
-      - run: python3 scripts/protocol_smoke.py
-      - run: go test -count=1 -run '^TestMockNamespace.*$' ./scripts/acceptance
-      - name: Trace namespace CRUD and drift in isolated sandbox
-        env:
-          AUTHING_ACCEPTANCE_CONFIRM: ${{ inputs.confirm }}
-          AUTHING_ACCESS_KEY_ID: ${{ secrets.AUTHING_ACCESS_KEY_ID }}
-          AUTHING_ACCESS_KEY_SECRET: ${{ secrets.AUTHING_ACCESS_KEY_SECRET }}
-          AUTHING_HOST: ${{ vars.AUTHING_HOST }}
-        run: go test -count=1 -run '^TestDestructiveLiveNamespaceTrace$' ./scripts/acceptance -args -authing-destructive-sandbox
-
-  destructive-user:
-    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feat/management-api-coverage' && inputs.confirm == 'DESTRUCTIVE_SANDBOX' && inputs.test_case == 'user' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    environment: authing-sandbox
-    steps:
-      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
-      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
-        with:
-          go-version-file: go.mod
-          cache: true
-      - run: python3 scripts/protocol_smoke.py
-      - run: go test -count=1 -run '^TestMockUser.*$' ./scripts/acceptance
-      - name: Trace user CRUD and drift in isolated sandbox
-        env:
-          AUTHING_ACCEPTANCE_CONFIRM: ${{ inputs.confirm }}
-          AUTHING_ACCESS_KEY_ID: ${{ secrets.AUTHING_ACCESS_KEY_ID }}
-          AUTHING_ACCESS_KEY_SECRET: ${{ secrets.AUTHING_ACCESS_KEY_SECRET }}
-          AUTHING_HOST: ${{ vars.AUTHING_HOST }}
-        run: go test -count=1 -run '^TestDestructiveLiveUserTrace$' ./scripts/acceptance -args -authing-destructive-sandbox
+        run: python3 scripts/acceptance/run_live_case.py
