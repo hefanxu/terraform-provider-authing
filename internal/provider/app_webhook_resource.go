@@ -892,13 +892,21 @@ func (r *ExtIdpResource) Create(ctx context.Context, req resource.CreateRequest,
 		resp.Diagnostics.AddError("Failed to create external IdP", errMsg)
 		return
 	}
-	if res.Data.TenantId != plan.TenantId.ValueString() && (!plan.TenantId.IsNull() || res.Data.TenantId != "") {
+	if res.Data.TenantId != plan.TenantId.ValueString() {
 		resp.Diagnostics.AddError("Failed to confirm external IdP scope", fmt.Sprintf("External IdP %q was created but returned tenant %q instead of %q. Import this ID in its actual tenant before retrying to avoid duplicate creation.", res.Data.Id, res.Data.TenantId, plan.TenantId.ValueString()))
 		return
 	}
-
-	plan.ID = types.StringValue(res.Data.Id)
-	plan.ExtIdpId = types.StringValue(res.Data.Id)
+	// Optional+Computed tenant_id is unknown on an omitted HCL attribute.
+	// Never return that unknown after creation: read the exact created ID and
+	// populate known values from Authing, including the verified empty scope.
+	readback := r.client.GetExtIdp(&dto.GetExtIdpDto{Id: res.Data.Id, TenantId: res.Data.TenantId})
+	if readback == nil || readback.StatusCode != 200 || readback.Data.Id != res.Data.Id || readback.Data.TenantId != res.Data.TenantId || readback.Data.Type != plan.Type.ValueString() || readback.Data.Name != plan.Name.ValueString() {
+		resp.Diagnostics.AddError("Failed to confirm external IdP after create", fmt.Sprintf("External IdP %q was created but exact-ID readback did not confirm its configured fields; import this ID before retrying.", res.Data.Id))
+		return
+	}
+	plan.ID = types.StringValue(readback.Data.Id)
+	plan.ExtIdpId = types.StringValue(readback.Data.Id)
+	plan.TenantId = types.StringValue(readback.Data.TenantId)
 	diags = resp.State.Set(ctx, plan)
 	resp.Diagnostics.Append(diags...)
 }
@@ -941,7 +949,10 @@ func (r *ExtIdpResource) Update(ctx context.Context, req resource.UpdateRequest,
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	if plan.TenantId != state.TenantId || plan.Type != state.Type || plan.ExtIdpId != state.ExtIdpId {
+	if state.ID.IsNull() || state.ID.IsUnknown() || state.ExtIdpId.IsNull() || state.ExtIdpId.IsUnknown() || state.ID.ValueString() == "" || state.ID != state.ExtIdpId ||
+		!plan.TenantId.IsUnknown() && plan.TenantId != state.TenantId || plan.Type != state.Type ||
+		!plan.ExtIdpId.IsUnknown() && plan.ExtIdpId != state.ExtIdpId ||
+		!plan.ID.IsUnknown() && plan.ID != state.ID {
 		resp.Diagnostics.AddError("Cannot update external IdP identity", "tenant_id and type are immutable; replace the identity provider instead.")
 		return
 	}
@@ -967,6 +978,9 @@ func (r *ExtIdpResource) Update(ctx context.Context, req resource.UpdateRequest,
 		return
 	}
 
+	plan.ID = types.StringValue(readback.Data.Id)
+	plan.ExtIdpId = types.StringValue(readback.Data.Id)
+	plan.TenantId = types.StringValue(readback.Data.TenantId)
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
 }
 

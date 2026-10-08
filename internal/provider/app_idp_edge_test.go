@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -11,6 +12,72 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
+
+func TestExtIdpUpdateWithUnknownComputedIdentityUsesVerifiedState(t *testing.T) {
+	name := "hermesacc-1234567890abcdef"
+	calls := 0
+	svc := &ExtIdpResource{client: lifecycleFixture(t, func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v3/get-ext-idp":
+			fmt.Fprintf(w, `{"statusCode":200,"data":{"id":"idp-1","name":%q,"type":"oidc"}}`, name)
+		case "/api/v3/update-ext-idp":
+			calls++
+			var body struct {
+				ID   string `json:"id"`
+				Name string `json:"name"`
+			}
+			if json.NewDecoder(r.Body).Decode(&body) != nil || body.ID != "idp-1" || body.Name != name {
+				t.Errorf("unexpected update body %+v", body)
+			}
+			fmt.Fprintf(w, `{"statusCode":200,"data":{"id":"idp-1","name":%q,"type":"oidc"}}`, name)
+		default:
+			t.Errorf("unexpected request %s", r.URL)
+		}
+	})}
+	old := extIdpModel("", name+"-drift")
+	st := extIdpState(t, svc, old)
+	plan := tfsdk.Plan{Schema: st.Schema}
+	if d := plan.Set(context.Background(), ExtIdpModel{ID: types.StringUnknown(), ExtIdpId: types.StringUnknown(), Name: types.StringValue(name), Type: types.StringValue("oidc"), TenantId: types.StringValue("")}); d.HasError() {
+		t.Fatal(d)
+	}
+	out := resource.UpdateResponse{State: st}
+	svc.Update(context.Background(), resource.UpdateRequest{Plan: plan, State: st}, &out)
+	if out.Diagnostics.HasError() {
+		t.Fatal(out.Diagnostics)
+	}
+	got := extIdpReadModel(t, out.State)
+	if calls != 1 || got.ID.ValueString() != "idp-1" || got.ExtIdpId.ValueString() != "idp-1" || got.ID.IsUnknown() || got.ExtIdpId.IsUnknown() {
+		t.Fatalf("update returned unknown identity or skipped mutation: %+v calls=%d", got, calls)
+	}
+}
+
+func TestExtIdpCreateWithOmittedTenantReturnsKnownState(t *testing.T) {
+	name := "hermesacc-1234567890abcdef"
+	svc := &ExtIdpResource{client: lifecycleFixture(t, func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v3/create-ext-idp":
+			fmt.Fprintf(w, `{"statusCode":200,"data":{"id":"idp-1","name":%q,"type":"oidc"}}`, name)
+		case "/api/v3/get-ext-idp":
+			if r.URL.Query().Get("id") != "idp-1" || r.URL.Query().Get("tenantId") != "" {
+				t.Errorf("unexpected GET %s", r.URL)
+			}
+			fmt.Fprintf(w, `{"statusCode":200,"data":{"id":"idp-1","name":%q,"type":"oidc","connections":[]}}`, name)
+		default:
+			t.Errorf("unexpected request %s", r.URL)
+		}
+	})}
+	model := ExtIdpModel{ID: types.StringUnknown(), ExtIdpId: types.StringUnknown(), Name: types.StringValue(name), Type: types.StringValue("oidc"), TenantId: types.StringUnknown()}
+	st := extIdpState(t, svc, model)
+	out := resource.CreateResponse{State: st}
+	svc.Create(context.Background(), resource.CreateRequest{Plan: tfsdk.Plan{Schema: st.Schema, Raw: st.Raw}}, &out)
+	if out.Diagnostics.HasError() {
+		t.Fatal(out.Diagnostics)
+	}
+	got := extIdpReadModel(t, out.State)
+	if got.TenantId.IsUnknown() || got.TenantId.IsNull() || got.TenantId.ValueString() != "" || got.ID.ValueString() != "idp-1" || got.ExtIdpId.ValueString() != "idp-1" {
+		t.Fatalf("create returned unresolved tenant or identity: %+v", got)
+	}
+}
 
 func TestExtIdpCreateRejectsWrongTenantResponse(t *testing.T) {
 	for _, tenant := range []string{"tenant-B", ""} {

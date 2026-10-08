@@ -95,7 +95,7 @@ func TestExtIdpTenantScopedLifecycle(t *testing.T) {
 	if deleted.Diagnostics.HasError() {
 		t.Fatal(deleted.Diagnostics)
 	}
-	if strings.Join(calls, ",") != "/api/v3/create-ext-idp,/api/v3/get-ext-idp,/api/v3/get-ext-idp,/api/v3/update-ext-idp,/api/v3/get-ext-idp,/api/v3/get-ext-idp,/api/v3/delete-ext-idp" {
+	if strings.Join(calls, ",") != "/api/v3/create-ext-idp,/api/v3/get-ext-idp,/api/v3/get-ext-idp,/api/v3/get-ext-idp,/api/v3/update-ext-idp,/api/v3/get-ext-idp,/api/v3/get-ext-idp,/api/v3/delete-ext-idp" {
 		t.Errorf("unexpected calls %v", calls)
 	}
 }
