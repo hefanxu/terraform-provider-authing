@@ -20,6 +20,9 @@ CASES = {
     "invitation_policy": "TestDestructiveLiveInvitationPolicyTrace",
     "role": "TestDestructiveLiveRoleTrace",
     "resource": "TestDestructiveLiveResourceTrace",
+    "post": "TestDestructiveLivePostTrace",
+    "invitation_roster": "TestDestructiveLiveInvitationRosterTrace",
+    "data_resource": "TestDestructiveLiveDataResourceTrace",
 }
 
 # Tracers print generated non-secret identifiers for possible manual cleanup.

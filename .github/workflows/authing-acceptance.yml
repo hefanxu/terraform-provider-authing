@@ -24,6 +24,9 @@ on:
           - invitation_policy
           - role
           - resource
+          - post
+          - invitation_roster
+          - data_resource
 
 permissions:
   contents: read
