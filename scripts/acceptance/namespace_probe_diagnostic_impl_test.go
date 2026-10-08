@@ -29,14 +29,81 @@ const (
 	recoveryIncompleteInventory namespaceRecoveryCause = "incomplete-inventory"
 )
 
+// Only structural labels, never values from the response, enter diagnostics.
+type namespaceResourceShape string
+
+const (
+	resourceShapeUnavailable         namespaceResourceShape = "unavailable"
+	resourceShapeMalformedJSON       namespaceResourceShape = "malformed-json"
+	resourceShapeDataNotObject       namespaceResourceShape = "data-not-object"
+	resourceShapeMissingNestedStatus namespaceResourceShape = "missing-nested-status"
+	resourceShapeNestedStatusInvalid namespaceResourceShape = "nested-status-invalid"
+	resourceShapeMissingTotal        namespaceResourceShape = "missing-total"
+	resourceShapeTotalInvalid        namespaceResourceShape = "total-invalid"
+	resourceShapeMissingList         namespaceResourceShape = "missing-list"
+	resourceShapeListNull            namespaceResourceShape = "list-null"
+	resourceShapeListNotArray        namespaceResourceShape = "list-not-array"
+)
+
 type namespaceRecoveryDiagnostic struct {
 	Status string
 	Stage  namespaceRecoveryStage
 	Cause  namespaceRecoveryCause
+	Shape  namespaceResourceShape
 }
 
 func recoveryUnknown(stage namespaceRecoveryStage, cause namespaceRecoveryCause) namespaceRecoveryDiagnostic {
 	return namespaceRecoveryDiagnostic{Status: "unknown", Stage: stage, Cause: cause}
+}
+
+func recoveryResourceInvalid(shape namespaceResourceShape) namespaceRecoveryDiagnostic {
+	d := recoveryUnknown(recoveryResources, recoveryInvalidEnvelope)
+	d.Shape = shape
+	return d
+}
+
+// Classify only JSON structure, never log raw fields, messages or elements.
+func classifyResourceShape(data json.RawMessage) namespaceResourceShape {
+	if len(data) == 0 {
+		return resourceShapeDataNotObject
+	}
+	if !json.Valid(data) {
+		return resourceShapeMalformedJSON
+	}
+	if data[0] != '{' {
+		return resourceShapeDataNotObject
+	}
+	var fields map[string]json.RawMessage
+	if json.Unmarshal(data, &fields) != nil {
+		return resourceShapeMalformedJSON
+	}
+	status, exists := fields["statusCode"]
+	if !exists {
+		return resourceShapeMissingNestedStatus
+	}
+	var code int
+	if json.Unmarshal(status, &code) != nil || string(status) == "null" {
+		return resourceShapeNestedStatusInvalid
+	}
+	total, exists := fields["totalCount"]
+	if !exists {
+		return resourceShapeMissingTotal
+	}
+	var count int
+	if json.Unmarshal(total, &count) != nil || string(total) == "null" || count < 0 {
+		return resourceShapeTotalInvalid
+	}
+	list, exists := fields["list"]
+	if !exists {
+		return resourceShapeMissingList
+	}
+	if string(list) == "null" {
+		return resourceShapeListNull
+	}
+	if len(list) == 0 || list[0] != '[' {
+		return resourceShapeListNotArray
+	}
+	return resourceShapeUnavailable
 }
 
 // No error string, response body, numeric server code, or server message escapes.
@@ -125,10 +192,18 @@ func probeNamespaceRecoveryDiagnostic(client *authingapi.Client, code string) na
 	for _, entry := range entries {
 		body, err = client.SendHttpRequest(entry.path, http.MethodGet, entry.query)
 		if err != nil {
-			return recoveryUnknown(entry.stage, recoveryErrorCause(err))
+			cause := recoveryErrorCause(err)
+			if entry.stage == recoveryResources && cause == recoveryInvalidEnvelope {
+				// The client withholds malformed outer envelopes; no body is available.
+				return recoveryResourceInvalid(resourceShapeUnavailable)
+			}
+			return recoveryUnknown(entry.stage, cause)
 		}
 		_, data, cause = recoveryEnvelope(body)
 		if cause != "" {
+			if entry.stage == recoveryResources && cause == recoveryInvalidEnvelope {
+				return recoveryResourceInvalid(classifyResourceShape(data))
+			}
 			return recoveryUnknown(entry.stage, cause)
 		}
 		var page struct {
@@ -137,11 +212,14 @@ func probeNamespaceRecoveryDiagnostic(client *authingapi.Client, code string) na
 			List       json.RawMessage `json:"list"`
 		}
 		if json.Unmarshal(data, &page) != nil {
+			if entry.stage == recoveryResources {
+				return recoveryResourceInvalid(classifyResourceShape(data))
+			}
 			return recoveryUnknown(entry.stage, recoveryInvalidEnvelope)
 		}
 		if entry.nested {
 			if page.StatusCode == nil {
-				return recoveryUnknown(entry.stage, recoveryInvalidEnvelope)
+				return recoveryResourceInvalid(classifyResourceShape(data))
 			}
 			if *page.StatusCode != http.StatusOK {
 				return recoveryUnknown(entry.stage, recoveryBusinessCause(*page.StatusCode))
@@ -149,6 +227,9 @@ func probeNamespaceRecoveryDiagnostic(client *authingapi.Client, code string) na
 		}
 		var list []json.RawMessage
 		if page.TotalCount == nil || *page.TotalCount < 0 || len(page.List) == 0 || page.List[0] != '[' || json.Unmarshal(page.List, &list) != nil {
+			if entry.stage == recoveryResources {
+				return recoveryResourceInvalid(classifyResourceShape(data))
+			}
 			return recoveryUnknown(entry.stage, recoveryInvalidEnvelope)
 		}
 		if (*page.TotalCount == 0 && len(list) != 0) || (*page.TotalCount > 0 && len(list) != 1) {
@@ -186,6 +267,16 @@ func formatNamespaceRecoveryLog(d namespaceRecoveryDiagnostic, code string) stri
 	case recoveryTransport, recoveryInvalidEnvelope, recoveryBusiness4xx, recoveryBusiness5xx, recoveryIncompleteInventory:
 	default:
 		d.Cause = recoveryInvalidEnvelope
+	}
+	if d.Stage == recoveryResources && d.Cause == recoveryInvalidEnvelope {
+		switch d.Shape {
+		case resourceShapeMalformedJSON, resourceShapeDataNotObject, resourceShapeMissingNestedStatus,
+			resourceShapeNestedStatusInvalid, resourceShapeMissingTotal, resourceShapeTotalInvalid,
+			resourceShapeMissingList, resourceShapeListNull, resourceShapeListNotArray:
+		default:
+			d.Shape = resourceShapeUnavailable
+		}
+		return fmt.Sprintf("namespace recovery status=unknown stage=%s cause=%s shape=%s code=%s", d.Stage, d.Cause, d.Shape, code)
 	}
 	return fmt.Sprintf("namespace recovery status=unknown stage=%s cause=%s code=%s", d.Stage, d.Cause, code)
 }

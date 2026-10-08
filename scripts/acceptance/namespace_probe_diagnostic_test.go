@@ -56,7 +56,12 @@ func TestNamespaceRecoveryTypedDiagnostics(t *testing.T) {
 				t.Fatalf("diagnostic=%+v want unknown/%s/%s", got, tc.stage, tc.cause)
 			}
 			log := formatNamespaceRecoveryLog(got, namespaceTestCode)
-			if log != "namespace recovery status=unknown stage="+tc.stage+" cause="+tc.cause+" code="+namespaceTestCode || strings.Contains(log, "secret-marker") {
+			wantLog := "namespace recovery status=unknown stage=" + tc.stage + " cause=" + tc.cause
+			if tc.stage == "resources" && tc.cause == "invalid-envelope" {
+				wantLog += " shape=missing-nested-status"
+			}
+			wantLog += " code=" + namespaceTestCode
+			if log != wantLog || strings.Contains(log, "secret-marker") {
 				t.Fatalf("unsafe or incorrect log: %s", log)
 			}
 		})
