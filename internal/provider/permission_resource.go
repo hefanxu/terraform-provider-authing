@@ -364,7 +364,12 @@ func (r *RoleResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	}
 
 	updateReq := &dto.UpdateRoleDto{
-		Code: plan.Code.ValueString(),
+		Code:    plan.Code.ValueString(),
+		NewCode: plan.Code.ValueString(),
+		Name:    plan.Name.ValueString(),
+	}
+	if updateReq.Name == "" {
+		updateReq.Name = plan.Code.ValueString()
 	}
 	if !plan.Namespace.IsNull() {
 		updateReq.Namespace = plan.Namespace.ValueString()
@@ -839,6 +844,8 @@ func (r *ResourceResource) Update(ctx context.Context, req resource.UpdateReques
 		return
 	}
 
+	// The ID is the stable resource code; it must be known after an update.
+	plan.ID = types.StringValue(plan.Code.ValueString())
 	diags = resp.State.Set(ctx, plan)
 	resp.Diagnostics.Append(diags...)
 }

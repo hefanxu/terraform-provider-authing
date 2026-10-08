@@ -52,6 +52,10 @@ resource "authing_resource" "user_api" {
 
 - `id` (String) The resource code.
 
+## Destructive sandbox acceptance
+
+`TestDestructiveLiveResourceTrace` is opt-in, skipped in normal tests, and requires the same disposable sandbox, owner approval, `-authing-destructive-sandbox`, exact `AUTHING_ACCEPTANCE_CONFIRM=DESTRUCTIVE_SANDBOX`, and sandbox AK/SK environment variables as the role tracer. It creates its own random marked permission namespace and `BUTTON` resource with `actions = []`, checks apply → plan 0 → remote **description** drift → plan 2 → reconcile → plan 0, destroys the resource before its namespace, and independently GETs absence of each exact identity. Resource action drift is **not** tested: `authing_resource` Read does not refresh `actions`. Cleanup refuses a foreign identity, additional roles/resources/data resources, incomplete inventories, and any global data policy (the list endpoint cannot scope policies to one namespace); manual investigation is required if it refuses. The offline Terraform CLI/`httptest` tracer passes without Authing credentials but does not establish live-service compatibility. The live tracer has not been run.
+
 <a id="nestedatt--actions"></a>
 ### Nested Schema for `actions`
 
