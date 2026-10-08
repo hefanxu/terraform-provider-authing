@@ -349,9 +349,10 @@ func (r *DepartmentResource) Create(ctx context.Context, req resource.CreateRequ
 		OrganizationCode:   plan.OrganizationCode.ValueString(),
 		Name:               plan.Name.ValueString(),
 		ParentDepartmentId: plan.ParentDepartmentId.ValueString(),
+		Metadata:           map[string]any{},
 	}
-	if !plan.DepartmentId.IsNull() {
-		createReq.DepartmentIdType = plan.DepartmentId.ValueString()
+	if !plan.DepartmentId.IsNull() && !plan.DepartmentId.IsUnknown() {
+		createReq.OpenDepartmentId = plan.DepartmentId.ValueString()
 	}
 	if !plan.Description.IsNull() {
 		createReq.Description = plan.Description.ValueString()
@@ -367,8 +368,14 @@ func (r *DepartmentResource) Create(ctx context.Context, req resource.CreateRequ
 		return
 	}
 
+	if res.Data.OrganizationCode != plan.OrganizationCode.ValueString() || res.Data.ParentDepartmentId != plan.ParentDepartmentId.ValueString() || res.Data.Name != plan.Name.ValueString() || !plan.DepartmentId.IsUnknown() && !plan.DepartmentId.IsNull() && res.Data.OpenDepartmentId != plan.DepartmentId.ValueString() {
+		resp.Diagnostics.AddError("Failed to verify created Authing department", fmt.Sprintf("Created department ID %q needs manual import/review; response identity differs from configuration", res.Data.DepartmentId))
+		return
+	}
 	plan.ID = types.StringValue(res.Data.DepartmentId)
-	plan.DepartmentId = types.StringValue(res.Data.DepartmentId)
+	if plan.DepartmentId.IsUnknown() || plan.DepartmentId.IsNull() {
+		plan.DepartmentId = types.StringValue(res.Data.OpenDepartmentId)
+	}
 	plan.Name = types.StringValue(res.Data.Name)
 	plan.ParentDepartmentId = types.StringValue(res.Data.ParentDepartmentId)
 	if res.Data.Description != "" {
@@ -395,7 +402,7 @@ func (r *DepartmentResource) Read(ctx context.Context, req resource.ReadRequest,
 		resp.State.RemoveResource(ctx)
 		return
 	}
-	if res == nil || res.StatusCode != 200 || res.Data.DepartmentId == "" {
+	if res == nil || res.StatusCode != 200 || res.Data.DepartmentId != state.ID.ValueString() || res.Data.OrganizationCode != state.OrganizationCode.ValueString() || !state.DepartmentId.IsNull() && !state.DepartmentId.IsUnknown() && res.Data.OpenDepartmentId != state.DepartmentId.ValueString() {
 		resp.Diagnostics.AddError("Failed to read Authing department", "Authing returned an invalid or unsuccessful response")
 		return
 	}
@@ -403,9 +410,7 @@ func (r *DepartmentResource) Read(ctx context.Context, req resource.ReadRequest,
 	state.ID = types.StringValue(res.Data.DepartmentId)
 	state.Name = types.StringValue(res.Data.Name)
 	state.ParentDepartmentId = types.StringValue(res.Data.ParentDepartmentId)
-	if res.Data.Description != "" {
-		state.Description = types.StringValue(res.Data.Description)
-	}
+	state.Description = types.StringValue(res.Data.Description)
 
 	diags = resp.State.Set(ctx, &state)
 	resp.Diagnostics.Append(diags...)
