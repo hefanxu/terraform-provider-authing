@@ -16,7 +16,7 @@ import (
 
 func TestDataResourceStructRejectsUnsupportedAndMalformedValues(t *testing.T) {
 	for _, test := range []struct{ kind, text string }{
-		{"TREE", `{"code":"a","name":"A"}`},
+		{"TREE", `{"code":"a"}`},
 		{"STRING", `["wrong"]`}, {"STRING", `""`},
 		{"ARRAY", `{"wrong":1}`}, {"ARRAY", `["a","a"]`}, {"ARRAY", `[1]`}, {"ARRAY", `["x"] false`}, {"ARRAY", `["x"] invalid`},
 	} {
@@ -39,7 +39,7 @@ func TestDataResourceCreateNotFoundReportsStatus(t *testing.T) {
 		t.Fatalf("missing 404 status in create diagnostic: %v", resp.Diagnostics)
 	}
 }
-func TestDataResourceReadDriftAndRejectsUnmanagedTree(t *testing.T) {
+func TestDataResourceReadDriftAndTree(t *testing.T) {
 	variant := "ARRAY"
 	remoteStruct := `["changed"]`
 	remoteName := "Changed"
@@ -63,8 +63,12 @@ func TestDataResourceReadDriftAndRejectsUnmanagedTree(t *testing.T) {
 	remoteStruct = `{"code":"root","name":"Root"}`
 	out = resource.ReadResponse{State: st}
 	svc.Read(context.Background(), resource.ReadRequest{State: st}, &out)
-	if !out.Diagnostics.HasError() || out.State.Raw.IsNull() {
-		t.Fatal("tree must not be silently imported or discard state")
+	if out.Diagnostics.HasError() || out.State.Raw.IsNull() {
+		t.Fatal("valid tree drift must be readable", out.Diagnostics)
+	}
+	out.State.Get(context.Background(), &got)
+	if got.Type.ValueString() != "TREE" || got.Struct.ValueString() != `{"code":"root","name":"Root"}` {
+		t.Fatal(got)
 	}
 }
 func TestDataResourceUpdateDeleteAndDataSourceErrors(t *testing.T) {

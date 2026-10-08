@@ -40,13 +40,13 @@ func (r *DataResourceResource) Metadata(_ context.Context, req resource.Metadata
 	resp.TypeName = req.ProviderTypeName + "_data_resource"
 }
 func (r *DataResourceResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
-	resp.Schema = schema.Schema{Description: "Manages a STRING or ARRAY Authing data resource. Deletion removes the remote resource.", Attributes: map[string]schema.Attribute{
+	resp.Schema = schema.Schema{Description: "Manages a STRING, ARRAY or TREE Authing data resource. Deletion removes the remote resource.", Attributes: map[string]schema.Attribute{
 		"id":             schema.StringAttribute{Computed: true, PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()}},
 		"namespace_code": schema.StringAttribute{Required: true, PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()}},
 		"resource_code":  schema.StringAttribute{Required: true, PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()}},
 		"resource_name":  schema.StringAttribute{Required: true},
-		"type":           schema.StringAttribute{Required: true, Description: "STRING or ARRAY. TREE and extendFieldList are not managed.", PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()}},
-		"struct":         schema.StringAttribute{Required: true, Description: "JSON-encoded string for STRING, or JSON array of distinct strings for ARRAY (up to 50)."},
+		"type":           schema.StringAttribute{Required: true, Description: "STRING, ARRAY or TREE. Nonempty extendFieldList and extendFieldValue are not managed.", PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()}},
+		"struct":         schema.StringAttribute{Required: true, Description: "JSON string for STRING, distinct string array for ARRAY (up to 50), or TREE root object with code, name, optional value and children (up to five levels)."},
 		"actions":        schema.SetAttribute{Required: true, ElementType: types.StringType, Description: "Permission action names (up to 50)."},
 		"description":    schema.StringAttribute{Optional: true},
 	}}
@@ -75,8 +75,11 @@ func parseDataResourceID(id string) (string, string, error) {
 	return parts[0], parts[1], nil
 }
 func dataResourceStruct(kind, text string) (json.RawMessage, string, error) {
+	if kind == "TREE" {
+		return parseDataResourceTree(text)
+	}
 	if kind != "STRING" && kind != "ARRAY" {
-		return nil, "", errors.New("type must be STRING or ARRAY; TREE is not safely managed")
+		return nil, "", errors.New("type must be STRING, ARRAY or TREE")
 	}
 	var value any
 	dec := json.NewDecoder(strings.NewReader(text))
@@ -186,8 +189,11 @@ func readDataResource(ctx context.Context, c *authingapi.Client, ns, code string
 	if remote.NamespaceCode != ns || remote.ResourceCode != code || remote.ResourceName == "" {
 		return result, status, errors.New("response missing or mismatching data resource identity")
 	}
-	if len(remote.ExtendFieldList) > 0 && string(remote.ExtendFieldList) != "null" && string(remote.ExtendFieldList) != "[]" {
-		return result, status, errors.New("resource has unmanaged extendFieldList; refusing incomplete state")
+	if len(remote.ExtendFieldList) > 0 && string(remote.ExtendFieldList) != "null" {
+		var fields []json.RawMessage
+		if err := json.Unmarshal(remote.ExtendFieldList, &fields); err != nil || fields == nil || len(fields) != 0 {
+			return result, status, errors.New("resource has invalid or unmanaged extendFieldList; refusing incomplete state")
+		}
 	}
 	_, canonical, err := dataResourceStruct(remote.Type, string(remote.Struct))
 	if err != nil {

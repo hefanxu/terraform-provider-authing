@@ -20,7 +20,7 @@ func (d *DataResourceDataSource) Metadata(_ context.Context, req datasource.Meta
 	resp.TypeName = req.ProviderTypeName + "_data_resource"
 }
 func (d *DataResourceDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
-	resp.Schema = schema.Schema{Description: "Looks up a STRING or ARRAY Authing data resource by namespace and resource code.", Attributes: map[string]schema.Attribute{
+	resp.Schema = schema.Schema{Description: "Looks up a STRING, ARRAY or TREE Authing data resource by namespace and resource code.", Attributes: map[string]schema.Attribute{
 		"id": schema.StringAttribute{Computed: true}, "namespace_code": schema.StringAttribute{Required: true}, "resource_code": schema.StringAttribute{Required: true}, "resource_name": schema.StringAttribute{Computed: true}, "type": schema.StringAttribute{Computed: true}, "struct": schema.StringAttribute{Computed: true}, "actions": schema.SetAttribute{Computed: true, ElementType: types.StringType}, "description": schema.StringAttribute{Computed: true},
 	}}
 }
