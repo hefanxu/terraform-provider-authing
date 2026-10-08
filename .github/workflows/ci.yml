@@ -26,6 +26,8 @@ jobs:
         run: test -z "$(gofmt -l $(git ls-files '*.go'))"
       - name: Download dependencies
         run: go mod download
+      - name: Terraform plugin protocol smoke (no Authing API)
+        run: python3 scripts/protocol_smoke.py
       - name: Vet
         run: go vet ./...
       - name: Test
@@ -34,5 +36,3 @@ jobs:
         run: go test -race -count=1 ./...
       - name: Build
         run: go build ./...
-      - name: Terraform plugin protocol smoke (no Authing API)
-        run: python3 scripts/protocol_smoke.py
