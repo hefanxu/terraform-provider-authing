@@ -1,7 +1,6 @@
 package acceptance
 
 import (
-	"encoding/json"
 	"flag"
 	"net/http"
 	"net/http/httptest"
@@ -15,78 +14,9 @@ import (
 // Separate opt-in from the destructive acceptance flag.
 var namespaceRecoveryLive = flag.Bool("authing-namespace-recovery-sandbox", false, "opt in to read-only namespace recovery")
 
-// Only an explicit not-found envelope establishes absence. Never expose raw responses.
+// Preserve the existing status-only test seam; the live path uses diagnostics.
 func probeNamespaceRecovery(client *authingapi.Client, code string) string {
-	if client == nil || !sandboxCode.MatchString(code) {
-		return "unknown"
-	}
-	body, err := client.SendHttpRequest("/api/v3/get-permission-namespace", http.MethodGet, map[string]string{"code": code})
-	if err != nil {
-		return "unknown"
-	}
-	var envelope struct {
-		StatusCode *int            `json:"statusCode"`
-		Data       json.RawMessage `json:"data"`
-	}
-	if json.Unmarshal(body, &envelope) != nil || envelope.StatusCode == nil {
-		return "unknown"
-	}
-	if *envelope.StatusCode == http.StatusNotFound {
-		return "absent"
-	}
-	if *envelope.StatusCode != http.StatusOK || len(envelope.Data) == 0 || string(envelope.Data) == "null" {
-		return "unknown"
-	}
-	var object struct {
-		Code        *string `json:"code"`
-		Name        *string `json:"name"`
-		Description *string `json:"description"`
-	}
-	if json.Unmarshal(envelope.Data, &object) != nil || object.Code == nil || object.Name == nil || object.Description == nil {
-		return "unknown"
-	}
-	if *object.Code != code || (*object.Name != code && *object.Name != code+"-drift") || *object.Description != "hermesacc ownership "+code {
-		return "foreign"
-	}
-	entries := []struct {
-		path   string
-		query  map[string]any
-		nested bool
-	}{
-		{"/api/v3/list-permission-namespace-roles", map[string]any{"code": code, "page": 1, "limit": 1}, false},
-		{"/api/v3/list-resources", map[string]any{"namespace": code, "page": 1, "limit": 1}, true},
-		{"/api/v3/list-data-resources", map[string]any{"namespaceCodes": []string{code}, "page": 1, "limit": 1}, false},
-	}
-	nonempty := false
-	for _, entry := range entries {
-		body, err := client.SendHttpRequest(entry.path, http.MethodGet, entry.query)
-		if err != nil {
-			return "unknown"
-		}
-		var response struct {
-			StatusCode *int            `json:"statusCode"`
-			Data       json.RawMessage `json:"data"`
-		}
-		if json.Unmarshal(body, &response) != nil || response.StatusCode == nil || *response.StatusCode != http.StatusOK || len(response.Data) == 0 {
-			return "unknown"
-		}
-		var data struct {
-			StatusCode *int            `json:"statusCode"`
-			TotalCount *int            `json:"totalCount"`
-			List       json.RawMessage `json:"list"`
-		}
-		var list []json.RawMessage
-		if json.Unmarshal(response.Data, &data) != nil || (entry.nested && (data.StatusCode == nil || *data.StatusCode != http.StatusOK)) || data.TotalCount == nil || *data.TotalCount < 0 || len(data.List) == 0 || data.List[0] != '[' || json.Unmarshal(data.List, &list) != nil {
-			return "unknown"
-		}
-		if *data.TotalCount > 0 || len(list) > 0 {
-			nonempty = true
-		}
-	}
-	if nonempty {
-		return "owned_nonempty"
-	}
-	return "owned_empty"
+	return probeNamespaceRecoveryDiagnostic(client, code).Status
 }
 
 func namespaceRecoveryGuard(enabled bool, env map[string]string, code string) bool {
@@ -112,7 +42,7 @@ func TestNamespaceRecoveryProbe(t *testing.T) {
 	if err != nil {
 		t.Fatal("namespace recovery client setup failed (output suppressed)")
 	}
-	t.Logf("namespace recovery status=%s code=%s", probeNamespaceRecovery(client, code), code)
+	t.Log(formatNamespaceRecoveryLog(probeNamespaceRecoveryDiagnostic(client, code), code))
 }
 
 func TestNamespaceRecoveryProbeMock(t *testing.T) {

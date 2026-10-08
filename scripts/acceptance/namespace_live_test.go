@@ -124,14 +124,16 @@ func (n *mockNamespace) list(w http.ResponseWriter, legacy bool) {
 		return
 	}
 	count := 0
+	list := []any{}
 	if n.children {
 		count = 1
+		list = append(list, map[string]string{"code": "test-child"})
 	}
 	if legacy {
-		_ = json.NewEncoder(w).Encode(map[string]any{"statusCode": 200, "data": map[string]any{"statusCode": 200, "totalCount": count, "list": []any{}}})
+		_ = json.NewEncoder(w).Encode(map[string]any{"statusCode": 200, "data": map[string]any{"statusCode": 200, "totalCount": count, "list": list}})
 		return
 	}
-	_ = json.NewEncoder(w).Encode(map[string]any{"statusCode": 200, "data": map[string]any{"totalCount": count, "list": []any{}}})
+	_ = json.NewEncoder(w).Encode(map[string]any{"statusCode": 200, "data": map[string]any{"totalCount": count, "list": list}})
 }
 func namespaceClient(t *testing.T, n *mockNamespace) (*authingapi.Client, *httptest.Server) {
 	t.Helper()

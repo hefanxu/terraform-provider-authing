@@ -97,6 +97,14 @@ func isLoopback(host string) bool {
 	return ip != nil && ip.IsLoopback()
 }
 
+// HTTPStatusError is a non-success HTTP status, without any response content.
+type HTTPStatusError struct{ StatusCode int }
+
+func (e *HTTPStatusError) Error() string { return fmt.Sprintf("authing HTTP status %d", e.StatusCode) }
+
+// ErrInvalidResponse means the response was not a valid Authing envelope.
+var ErrInvalidResponse = errors.New("invalid authing response")
+
 // SendHttpRequest sends an authenticated request and returns the JSON response.
 // A valid 404 Authing envelope is returned intact for callers' not-found logic.
 func (c *Client) SendHttpRequest(path, method string, req any) ([]byte, error) {
@@ -269,13 +277,13 @@ func (c *Client) send(ctx context.Context, path, method string, value any, token
 		StatusCode *int `json:"statusCode"`
 	}
 	if json.Unmarshal(data, &envelope) != nil || envelope.StatusCode == nil {
-		return nil, errors.New("invalid authing response")
+		return nil, ErrInvalidResponse
 	}
 	if *envelope.StatusCode == http.StatusNotFound && (response.StatusCode == http.StatusNotFound || response.StatusCode >= 200 && response.StatusCode < 300) {
 		return data, nil
 	}
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		return nil, fmt.Errorf("authing HTTP status %d", response.StatusCode)
+		return nil, &HTTPStatusError{StatusCode: response.StatusCode}
 	}
 	// A non-200 Authing business status is a valid API envelope, not a
 	// transport failure. Keep it available for the resource's error handling.
