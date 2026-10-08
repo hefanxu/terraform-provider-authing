@@ -624,8 +624,12 @@ func (r *ExtIdpResource) Read(ctx context.Context, req resource.ReadRequest, res
 	res := r.client.GetExtIdp(&dto.GetExtIdpDto{
 		Id: state.ExtIdpId.ValueString(),
 	})
-	if res == nil || res.StatusCode != 200 || res.Data.Id == "" {
+	if res != nil && res.StatusCode == 404 {
 		resp.State.RemoveResource(ctx)
+		return
+	}
+	if res == nil || res.StatusCode != 200 || res.Data.Id == "" {
+		resp.Diagnostics.AddError("Failed to read external IdP", "Authing returned an invalid or unsuccessful response")
 		return
 	}
 
@@ -665,9 +669,12 @@ func (r *ExtIdpResource) Delete(ctx context.Context, req resource.DeleteRequest,
 		return
 	}
 
-	_ = r.client.DeleteExtIdp(&dto.DeleteExtIdpDto{
+	res := r.client.DeleteExtIdp(&dto.DeleteExtIdpDto{
 		Id: state.ExtIdpId.ValueString(),
 	})
+	if res == nil || res.StatusCode != 404 && (res.StatusCode != 200 || !res.Data.Success) {
+		resp.Diagnostics.AddError("Failed to delete external IdP", "Authing returned an invalid or unsuccessful response")
+	}
 }
 
 // --- Pipeline Function Resource ---

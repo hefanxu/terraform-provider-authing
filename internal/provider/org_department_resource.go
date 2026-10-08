@@ -2,7 +2,9 @@ package provider
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"net/http"
 
 	"github.com/Authing/authing-golang-sdk/v3/dto"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
@@ -133,8 +135,12 @@ func (r *OrganizationResource) Read(ctx context.Context, req resource.ReadReques
 	res := r.client.GetOrganization(&dto.GetOrganizationDto{
 		OrganizationCode: state.OrganizationCode.ValueString(),
 	})
-	if res == nil || res.StatusCode != 200 || res.Data.OrganizationCode == "" {
+	if res != nil && res.StatusCode == 404 {
 		resp.State.RemoveResource(ctx)
+		return
+	}
+	if res == nil || res.StatusCode != 200 || res.Data.OrganizationCode == "" {
+		resp.Diagnostics.AddError("Failed to read Authing organization", "Authing returned an invalid or unsuccessful response")
 		return
 	}
 
@@ -186,9 +192,12 @@ func (r *OrganizationResource) Delete(ctx context.Context, req resource.DeleteRe
 		return
 	}
 
-	_ = r.client.DeleteOrganization(&dto.DeleteOrganizationReqDto{
+	res := r.client.DeleteOrganization(&dto.DeleteOrganizationReqDto{
 		OrganizationCode: state.OrganizationCode.ValueString(),
 	})
+	if res == nil || res.StatusCode != 404 && (res.StatusCode != 200 || !res.Data.Success) {
+		resp.Diagnostics.AddError("Failed to delete Authing organization", "Authing returned an invalid or unsuccessful response")
+	}
 }
 
 func (r *OrganizationResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
@@ -329,8 +338,12 @@ func (r *DepartmentResource) Read(ctx context.Context, req resource.ReadRequest,
 		OrganizationCode: state.OrganizationCode.ValueString(),
 		DepartmentId:     state.ID.ValueString(),
 	})
-	if res == nil || res.StatusCode != 200 || res.Data.DepartmentId == "" {
+	if res != nil && res.StatusCode == 404 {
 		resp.State.RemoveResource(ctx)
+		return
+	}
+	if res == nil || res.StatusCode != 200 || res.Data.DepartmentId == "" {
+		resp.Diagnostics.AddError("Failed to read Authing department", "Authing returned an invalid or unsuccessful response")
 		return
 	}
 
@@ -387,10 +400,13 @@ func (r *DepartmentResource) Delete(ctx context.Context, req resource.DeleteRequ
 		return
 	}
 
-	_ = r.client.DeleteDepartment(&dto.DeleteDepartmentReqDto{
+	res := r.client.DeleteDepartment(&dto.DeleteDepartmentReqDto{
 		OrganizationCode: state.OrganizationCode.ValueString(),
 		DepartmentId:     state.ID.ValueString(),
 	})
+	if res == nil || res.StatusCode != 404 && (res.StatusCode != 200 || !res.Data.Success) {
+		resp.Diagnostics.AddError("Failed to delete Authing department", "Authing returned an invalid or unsuccessful response")
+	}
 }
 
 func (r *DepartmentResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
@@ -465,7 +481,7 @@ func (r *DepartmentMemberResource) Create(ctx context.Context, req resource.Crea
 		DepartmentId:     plan.DepartmentId.ValueString(),
 		UserIds:          []string{plan.UserId.ValueString()},
 	})
-	if res == nil || res.StatusCode != 200 {
+	if res == nil || res.StatusCode != 200 || !res.Data.Success {
 		resp.Diagnostics.AddError("Failed to add user to department", "Error response from Authing")
 		return
 	}
@@ -479,6 +495,55 @@ func (r *DepartmentMemberResource) Read(ctx context.Context, req resource.ReadRe
 	var state DepartmentMemberModel
 	diags := req.State.Get(ctx, &state)
 	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// Inspect the raw envelope: a missing/partial list must not imply absence.
+	const limit = 100
+	for page, seen := 1, 0; ; page++ {
+		body, err := r.client.SendHttpRequestContext(ctx, "/api/v3/list-department-members", http.MethodGet, &dto.ListDepartmentMembersDto{
+			OrganizationCode: state.OrganizationCode.ValueString(),
+			DepartmentId:     state.DepartmentId.ValueString(),
+			Page:             page, Limit: limit,
+		})
+		var result struct {
+			StatusCode int `json:"statusCode"`
+			Data       *struct {
+				TotalCount *int `json:"totalCount"`
+				List       *[]struct {
+					UserId string `json:"userId"`
+				} `json:"list"`
+			} `json:"data"`
+		}
+		if err != nil || json.Unmarshal(body, &result) != nil || result.StatusCode != 200 || result.Data == nil || result.Data.List == nil || result.Data.TotalCount != nil && *result.Data.TotalCount < 0 {
+			resp.Diagnostics.AddError("Failed to read department member", "Authing returned an invalid or unsuccessful membership list")
+			return
+		}
+		for _, user := range *result.Data.List {
+			if user.UserId == "" {
+				resp.Diagnostics.AddError("Failed to read department member", "Authing returned a membership entry without a user ID")
+				return
+			}
+			if user.UserId == state.UserId.ValueString() {
+				return
+			}
+		}
+		seen += len(*result.Data.List)
+		if result.Data.TotalCount != nil {
+			if seen > *result.Data.TotalCount || seen < *result.Data.TotalCount && len(*result.Data.List) == 0 {
+				resp.Diagnostics.AddError("Failed to read department member", "Authing returned an incomplete membership list")
+				return
+			}
+			if seen == *result.Data.TotalCount {
+				resp.State.RemoveResource(ctx)
+				return
+			}
+		} else if len(*result.Data.List) < limit {
+			resp.State.RemoveResource(ctx)
+			return
+		}
+	}
 }
 
 func (r *DepartmentMemberResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
@@ -492,11 +557,14 @@ func (r *DepartmentMemberResource) Delete(ctx context.Context, req resource.Dele
 		return
 	}
 
-	_ = r.client.RemoveDepartmentMembers(&dto.RemoveDepartmentMembersReqDto{
+	res := r.client.RemoveDepartmentMembers(&dto.RemoveDepartmentMembersReqDto{
 		OrganizationCode: state.OrganizationCode.ValueString(),
 		DepartmentId:     state.DepartmentId.ValueString(),
 		UserIds:          []string{state.UserId.ValueString()},
 	})
+	if res == nil || res.StatusCode != 404 && (res.StatusCode != 200 || !res.Data.Success) {
+		resp.Diagnostics.AddError("Failed to remove department member", "Authing returned an invalid or unsuccessful response")
+	}
 }
 
 // --- Post Resource (Job Title / Position) ---
