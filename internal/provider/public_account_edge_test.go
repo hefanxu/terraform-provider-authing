@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
@@ -36,6 +37,22 @@ func TestPublicAccountWritesDoNotPersistUnconfirmedState(t *testing.T) {
 		})
 	}
 }
+func TestPublicAccountCreateReadbackFailureReportsRecoverableID(t *testing.T) {
+	c := objectTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/v3/create-public-account" {
+			fmt.Fprint(w, `{"statusCode":200,"data":{"userId":"public-1"}}`)
+			return
+		}
+		fmt.Fprint(w, `{"statusCode":500}`)
+	})
+	svc := &PublicAccountResource{client: c}
+	out := resource.CreateResponse{State: objectState(t, svc, &PublicAccountModel{})}
+	svc.Create(context.Background(), resource.CreateRequest{Plan: objectPlan(t, svc, publicPlan())}, &out)
+	if !out.Diagnostics.HasError() || !strings.Contains(out.Diagnostics.Errors()[0].Detail(), "public-1") {
+		t.Fatalf("created ID must be recoverable for import: %v", out.Diagnostics)
+	}
+}
+
 func TestPublicAccountUpdateRejectsMismatchedIdentity(t *testing.T) {
 	c := objectTestClient(t, func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, `{"statusCode":200,"data":{"userId":"other"}}`)

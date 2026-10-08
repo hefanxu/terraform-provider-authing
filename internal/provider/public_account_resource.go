@@ -153,7 +153,7 @@ func (r *PublicAccountResource) Create(ctx context.Context, req resource.CreateR
 	}
 	v, found, err := publicGet(ctx, r.client, id)
 	if err != nil || !found {
-		resp.Diagnostics.AddError("Verify public account creation failed", publicVerifyError(err))
+		resp.Diagnostics.AddError("Verify public account creation failed", fmt.Sprintf("Authing created public account %q but readback failed (%s). Import that ID before retrying to avoid creating a duplicate.", id, publicVerifyError(err)))
 		return
 	}
 	publicApply(&m, v)

@@ -14,6 +14,7 @@ The direct client obtains a management access token using AK/SK, caches it until
 - **`authing_user`** (Resource): Create, update, delete and import users.
 - **`authing_user`** (Data Source): Look up a single user by User ID.
 - **`authing_users`** (Data Source): Search and query user lists by keywords.
+- **`authing_public_account`** (Resource / Data Source): Manage and look up basic public-account details. Do not manage the same user ID as `authing_user`.
 
 ### 2. User Groups (用户分组)
 - **`authing_group`** (Resource / Data Source): Create and manage user groups.
@@ -33,6 +34,7 @@ The direct client obtains a management access token using AK/SK, caches it until
 - **`authing_data_policy`** (Resource): Fine-grained data access policies (ALLOW/DENY statement lists).
 - **`authing_data_resource`** (Resource / Data Source): Manage STRING and ARRAY permission data resources; TREE resources are not yet supported.
 - **`authing_data_policy_assignment`** (Resource): Authorize one policy for one subject, with paginated readback and targeted revocation.
+- **`authing_invitation_policy`** (Resource): Manage persistent invitation-policy settings; sending an invitation is not a resource.
 
 ### 5. Applications & Integration (应用与集成)
 - **`authing_application`** (Resource / Data Source): Self-built applications, OAuth/OIDC redirect URLs.
@@ -43,6 +45,11 @@ The direct client obtains a management access token using AK/SK, caches it until
 
 ### 6. Devices (终端)
 - **`authing_device_status`** (Data Source): Read terminal status. The OpenAPI contains an untagged `add-device` (and a deprecated `create-device`) endpoint, but they have no declared management security scheme and the management API does not expose a full device detail readback; this provider intentionally does not model complete device CRUD yet.
+
+### 7. Multi-tenancy (多租户)
+- **`authing_tenant`** (Resource / Data Source): Manage tenants and their complete associated application ID set.
+- **`authing_tenant_membership`** (Resource): Attach an existing user-pool user to a tenant without deleting the user on detach.
+- **`authing_tenant_admin`** (Resource): Grant or revoke tenant administrator privilege for an existing member.
 
 ---
 

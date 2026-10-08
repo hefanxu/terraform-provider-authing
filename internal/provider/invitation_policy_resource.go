@@ -154,7 +154,7 @@ func (r *InvitationPolicyResource) Create(ctx context.Context, req resource.Crea
 	}
 	actual, found, err := r.get(ctx, data.ID)
 	if err != nil || !found {
-		resp.Diagnostics.AddError("Verify invitation policy creation failed", invitationVerificationError(err))
+		resp.Diagnostics.AddError("Verify invitation policy creation failed", fmt.Sprintf("Authing created invitation policy %q but readback failed (%s). Import that ID before retrying to avoid creating a duplicate.", data.ID, invitationVerificationError(err)))
 		return
 	}
 	if !invitationConfirmed(m, actual) {

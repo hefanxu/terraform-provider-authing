@@ -5,11 +5,28 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
+
+func TestInvitationPolicyCreateReadbackFailureReportsRecoverableID(t *testing.T) {
+	c := objectTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/v3/create-invitation-policy" {
+			fmt.Fprint(w, `{"statusCode":200,"data":{"policyId":"policy-1"}}`)
+			return
+		}
+		fmt.Fprint(w, `{"statusCode":500}`)
+	})
+	svc := &InvitationPolicyResource{client: c}
+	out := resource.CreateResponse{State: objectState(t, svc, &InvitationPolicyModel{})}
+	svc.Create(context.Background(), resource.CreateRequest{Plan: objectPlan(t, svc, invitationModel())}, &out)
+	if !out.Diagnostics.HasError() || !strings.Contains(out.Diagnostics.Errors()[0].Detail(), "policy-1") {
+		t.Fatalf("created policy ID must be recoverable for import: %v", out.Diagnostics)
+	}
+}
 
 func TestInvitationPolicyReadMissingVsFailures(t *testing.T) {
 	for _, tc := range []struct {
