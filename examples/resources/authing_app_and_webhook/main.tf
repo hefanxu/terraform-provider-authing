@@ -1,6 +1,10 @@
 resource "authing_application" "sso_portal" {
   app_name             = "Corporate SSO Portal"
   app_type             = "web"
+  app_identifier       = "corporate-sso-portal"
+  app_logo             = "https://sso.example.com/logo.png"
+  default_protocol     = "oidc"
+  sso_enabled          = true
   redirect_uris        = ["https://sso.example.com/oauth/callback"]
   logout_redirect_uris = ["https://sso.example.com/logout"]
   init_login_url       = "https://sso.example.com/login"

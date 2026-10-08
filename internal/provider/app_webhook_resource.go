@@ -39,6 +39,10 @@ type ApplicationModel struct {
 	LogoutRedirectUris types.List   `tfsdk:"logout_redirect_uris"`
 	InitLoginUrl       types.String `tfsdk:"init_login_url"`
 	Description        types.String `tfsdk:"description"`
+	AppIdentifier      types.String `tfsdk:"app_identifier"`
+	AppLogo            types.String `tfsdk:"app_logo"`
+	DefaultProtocol    types.String `tfsdk:"default_protocol"`
+	SsoEnabled         types.Bool   `tfsdk:"sso_enabled"`
 }
 
 func (r *ApplicationResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -89,6 +93,10 @@ func (r *ApplicationResource) Schema(ctx context.Context, req resource.SchemaReq
 				Computed:    true,
 				Description: "Application description.",
 			},
+			"app_identifier":   schema.StringAttribute{Optional: true, Computed: true, Description: "Unique application identifier."},
+			"app_logo":         schema.StringAttribute{Optional: true, Computed: true, Description: "Application logo URL."},
+			"default_protocol": schema.StringAttribute{Optional: true, Computed: true, Description: "Default application protocol (oidc, oauth, saml, cas, asa)."},
+			"sso_enabled":      schema.BoolAttribute{Optional: true, Computed: true, Description: "Whether SSO is enabled."},
 		},
 	}
 }
@@ -140,8 +148,43 @@ func (r *ApplicationResource) Create(ctx context.Context, req resource.CreateReq
 	if !plan.InitLoginUrl.IsNull() && !plan.InitLoginUrl.IsUnknown() {
 		createReq.InitLoginUri = plan.InitLoginUrl.ValueString()
 	}
-
-	res := r.client.CreateApplication(createReq)
+	// The SDK DTO omits false booleans and empty strings, although these may
+	// be explicitly configured. Preserve its other serialized fields below.
+	var payload map[string]interface{}
+	encoded, err := json.Marshal(createReq)
+	if err != nil {
+		resp.Diagnostics.AddError("Failed to create Authing application", err.Error())
+		return
+	}
+	if err := json.Unmarshal(encoded, &payload); err != nil {
+		resp.Diagnostics.AddError("Failed to create Authing application", err.Error())
+		return
+	}
+	// DTO string fields use omitempty, but a configured empty value is distinct
+	// from leaving an optional setting to Authing's defaults.
+	if !plan.AppIdentifier.IsNull() && !plan.AppIdentifier.IsUnknown() {
+		payload["appIdentifier"] = plan.AppIdentifier.ValueString()
+	}
+	if !plan.AppLogo.IsNull() && !plan.AppLogo.IsUnknown() {
+		payload["appLogo"] = plan.AppLogo.ValueString()
+	}
+	if !plan.DefaultProtocol.IsNull() && !plan.DefaultProtocol.IsUnknown() {
+		payload["defaultProtocol"] = plan.DefaultProtocol.ValueString()
+	}
+	if !plan.SsoEnabled.IsNull() && !plan.SsoEnabled.IsUnknown() {
+		payload["ssoEnabled"] = plan.SsoEnabled.ValueBool()
+	}
+	body, err := r.client.SendHttpRequest("/api/v3/create-application", "POST", payload)
+	if err != nil {
+		resp.Diagnostics.AddError("Failed to create Authing application", err.Error())
+		return
+	}
+	var result dto.CreateApplicationRespDto
+	if err := json.Unmarshal(body, &result); err != nil {
+		resp.Diagnostics.AddError("Failed to create Authing application", err.Error())
+		return
+	}
+	res := &result
 	if res == nil || res.StatusCode != 200 || res.Data.AppId == "" {
 		errMsg := "Unknown error"
 		if res != nil {
@@ -163,6 +206,18 @@ func (r *ApplicationResource) Create(ctx context.Context, req resource.CreateReq
 	}
 	if plan.InitLoginUrl.IsUnknown() || plan.InitLoginUrl.IsNull() {
 		plan.InitLoginUrl = types.StringValue(res.Data.InitLoginUri)
+	}
+	if plan.AppIdentifier.IsUnknown() || plan.AppIdentifier.IsNull() {
+		plan.AppIdentifier = types.StringValue(res.Data.AppIdentifier)
+	}
+	if plan.AppLogo.IsUnknown() || plan.AppLogo.IsNull() {
+		plan.AppLogo = types.StringValue(res.Data.AppLogo)
+	}
+	if plan.DefaultProtocol.IsUnknown() || plan.DefaultProtocol.IsNull() {
+		plan.DefaultProtocol = types.StringValue(res.Data.DefaultProtocol)
+	}
+	if plan.SsoEnabled.IsUnknown() || plan.SsoEnabled.IsNull() {
+		plan.SsoEnabled = types.BoolValue(res.Data.SsoEnabled)
 	}
 
 	diags = resp.State.Set(ctx, plan)
@@ -195,6 +250,10 @@ func (r *ApplicationResource) Read(ctx context.Context, req resource.ReadRequest
 	state.AppType = types.StringValue(res.Data.AppType)
 	state.Description = types.StringValue(res.Data.AppDescription)
 	state.InitLoginUrl = types.StringValue(res.Data.InitLoginUri)
+	state.AppIdentifier = types.StringValue(res.Data.AppIdentifier)
+	state.AppLogo = types.StringValue(res.Data.AppLogo)
+	state.DefaultProtocol = types.StringValue(res.Data.DefaultProtocol)
+	state.SsoEnabled = types.BoolValue(res.Data.SsoEnabled)
 	state.RedirectUris, diags = types.ListValueFrom(ctx, types.StringType, nonNilApplicationURIs(res.Data.RedirectUris))
 	resp.Diagnostics.Append(diags...)
 	state.LogoutRedirectUris, diags = types.ListValueFrom(ctx, types.StringType, nonNilApplicationURIs(res.Data.LogoutRedirectUris))
@@ -227,6 +286,26 @@ func (r *ApplicationResource) Update(ctx context.Context, req resource.UpdateReq
 	// SDK v3.0.15 has no UpdateApplication method or DTO; use its authenticated
 	// transport with the official /api/v3/update-application request fields.
 	payload := map[string]interface{}{"appId": appID, "appName": plan.AppName.ValueString()}
+	if !plan.AppIdentifier.IsUnknown() && !plan.AppIdentifier.IsNull() {
+		payload["appIdentifier"] = plan.AppIdentifier.ValueString()
+	} else {
+		plan.AppIdentifier = state.AppIdentifier
+	}
+	if !plan.AppLogo.IsUnknown() && !plan.AppLogo.IsNull() {
+		payload["appLogo"] = plan.AppLogo.ValueString()
+	} else {
+		plan.AppLogo = state.AppLogo
+	}
+	if !plan.DefaultProtocol.IsUnknown() && !plan.DefaultProtocol.IsNull() {
+		payload["defaultProtocol"] = plan.DefaultProtocol.ValueString()
+	} else {
+		plan.DefaultProtocol = state.DefaultProtocol
+	}
+	if !plan.SsoEnabled.IsUnknown() && !plan.SsoEnabled.IsNull() {
+		payload["ssoEnabled"] = plan.SsoEnabled.ValueBool()
+	} else {
+		plan.SsoEnabled = state.SsoEnabled
+	}
 	if !plan.Description.IsUnknown() && !plan.Description.IsNull() {
 		payload["appDescription"] = plan.Description.ValueString()
 	}
@@ -296,6 +375,8 @@ func (r *ApplicationResource) ImportState(ctx context.Context, req resource.Impo
 		AppName: types.StringNull(), AppType: types.StringNull(),
 		Description: types.StringNull(), InitLoginUrl: types.StringNull(),
 		RedirectUris: types.ListNull(types.StringType), LogoutRedirectUris: types.ListNull(types.StringType),
+		AppIdentifier: types.StringNull(), AppLogo: types.StringNull(),
+		DefaultProtocol: types.StringNull(), SsoEnabled: types.BoolNull(),
 	})...)
 }
 

@@ -259,3 +259,215 @@ func TestApplicationUpdateRejectsAppTypeChange(t *testing.T) {
 		t.Fatalf("unsupported change not rejected: %v", resp.Diagnostics)
 	}
 }
+
+func TestApplicationSettingsReadDriftAndFalse(t *testing.T) {
+	svc, state, _ := applicationFixture(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v3/get-application" {
+			t.Errorf("unexpected path %s", r.URL.Path)
+		}
+		fmt.Fprint(w, `{"statusCode":200,"data":{"appId":"app-1","appName":"Portal","appIdentifier":"drift-id","appLogo":"https://remote/logo.png","defaultProtocol":"saml","ssoEnabled":false}}`)
+	})
+	m := applicationModel("Portal")
+	m.AppIdentifier = types.StringValue("old-id")
+	m.AppLogo = types.StringValue("old-logo")
+	m.DefaultProtocol = types.StringValue("oidc")
+	m.SsoEnabled = types.BoolValue(true)
+	setApplicationState(t, &state, m)
+	resp := resource.ReadResponse{State: state}
+	svc.Read(context.Background(), resource.ReadRequest{State: state}, &resp)
+	if resp.Diagnostics.HasError() {
+		t.Fatal(resp.Diagnostics)
+	}
+	got := getApplicationState(t, resp.State)
+	if got.AppIdentifier.ValueString() != "drift-id" || got.AppLogo.ValueString() != "https://remote/logo.png" || got.DefaultProtocol.ValueString() != "saml" || got.SsoEnabled.IsNull() || got.SsoEnabled.ValueBool() {
+		t.Errorf("settings drift not read: %#v", got)
+	}
+}
+
+func TestApplicationSettingsUpdateExplicitFalseAndNull(t *testing.T) {
+	var body map[string]any
+	svc, state, plan := applicationFixture(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v3/update-application" {
+			t.Errorf("unexpected path %s", r.URL.Path)
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Error(err)
+		}
+		fmt.Fprint(w, `{"statusCode":200,"data":{"success":true}}`)
+	})
+	old := applicationModel("Portal")
+	old.AppIdentifier = types.StringValue("old-id")
+	old.AppLogo = types.StringValue("old-logo")
+	old.DefaultProtocol = types.StringValue("oidc")
+	old.SsoEnabled = types.BoolValue(true)
+	setApplicationState(t, &state, old)
+	next := applicationModel("Portal")
+	next.AppIdentifier = types.StringValue("new-id")
+	next.AppLogo = types.StringValue("https://new/logo.png")
+	next.DefaultProtocol = types.StringValue("oauth")
+	next.SsoEnabled = types.BoolValue(false)
+	setApplicationPlan(t, &plan, next)
+	resp := resource.UpdateResponse{State: state}
+	svc.Update(context.Background(), resource.UpdateRequest{Plan: plan, State: state}, &resp)
+	if resp.Diagnostics.HasError() {
+		t.Fatal(resp.Diagnostics)
+	}
+	for k, want := range map[string]any{"appIdentifier": "new-id", "appLogo": "https://new/logo.png", "defaultProtocol": "oauth", "ssoEnabled": false} {
+		if got, ok := body[k]; !ok || got != want {
+			t.Errorf("update %s: got %v, present %t, want %v", k, got, ok, want)
+		}
+	}
+	got := getApplicationState(t, resp.State)
+	if got.SsoEnabled.IsNull() || got.SsoEnabled.ValueBool() || got.AppIdentifier.ValueString() != "new-id" {
+		t.Errorf("settings not saved: %#v", got)
+	}
+
+	// Optional/computed nulls must not send defaults or turn a known false into true.
+	body = nil
+	state = resp.State
+	plan = tfsdk.Plan{Schema: plan.Schema}
+	next.AppIdentifier = types.StringNull()
+	next.AppLogo = types.StringNull()
+	next.DefaultProtocol = types.StringNull()
+	next.SsoEnabled = types.BoolNull()
+	setApplicationPlan(t, &plan, next)
+	resp = resource.UpdateResponse{State: state}
+	svc.Update(context.Background(), resource.UpdateRequest{Plan: plan, State: state}, &resp)
+	if resp.Diagnostics.HasError() {
+		t.Fatal(resp.Diagnostics)
+	}
+	for _, k := range []string{"appIdentifier", "appLogo", "defaultProtocol", "ssoEnabled"} {
+		if _, ok := body[k]; ok {
+			t.Errorf("null setting %s sent: %#v", k, body)
+		}
+	}
+	got = getApplicationState(t, resp.State)
+	if got.AppIdentifier.ValueString() != "new-id" || got.AppLogo.ValueString() != "https://new/logo.png" || got.DefaultProtocol.ValueString() != "oauth" || got.SsoEnabled.IsNull() || got.SsoEnabled.ValueBool() {
+		t.Errorf("optional null lost remote values: %#v", got)
+	}
+}
+
+func TestApplicationSettingsOptionalCreateHydratesAndImportReads(t *testing.T) {
+	var body map[string]any
+	svc, state, plan := applicationFixture(t, func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v3/create-application":
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Error(err)
+			}
+		case "/api/v3/get-application":
+			if r.URL.Query().Get("appId") != "app-1" {
+				t.Errorf("wrong import lookup: %s", r.URL)
+			}
+		default:
+			t.Errorf("unexpected path: %s", r.URL.Path)
+		}
+		fmt.Fprint(w, `{"statusCode":200,"data":{"appId":"app-1","appName":"Portal","appIdentifier":"server-id","appLogo":"https://server/logo","defaultProtocol":"cas","ssoEnabled":true}}`)
+	})
+	m := applicationModel("Portal")
+	m.AppIdentifier = types.StringNull()
+	m.AppLogo = types.StringNull()
+	m.DefaultProtocol = types.StringNull()
+	m.SsoEnabled = types.BoolNull()
+	setApplicationPlan(t, &plan, m)
+	created := resource.CreateResponse{State: state}
+	svc.Create(context.Background(), resource.CreateRequest{Plan: plan}, &created)
+	if created.Diagnostics.HasError() {
+		t.Fatal(created.Diagnostics)
+	}
+	for _, k := range []string{"appIdentifier", "appLogo", "defaultProtocol", "ssoEnabled"} {
+		if _, ok := body[k]; ok {
+			t.Errorf("null create setting %s sent: %#v", k, body)
+		}
+	}
+	got := getApplicationState(t, created.State)
+	if got.AppIdentifier.ValueString() != "server-id" || got.AppLogo.ValueString() != "https://server/logo" || got.DefaultProtocol.ValueString() != "cas" || !got.SsoEnabled.ValueBool() {
+		t.Errorf("null create not hydrated: %#v", got)
+	}
+
+	imported := resource.ImportStateResponse{State: state}
+	svc.ImportState(context.Background(), resource.ImportStateRequest{ID: "app-1"}, &imported)
+	if imported.Diagnostics.HasError() {
+		t.Fatal(imported.Diagnostics)
+	}
+	read := resource.ReadResponse{State: imported.State}
+	svc.Read(context.Background(), resource.ReadRequest{State: imported.State}, &read)
+	if read.Diagnostics.HasError() {
+		t.Fatal(read.Diagnostics)
+	}
+	got = getApplicationState(t, read.State)
+	if got.AppIdentifier.ValueString() != "server-id" || got.AppLogo.ValueString() != "https://server/logo" || got.DefaultProtocol.ValueString() != "cas" || !got.SsoEnabled.ValueBool() {
+		t.Errorf("import not hydrated: %#v", got)
+	}
+}
+
+func TestApplicationSettingsUpdateFailureDoesNotWriteFalse(t *testing.T) {
+	svc, state, plan := applicationFixture(t, func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, `{"statusCode":200,"data":{"success":false}}`)
+	})
+	old := applicationModel("Portal")
+	old.SsoEnabled = types.BoolValue(true)
+	setApplicationState(t, &state, old)
+	next := old
+	next.SsoEnabled = types.BoolValue(false)
+	setApplicationPlan(t, &plan, next)
+	resp := resource.UpdateResponse{State: state}
+	svc.Update(context.Background(), resource.UpdateRequest{Plan: plan, State: state}, &resp)
+	if !resp.Diagnostics.HasError() || !getApplicationState(t, resp.State).SsoEnabled.ValueBool() {
+		t.Errorf("failure wrote false: %v", resp.Diagnostics)
+	}
+}
+
+func TestApplicationSettingsCreateSendsExplicitEmptyLogo(t *testing.T) {
+	var body map[string]any
+	svc, state, plan := applicationFixture(t, func(w http.ResponseWriter, r *http.Request) {
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Error(err)
+		}
+		fmt.Fprint(w, `{"statusCode":200,"data":{"appId":"app-1"}}`)
+	})
+	m := applicationModel("Portal")
+	m.AppLogo = types.StringValue("")
+	setApplicationPlan(t, &plan, m)
+	resp := resource.CreateResponse{State: state}
+	svc.Create(context.Background(), resource.CreateRequest{Plan: plan}, &resp)
+	if resp.Diagnostics.HasError() {
+		t.Fatal(resp.Diagnostics)
+	}
+	if got, present := body["appLogo"]; !present || got != "" {
+		t.Errorf("explicit empty logo omitted: %#v", body)
+	}
+}
+
+func TestApplicationSettingsCreateSendsExplicitFalse(t *testing.T) {
+	var body map[string]any
+	svc, state, plan := applicationFixture(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v3/create-application" || r.Method != http.MethodPost {
+			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Error(err)
+		}
+		fmt.Fprint(w, `{"statusCode":200,"data":{"appId":"app-1","appIdentifier":"remote-id","appLogo":"remote-logo","defaultProtocol":"oauth","ssoEnabled":true}}`)
+	})
+	m := applicationModel("Portal")
+	m.AppIdentifier = types.StringValue("portal")
+	m.AppLogo = types.StringValue("https://example.com/logo.png")
+	m.DefaultProtocol = types.StringValue("oidc")
+	m.SsoEnabled = types.BoolValue(false)
+	setApplicationPlan(t, &plan, m)
+	resp := resource.CreateResponse{State: state}
+	svc.Create(context.Background(), resource.CreateRequest{Plan: plan}, &resp)
+	if resp.Diagnostics.HasError() {
+		t.Fatal(resp.Diagnostics)
+	}
+	for k, want := range map[string]any{"appIdentifier": "portal", "appLogo": "https://example.com/logo.png", "defaultProtocol": "oidc", "ssoEnabled": false} {
+		if got, ok := body[k]; !ok || got != want {
+			t.Errorf("create %s: got %v, present %t, want %v", k, got, ok, want)
+		}
+	}
+	got := getApplicationState(t, resp.State)
+	if got.AppIdentifier.ValueString() != "portal" || got.AppLogo.ValueString() != "https://example.com/logo.png" || got.DefaultProtocol.ValueString() != "oidc" || got.SsoEnabled.IsNull() || got.SsoEnabled.ValueBool() {
+		t.Errorf("configured settings replaced on create: %#v", got)
+	}
+}
