@@ -43,6 +43,9 @@ SAFE_DETAIL_CODE = re.compile(r"\bdetail_code=([0-9]{1,10})\b")
 SAFE_FIELD = re.compile(
     r"\bfield=(appIdentifier|appName|appType|appDescription|defaultProtocol|redirectUris|logoutRedirectUris|ssoEnabled|oidcConfig|samlConfig|oauthConfig|casConfig|loginConfig|registerConfig|brandingConfig|multiple)\b"
 )
+SAFE_DRIFT_REASON = re.compile(
+    r"\breason=(ownership-unverified|update-transport|update-invalid|update-rejected|update-unsuccessful|readback-unavailable|readback-name-mismatch|readback-marker-mismatch|unknown)\b"
+)
 
 
 def run(env=None, runner=subprocess.run):
@@ -73,6 +76,7 @@ def run(env=None, runner=subprocess.run):
             api_code = SAFE_API_CODE.findall(controlled)
             detail_code = SAFE_DETAIL_CODE.findall(controlled)
             field = SAFE_FIELD.findall(controlled)
+            reason = SAFE_DRIFT_REASON.findall(controlled)
             if failure:
                 outcome += f"; failure={failure[-1]}"
                 if api_code:
@@ -81,6 +85,8 @@ def run(env=None, runner=subprocess.run):
                     outcome += f"; detail_code={detail_code[-1]}"
                 if field:
                     outcome += f"; field={field[-1]}"
+            if phase == "remote-drift" and reason:
+                outcome += f"; reason={reason[-1]}"
             raise RuntimeError(f"sandbox case {case} failed at {phase}; inspect only owned {identifier}{outcome}")
         raise RuntimeError(f"sandbox case {case} failed (output suppressed)")
     print(f"sandbox case {case} passed")

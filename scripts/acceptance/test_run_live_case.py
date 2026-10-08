@@ -74,6 +74,15 @@ class SandboxDispatchTests(unittest.TestCase):
         self.assertNotIn("secret-marker", str(caught.exception))
         self.assertNotIn("credential-marker", str(caught.exception))
 
+    def test_drift_reason_is_allowlisted(self):
+        test = mod.CASES["application"]
+        runner = Mock(side_effect=[subprocess.CompletedProcess([], 0, test + "\n", ""),
+                                   subprocess.CompletedProcess([], 1, "phase=remote-drift code=hermesacc-1234567890abcdef reason=update-rejected cleanup=confirmed secret-marker", "secret-marker")])
+        with self.assertRaises(RuntimeError) as caught:
+            mod.run(self.env("application"), runner)
+        self.assertIn("reason=update-rejected", str(caught.exception))
+        self.assertNotIn("secret-marker", str(caught.exception))
+
 
 if __name__ == "__main__":
     unittest.main()

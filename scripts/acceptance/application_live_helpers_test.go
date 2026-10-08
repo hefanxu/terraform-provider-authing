@@ -81,6 +81,10 @@ type applicationApplyFailure struct{ classification string }
 
 func (e applicationApplyFailure) Error() string { return e.classification }
 
+type applicationDriftFailure string
+
+func (e applicationDriftFailure) Error() string { return string(e) }
+
 func applicationApplyExit(root string, env []string, terraform string) error {
 	cmd := exec.Command(terraform, "apply", "-auto-approve", "-lock=false", "-input=false", "-no-color")
 	cmd.Dir = filepath.Join(root, "example")
@@ -102,6 +106,17 @@ func executeApplicationTrace(c traceCase) error {
 					classification = classified.classification
 				}
 				return fmt.Errorf("application phase=%s code=%s %s (output suppressed)", phase.name, c.code, classification)
+			}
+			if phase.name == "remote-drift" {
+				reason := "unknown"
+				var classified applicationDriftFailure
+				if errors.As(err, &classified) {
+					switch classified {
+					case "ownership-unverified", "update-transport", "update-invalid", "update-rejected", "update-unsuccessful", "readback-unavailable", "readback-name-mismatch", "readback-marker-mismatch":
+						reason = string(classified)
+					}
+				}
+				return fmt.Errorf("application phase=%s code=%s reason=%s (output suppressed)", phase.name, c.code, reason)
 			}
 			return fmt.Errorf("application phase=%s code=%s (output suppressed)", phase.name, c.code)
 		}
@@ -328,11 +343,11 @@ resource "authing_application" "sandbox" {
 		}},
 		{"remote-drift", func() error {
 			if err := ownedApplication(client, id, name, marker); err != nil {
-				return err
+				return applicationDriftFailure("ownership-unverified")
 			}
 			body, err := client.SendHttpRequest("/api/v3/update-application", "POST", map[string]string{"appId": id, "appName": name + "-drift"})
 			if err != nil {
-				return errors.New("remote drift failed")
+				return applicationDriftFailure("update-transport")
 			}
 			var res struct {
 				StatusCode int `json:"statusCode"`
@@ -340,12 +355,24 @@ resource "authing_application" "sandbox" {
 					Success bool `json:"success"`
 				} `json:"data"`
 			}
-			if json.Unmarshal(body, &res) != nil || res.StatusCode != 200 || !res.Data.Success {
-				return errors.New("remote drift rejected")
+			if json.Unmarshal(body, &res) != nil {
+				return applicationDriftFailure("update-invalid")
+			}
+			if res.StatusCode != 200 {
+				return applicationDriftFailure("update-rejected")
+			}
+			if !res.Data.Success {
+				return applicationDriftFailure("update-unsuccessful")
 			}
 			got := client.GetApplication(&dto.GetApplicationDto{AppId: id})
-			if got == nil || got.StatusCode != 200 || got.Data.AppId != id || got.Data.AppName != name+"-drift" || got.Data.AppDescription != marker {
-				return errors.New("remote drift not visible")
+			if got == nil || got.StatusCode != 200 || got.Data.AppId != id {
+				return applicationDriftFailure("readback-unavailable")
+			}
+			if got.Data.AppName != name+"-drift" {
+				return applicationDriftFailure("readback-name-mismatch")
+			}
+			if got.Data.AppDescription != marker {
+				return applicationDriftFailure("readback-marker-mismatch")
 			}
 			return nil
 		}},

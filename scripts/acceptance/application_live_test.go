@@ -19,6 +19,7 @@ type mockApplication struct {
 	failStrategy                           bool
 	failCreateValidation                   bool
 	rejectUnconfiguredNested               bool
+	failDriftUpdate                        bool
 	deletes                                int
 }
 
@@ -83,6 +84,10 @@ func (a *mockApplication) serve(w http.ResponseWriter, r *http.Request) {
 		a.strategy = "DENY_ALL"
 		fmt.Fprint(w, `{"statusCode":200,"data":{"success":true}}`)
 	case "/api/v3/update-application":
+		if a.failDriftUpdate {
+			fmt.Fprint(w, `{"statusCode":422,"message":"secret-marker private-uri"}`)
+			return
+		}
 		if body["appId"] != a.id || body["appName"] == nil {
 			http.Error(w, "invalid update", 500)
 			return
