@@ -128,9 +128,23 @@ func TestMockGroupMemberIncompleteListingFailsClosed(t *testing.T) {
 	if err == nil {
 		t.Fatal("incomplete membership inventory accepted")
 	}
+	for _, field := range []string{"phase=plan-converged", "code=hermesacc-fedcba0987654321", "username=hermesacc-1234567890abcdef", "cleanup=incomplete"} {
+		if !strings.Contains(err.Error(), field) {
+			t.Fatalf("missing controlled diagnostic %s: %v", field, err)
+		}
+	}
 	for _, secret := range []string{"credential-marker", "key-marker", "mock-token"} {
 		if strings.Contains(err.Error(), secret) {
 			t.Fatal("secret leaked")
+		}
+	}
+}
+func TestGroupMemberDiagnosticPreservesOriginalPhase(t *testing.T) {
+	first := fmt.Errorf("group-member phase=apply-user code=hermesacc-fedcba0987654321 (output suppressed)")
+	got := groupMemberDiagnostic(first, "hermesacc-1234567890abcdef", "hermesacc-fedcba0987654321", "unknown")
+	for _, field := range []string{"phase=apply-user", "code=hermesacc-fedcba0987654321", "username=hermesacc-1234567890abcdef", "cleanup=unknown"} {
+		if !strings.Contains(got.Error(), field) {
+			t.Fatalf("diagnostic missing %s: %v", field, got)
 		}
 	}
 }

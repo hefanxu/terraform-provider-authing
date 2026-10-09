@@ -198,6 +198,21 @@ func cleanupGroupMember(client *authingapi.Client, userID, username, groupCode s
 	}
 	return cleanupUser(client, userID, username)
 }
+
+// Only validated, locally generated identifiers and the first controlled phase
+// enter diagnostics; cleanup is an independent outcome.
+func groupMemberDiagnostic(first error, username, code, cleanup string) error {
+	if first == nil {
+		first = fmt.Errorf("group-member phase=cleanup-incomplete code=%s (output suppressed)", code)
+	}
+	if !sandboxCode.MatchString(username) || !sandboxCode.MatchString(code) {
+		return errors.New("group-member diagnostic identity invalid (output suppressed)")
+	}
+	if cleanup != "confirmed" && cleanup != "incomplete" && cleanup != "unknown" {
+		cleanup = "unknown"
+	}
+	return fmt.Errorf("%s username=%s cleanup=%s", first, username, cleanup)
+}
 func runGroupMemberTrace(root string, credentials map[string]string, username, groupCode string) (result error) {
 	if !sandboxCode.MatchString(username) || !sandboxCode.MatchString(groupCode) || username == groupCode {
 		return errors.New("relation requires distinct generated identities")
@@ -206,32 +221,32 @@ func runGroupMemberTrace(root string, credentials map[string]string, username, g
 	repo := filepath.Clean(filepath.Join(filepath.Dir(file), "../.."))
 	terraform := filepath.Join(repo, "../.tools/terraform/1.13.5/terraform")
 	if _, err := os.Stat(terraform); err != nil {
-		return fmt.Errorf("group-member phase=terraform-cli code=%s (output suppressed)", groupCode)
+		return groupMemberDiagnostic(fmt.Errorf("group-member phase=terraform-cli code=%s (output suppressed)", groupCode), username, groupCode, "unknown")
 	}
 	goBinary, err := exec.LookPath("go")
 	if err != nil {
 		goBinary = filepath.Join(repo, "../.tools/go/bin/go")
 		if _, err = os.Stat(goBinary); err != nil {
-			return errors.New("Go toolchain unavailable")
+			return groupMemberDiagnostic(fmt.Errorf("group-member phase=go-cli code=%s (output suppressed)", groupCode), username, groupCode, "unknown")
 		}
 	}
 	client, err := authingapi.NewClient(authingapi.Options{AccessKeyID: credentials["AUTHING_ACCESS_KEY_ID"], AccessKeySecret: credentials["AUTHING_ACCESS_KEY_SECRET"], Host: credentials["AUTHING_HOST"]})
 	if err != nil {
-		return errors.New("client unavailable")
+		return groupMemberDiagnostic(fmt.Errorf("group-member phase=client code=%s (output suppressed)", groupCode), username, groupCode, "unknown")
 	}
 	group := client.GetGroup(&dto.GetGroupDto{Code: groupCode})
 	if group == nil || group.StatusCode != 404 {
-		return fmt.Errorf("group-member phase=preflight-group code=%s (output suppressed)", groupCode)
+		return groupMemberDiagnostic(fmt.Errorf("group-member phase=preflight-group code=%s (output suppressed)", groupCode), username, groupCode, "unknown")
 	}
 	// No safe username-to-ID deletion authority exists before Terraform records it.
 	providerDir, exampleDir := filepath.Join(root, "provider"), filepath.Join(root, "example")
 	if os.MkdirAll(providerDir, 0700) != nil || os.MkdirAll(exampleDir, 0700) != nil {
-		return errors.New("workspace unavailable")
+		return groupMemberDiagnostic(fmt.Errorf("group-member phase=workspace code=%s (output suppressed)", groupCode), username, groupCode, "unknown")
 	}
 	build := exec.Command(goBinary, "build", "-o", filepath.Join(providerDir, "terraform-provider-authing"), ".")
 	build.Dir = repo
 	if _, err := build.CombinedOutput(); err != nil {
-		return errors.New("provider build failed")
+		return groupMemberDiagnostic(fmt.Errorf("group-member phase=provider-build code=%s (output suppressed)", groupCode), username, groupCode, "unknown")
 	}
 	config := filepath.Join(root, "terraform.rc")
 	rc := fmt.Sprintf("provider_installation {\n  dev_overrides {\n    %q = %q\n  }\n  direct {}\n}\n", source, providerDir)
@@ -257,7 +272,7 @@ resource "authing_group_member" "sandbox" {
 }
 `, source, username, username, groupCode, groupCode, "hermesacc ownership "+groupCode)
 	if os.WriteFile(config, []byte(rc), 0600) != nil || os.WriteFile(filepath.Join(exampleDir, "main.tf"), []byte(hcl), 0600) != nil {
-		return errors.New("config unavailable")
+		return groupMemberDiagnostic(fmt.Errorf("group-member phase=config code=%s (output suppressed)", groupCode), username, groupCode, "unknown")
 	}
 	env := traceEnvironment(root, config, credentials)
 	run := func(want int, args ...string) func() error {
@@ -267,34 +282,35 @@ resource "authing_group_member" "sandbox" {
 		return run(want, "plan", "-lock=false", "-input=false", "-no-color", "-detailed-exitcode")
 	}
 	id := ""
-	started := true
 	defer func() {
-		if !started {
-			return
-		}
+		// No username-derived ID can authorize a cleanup write. A missing
+		// state-backed ID is explicitly unknown, not an absent user.
 		if id == "" {
 			id, _ = userStateID(root, terraform, env, username)
 		}
 		if id == "" {
-			if result != nil {
-				result = fmt.Errorf("group-member phase=cleanup-unknown-id user=%s group=%s (output suppressed)", username, groupCode)
-			}
+			result = groupMemberDiagnostic(result, username, groupCode, "unknown")
 			return
 		}
-		// Normal destroy removes both parents; only fallback-clean if both still owned.
+		// Normal destroy removes both parents; fallback only from verified ID.
 		user := client.GetUser(&dto.GetUserDto{UserId: id})
 		group := client.GetGroup(&dto.GetGroupDto{Code: groupCode})
-		if user != nil && user.StatusCode == 404 && group != nil && group.StatusCode == 404 {
-			return
-		}
-		if user != nil && user.StatusCode == 200 && group != nil && group.StatusCode == 404 {
+		cleanup := "confirmed"
+		switch {
+		case user != nil && user.StatusCode == 404 && group != nil && group.StatusCode == 404:
+		case user != nil && user.StatusCode == 200 && group != nil && group.StatusCode == 404:
 			if cleanupUser(client, id, username) != nil {
-				result = fmt.Errorf("group-member phase=cleanup-incomplete user=%s group=%s (output suppressed)", username, groupCode)
+				cleanup = "incomplete"
 			}
-			return
+		case user != nil && user.StatusCode == 200 && group != nil && group.StatusCode == 200:
+			if cleanupGroupMember(client, id, username, groupCode) != nil {
+				cleanup = "incomplete"
+			}
+		default:
+			cleanup = "unknown"
 		}
-		if user == nil || user.StatusCode != 200 || group == nil || group.StatusCode != 200 || cleanupGroupMember(client, id, username, groupCode) != nil {
-			result = fmt.Errorf("group-member phase=cleanup-incomplete user=%s group=%s (output suppressed)", username, groupCode)
+		if result != nil || cleanup != "confirmed" {
+			result = groupMemberDiagnostic(result, username, groupCode, cleanup)
 		}
 	}()
 	result = (traceCase{name: "group-member", code: groupCode, phases: []tracePhase{
