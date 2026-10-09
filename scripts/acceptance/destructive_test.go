@@ -57,6 +57,12 @@ func (g *mockGroup) serve(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		g.group(w)
+	case "/api/v3/list-group-members":
+		if r.URL.Query().Get("limit") != "50" || r.URL.Query().Get("page") != "1" || r.URL.Query().Get("code") != g.code {
+			http.Error(w, "invalid inventory", 422)
+			return
+		}
+		fmt.Fprint(w, `{"statusCode":200,"data":{"totalCount":0,"list":[]}}`)
 	case "/api/v3/create-group":
 		var v struct {
 			Code        string `json:"code"`

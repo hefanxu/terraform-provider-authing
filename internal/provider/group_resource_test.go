@@ -27,6 +27,8 @@ func TestGroupResourceCreate(t *testing.T) {
 				t.Errorf("decode create request: %v", err)
 			}
 			fmt.Fprint(w, `{"statusCode":200,"data":{"code":"engineering","name":"Engineering","description":"Platform team"}}`)
+		case "/api/v3/get-group":
+			fmt.Fprint(w, `{"statusCode":200,"data":{"code":"engineering","name":"Engineering","description":"Platform team","type":"static"}}`)
 		default:
 			http.NotFound(w, r)
 		}

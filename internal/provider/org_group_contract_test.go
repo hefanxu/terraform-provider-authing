@@ -165,6 +165,10 @@ func TestGroupCreateRequiredContract(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			var body map[string]json.RawMessage
 			svc.client = lifecycleFixture(t, func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == "/api/v3/get-group" {
+					fmt.Fprint(w, `{"statusCode":200,"data":{"code":"engineering","name":"Engineering","type":"static","description":"`+tc.want+`"}}`)
+					return
+				}
 				if r.URL.Path != "/api/v3/create-group" {
 					t.Errorf("unexpected path %s", r.URL.Path)
 				}
@@ -209,6 +213,10 @@ func TestGroupTypeSchemaRejectsBlank(t *testing.T) {
 func TestGroupUpdateSendsRequiredDescription(t *testing.T) {
 	var body map[string]json.RawMessage
 	client := lifecycleFixture(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/v3/get-group" {
+			fmt.Fprint(w, `{"statusCode":200,"data":{"code":"engineering","name":"Engineering","type":"static","description":""}}`)
+			return
+		}
 		if r.URL.Path != "/api/v3/update-group" {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}

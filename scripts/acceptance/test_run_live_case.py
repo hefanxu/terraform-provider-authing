@@ -51,11 +51,63 @@ class SandboxDispatchTests(unittest.TestCase):
             mod.run(self.env(), runner)
         self.assertEqual(runner.call_count, 1)
 
-    def test_success_invokes_exact_test_and_flag(self):
+    def test_group_requires_stage_evidence(self):
         test = mod.CASES["group"]
+        runner = Mock(side_effect=[subprocess.CompletedProcess([], 0, test + "\n", ""), subprocess.CompletedProcess([], 0, "ok", "")])
+        with self.assertRaisesRegex(RuntimeError, "stage evidence"):
+            mod.run(self.env(), runner)
+
+    def test_group_rejects_incomplete_duplicate_foreign_and_unconfirmed_evidence(self):
+        code = "hermesacc-1234567890abcdef"
+        lines = [f"group phase={phase} code={code} result=passed" for phase in mod.GROUP_PHASES]
+        complete = f"group phase=complete code={code} cleanup=confirmed state_id_sha256=" + "a" * 64
+        invalid = [lines[:i] + lines[i + 1:] + [complete] for i in range(len(lines))]
+        invalid += [lines + [lines[0], complete], [line.replace(code, "hermesacc-fedcba0987654321") if i == 2 else line for i, line in enumerate(lines)] + [complete], lines, lines + [complete.replace("confirmed", "unknown")]]
+        for output in invalid:
+            test = mod.CASES["group"]
+            runner = Mock(side_effect=[subprocess.CompletedProcess([], 0, test + "\n", ""), subprocess.CompletedProcess([], 0, "\n".join(output), "")])
+            with self.assertRaises(RuntimeError):
+                mod.run(self.env(), runner)
+
+    def test_group_actual_failures_survive_outer(self):
+        root = Path(__file__).resolve().parents[2]
+        for go_test, phase, cleanup, pinned in (
+            ("TestMockGroupUnknownCreateIDNeverDeletes", "apply-create", "unknown", False),
+            ("TestMockGroupReconcileAndCleanupFailures/reconcile", "apply-reconcile", "confirmed", True),
+            ("TestMockGroupReconcileAndCleanupFailures/cleanup", "apply-reconcile", "incomplete", True),
+        ):
+            result = subprocess.run(["go", "test", "-count=1", "-v", "-run", "^" + go_test + "$", "./scripts/acceptance"], cwd=root, capture_output=True, text=True, check=False)
+            self.assertEqual(result.returncode, 0, "offline group failure injection failed")
+            result.returncode = 1
+            test = mod.CASES["group"]
+            runner = Mock(side_effect=[subprocess.CompletedProcess([], 0, test + "\n", ""), result])
+            with self.assertRaises(RuntimeError) as caught:
+                mod.run(self.env(), runner)
+            text = str(caught.exception)
+            for value in (phase, "hermesacc-1234567890abcdef", "cleanup=" + cleanup):
+                self.assertIn(value, text)
+            self.assertEqual("state_id_sha256=" in text, pinned)
+            for secret in ("credential-marker", "secret-marker", "mock-token", "key-marker"):
+                self.assertNotIn(secret, text)
+
+    def test_group_actual_success_survives_outer(self):
+        root = Path(__file__).resolve().parents[2]
+        result = subprocess.run(["go", "test", "-count=1", "-v", "-run", "^TestMockDestructiveGroupTrace$", "./scripts/acceptance"], cwd=root, capture_output=True, text=True, check=False)
+        self.assertEqual(result.returncode, 0, "offline group lifecycle failed")
+        test = mod.CASES["group"]
+        runner = Mock(side_effect=[subprocess.CompletedProcess([], 0, test + "\n", ""), result])
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            mod.run(self.env(), runner)
+        for phase in mod.GROUP_PHASES:
+            self.assertIn("phase=" + phase, output.getvalue())
+        self.assertIn("cleanup=confirmed state_id_sha256=", output.getvalue())
+
+    def test_success_invokes_exact_test_and_flag(self):
+        test = mod.CASES["application"]
         runner = Mock(side_effect=[subprocess.CompletedProcess([], 0, test + "\n", ""),
                                    subprocess.CompletedProcess([], 0, "ok", "")])
-        mod.run(self.env(), runner)
+        mod.run(self.env("application"), runner)
         self.assertEqual(runner.call_count, 2)
         argv = runner.call_args.args[0]
         self.assertEqual(argv[-2:], ["-args", "-authing-destructive-sandbox"])

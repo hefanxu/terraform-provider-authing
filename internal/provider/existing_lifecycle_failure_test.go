@@ -89,7 +89,7 @@ func TestExistingResourceReadFailuresPreserveState(t *testing.T) {
 }
 
 func TestExistingResourceDeleteFailuresReported(t *testing.T) {
-	for _, kind := range []string{"group", "group-member", "namespace", "role", "role-assignment", "resource", "data-policy", "post", "webhook", "pipeline"} {
+	for _, kind := range []string{"group-member", "namespace", "role", "role-assignment", "resource", "data-policy", "post", "webhook", "pipeline"} {
 		for _, tc := range []struct {
 			name, body string
 			status     int

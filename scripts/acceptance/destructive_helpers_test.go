@@ -2,6 +2,7 @@ package acceptance
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"flag"
@@ -93,7 +94,11 @@ func terraformExit(root string, env []string, terraform string, want int, args .
 
 func runGroupTrace(root string, credentials map[string]string, code string) (result error) {
 	if !sandboxCode.MatchString(code) {
-		return errors.New("group tracer requires a generated hermesacc code")
+		return errors.New("group tracer requires generated code")
+	}
+	entries, err := os.ReadDir(root)
+	if err != nil || len(entries) != 0 {
+		return fmt.Errorf("group phase=fresh-workspace code=%s (output suppressed)", code)
 	}
 	_, file, _, _ := runtime.Caller(0)
 	repo := filepath.Clean(filepath.Join(filepath.Dir(file), "../.."))
@@ -104,56 +109,36 @@ func runGroupTrace(root string, credentials map[string]string, code string) (res
 	goBinary, err := exec.LookPath("go")
 	if err != nil {
 		goBinary = filepath.Join(repo, "../.tools/go/bin/go")
-		if _, err = os.Stat(goBinary); err != nil {
-			return fmt.Errorf("group phase=go-toolchain code=%s (output suppressed)", code)
-		}
 	}
 	client, err := authingapi.NewClient(authingapi.Options{AccessKeyID: credentials["AUTHING_ACCESS_KEY_ID"], AccessKeySecret: credentials["AUTHING_ACCESS_KEY_SECRET"], Host: credentials["AUTHING_HOST"]})
 	if err != nil {
 		return fmt.Errorf("group phase=client code=%s (output suppressed)", code)
 	}
-	name := "hermesacc-" + strings.TrimPrefix(code, "hermesacc-")
-	marker := "hermesacc ownership " + code
-	// Preflight refuses existing resources, including same-code resources left by earlier runs.
-	current := client.GetGroup(&dto.GetGroupDto{Code: code})
-	if current == nil || current.StatusCode != 404 {
-		return fmt.Errorf("group phase=preflight code=%s (output suppressed)", code)
-	}
-	// Once apply starts it may create remotely yet exit nonzero. Always inspect and
-	// conditionally clean up, including when creation never reached local state.
-	started := false
-	defer func() {
-		if !started {
-			return
-		}
-		if err := cleanupGroup(client, code, name, marker); err != nil {
-			result = fmt.Errorf("group phase=cleanup-incomplete code=%s (output suppressed)", code)
-		}
-	}()
-	providerDir := filepath.Join(root, "provider")
-	exampleDir := filepath.Join(root, "example")
+	providerDir, exampleDir := filepath.Join(root, "provider"), filepath.Join(root, "example")
 	if os.MkdirAll(providerDir, 0700) != nil || os.MkdirAll(exampleDir, 0700) != nil {
 		return fmt.Errorf("group phase=workspace code=%s (output suppressed)", code)
 	}
-	binary := filepath.Join(providerDir, "terraform-provider-authing")
-	build := exec.Command(goBinary, "build", "-o", binary, ".")
+	build := exec.Command(goBinary, "build", "-o", filepath.Join(providerDir, "terraform-provider-authing"), ".")
 	build.Dir = repo
 	if _, err := build.CombinedOutput(); err != nil {
 		return fmt.Errorf("group phase=provider-build code=%s (output suppressed)", code)
 	}
 	config := filepath.Join(root, "terraform.rc")
-	rc := fmt.Sprintf("provider_installation {\n  dev_overrides {\n    %q = %q\n  }\n  direct {}\n}\n", source, providerDir)
-	hcl := fmt.Sprintf(`terraform {
-  required_providers { authing = { source = %q } }
+	rc := fmt.Sprintf("provider_installation {\n dev_overrides {\n %q = %q\n }\n direct {}\n}\n", source, providerDir)
+	makeHCL := func(suffix string) string {
+		return fmt.Sprintf(`terraform {
+ required_providers { authing = { source = %q } }
 }
 provider "authing" {}
 resource "authing_group" "sandbox" {
-  code = %q
-  name = %q
-  description = %q
-  type = "static"
+ code = %q
+ name = %q
+ description = %q
+ type = "static"
 }
-`, source, code, name, marker)
+`, source, code, code+suffix, "hermesacc ownership "+code+suffix)
+	}
+	hcl := makeHCL("")
 	if os.WriteFile(config, []byte(rc), 0600) != nil || os.WriteFile(filepath.Join(exampleDir, "main.tf"), []byte(hcl), 0600) != nil {
 		return fmt.Errorf("group phase=config code=%s (output suppressed)", code)
 	}
@@ -164,35 +149,139 @@ resource "authing_group" "sandbox" {
 	plan := func(want int) func() error {
 		return run(want, "plan", "-lock=false", "-input=false", "-no-color", "-detailed-exitcode")
 	}
-	started = true
-	result = (traceCase{name: "group", code: code, phases: []tracePhase{
-		{"apply-create", run(0, "apply", "-auto-approve", "-lock=false", "-input=false", "-no-color")},
-		{"plan-converged", plan(0)},
-		{"remote-drift", func() error {
-			res := client.UpdateGroup(&dto.UpdateGroupReqDto{Code: code, Name: name + "-drift", Description: marker})
-			if res == nil || res.StatusCode != 200 || res.Data.Code != code || res.Data.Name != name+"-drift" {
-				return errors.New("drift mutation failed")
+	id := ""
+	started := false
+	defer func() {
+		if !started {
+			return
+		}
+		if id == "" {
+			id, _ = groupStateID(root, terraform, env, code)
+		}
+		cleanup := "unknown"
+		if id != "" {
+			cleanup = "incomplete"
+			if cleanupPinnedGroup(client, id, code) == nil {
+				cleanup = "confirmed"
 			}
+		}
+		if result == nil && cleanup != "confirmed" {
+			result = fmt.Errorf("group phase=cleanup-incomplete code=%s (output suppressed)", code)
+		}
+		fingerprint := ""
+		if id != "" {
+			fingerprint = fmt.Sprintf(" state_id_sha256=%x", sha256.Sum256([]byte(id)))
+		}
+		if result != nil {
+			result = fmt.Errorf("%w cleanup=%s%s", result, cleanup, fingerprint)
+		} else {
+			fmt.Printf("group phase=complete code=%s cleanup=confirmed%s\n", code, fingerprint)
+		}
+	}()
+	verify := func(suffix string) error {
+		got := client.GetGroup(&dto.GetGroupDto{Code: id})
+		if got == nil || got.StatusCode != 200 || got.Data.Code != id || id != code || got.Data.Name != code+suffix || got.Data.Description != "hermesacc ownership "+code+suffix || got.Data.Type != "static" {
+			return errors.New("configured fields readback unverified")
+		}
+		return nil
+	}
+	importRoot := filepath.Join(root, "import")
+	importEnv := traceEnvironment(importRoot, config, credentials)
+	phases := []tracePhase{
+		{"preflight-absent", func() error {
 			got := client.GetGroup(&dto.GetGroupDto{Code: code})
-			if got == nil || got.StatusCode != 200 || got.Data.Name != name+"-drift" {
-				return errors.New("drift not visible")
+			if got == nil || got.StatusCode != 404 {
+				return errors.New("absence unproved")
 			}
 			return nil
+		}},
+		{"apply-create", func() error {
+			started = true
+			return run(0, "apply", "-auto-approve", "-lock=false", "-input=false", "-no-color")()
+		}},
+		{"capture-id", func() error { var e error; id, e = groupStateID(root, terraform, env, code); return e }},
+		{"verify-created", func() error { return verify("") }},
+		{"plan-converged", plan(0)},
+		{"configure-all-update", func() error {
+			return os.WriteFile(filepath.Join(exampleDir, "main.tf"), []byte(makeHCL("-updated")), 0600)
+		}},
+		{"plan-all-update", plan(2)},
+		{"apply-all-update", run(0, "apply", "-auto-approve", "-lock=false", "-input=false", "-no-color")},
+		{"verify-all-update", func() error { return verify("-updated") }},
+		{"plan-update-converged", plan(0)},
+		{"configure-original", func() error { return os.WriteFile(filepath.Join(exampleDir, "main.tf"), []byte(hcl), 0600) }},
+		{"apply-original", run(0, "apply", "-auto-approve", "-lock=false", "-input=false", "-no-color")},
+		{"verify-original", func() error { return verify("") }},
+		{"configure-empty-description", func() error {
+			return os.WriteFile(filepath.Join(exampleDir, "main.tf"), []byte(strings.ReplaceAll(hcl, fmt.Sprintf("description = %q", "hermesacc ownership "+code), `description = ""`)), 0600)
+		}},
+		{"apply-empty-description", run(0, "apply", "-auto-approve", "-lock=false", "-input=false", "-no-color")},
+		{"verify-empty-description", func() error {
+			got := client.GetGroup(&dto.GetGroupDto{Code: id})
+			if got == nil || got.StatusCode != 200 || got.Data.Code != id || got.Data.Description != "" || got.Data.Name != code || got.Data.Type != "static" {
+				return errors.New("empty description not confirmed")
+			}
+			return nil
+		}},
+		{"restore-description", func() error {
+			if e := os.WriteFile(filepath.Join(exampleDir, "main.tf"), []byte(hcl), 0600); e != nil {
+				return e
+			}
+			return run(0, "apply", "-auto-approve", "-lock=false", "-input=false", "-no-color")()
+		}},
+		{"plan-code-replacement", func() error { return groupReplacementPlan(root, terraform, env, hcl, "code", code+"-replacement") }},
+		{"plan-type-replacement", func() error { return groupReplacementPlan(root, terraform, env, hcl, "type", "replacement-plan-only") }},
+		{"import-fresh-state", func() error {
+			if os.MkdirAll(filepath.Join(importRoot, "example"), 0700) != nil || os.WriteFile(filepath.Join(importRoot, "example/main.tf"), []byte(hcl), 0600) != nil {
+				return errors.New("fresh import workspace failed")
+			}
+			return terraformExit(importRoot, importEnv, terraform, 0, "import", "-input=false", "-no-color", "authing_group.sandbox", id)
+		}},
+		{"verify-imported-id", func() error {
+			got, e := groupStateID(importRoot, terraform, importEnv, code)
+			if e != nil || got != id {
+				return errors.New("imported identity differs")
+			}
+			return verify("")
+		}},
+		{"plan-import-converged", func() error {
+			return terraformExit(importRoot, importEnv, terraform, 0, "plan", "-lock=false", "-input=false", "-no-color", "-detailed-exitcode")
+		}},
+		{"remote-drift", func() error {
+			if e := verifyPinnedGroup(client, id, code); e != nil {
+				return e
+			}
+			got := client.UpdateGroup(&dto.UpdateGroupReqDto{Code: id, Name: code + "-drift", Description: "hermesacc ownership " + code + "-drift"})
+			if got == nil || got.StatusCode != 200 || got.Data.Code != id {
+				return errors.New("drift mutation rejected")
+			}
+			return verify("-drift")
 		}},
 		{"plan-drift", plan(2)},
 		{"apply-reconcile", run(0, "apply", "-auto-approve", "-lock=false", "-input=false", "-no-color")},
 		{"plan-reconverged", plan(0)},
-		{"verify-owned-before-destroy", func() error { return verifyOwnedGroup(client, code, name, marker) }},
+		{"verify-owned-before-destroy", func() error {
+			if e := verify(""); e != nil {
+				return e
+			}
+			return verifyPinnedGroup(client, id, code)
+		}},
 		{"destroy", run(0, "destroy", "-auto-approve", "-lock=false", "-input=false", "-no-color")},
 		{"verify-absent", func() error {
-			got := client.GetGroup(&dto.GetGroupDto{Code: code})
+			got := client.GetGroup(&dto.GetGroupDto{Code: id})
 			if got == nil || got.StatusCode != 404 {
-				return errors.New("group still present")
+				return errors.New("absence unconfirmed")
 			}
 			return nil
 		}},
-	}}).execute()
-	return result
+	}
+	for _, phase := range phases {
+		if phase.run() != nil {
+			return fmt.Errorf("group phase=%s code=%s (output suppressed)", phase.name, code)
+		}
+		fmt.Printf("group phase=%s code=%s result=passed\n", phase.name, code)
+	}
+	return nil
 }
 
 // Only a known code AND matching ownership marker, type, and expected name may
@@ -213,6 +302,9 @@ func cleanupGroup(client *authingapi.Client, code, name, marker string) error {
 		}
 		if got == nil || got.StatusCode != 200 || got.Data.Code != code || got.Data.Description != marker || got.Data.Type != "static" || (got.Data.Name != name && got.Data.Name != name+"-drift") {
 			return errors.New("ownership not verified")
+		}
+		if err := emptyGroupMembers(client, code); err != nil {
+			return err
 		}
 		deleted := client.DeleteGroupsBatch(&dto.DeleteGroupsReqDto{CodeList: []string{code}})
 		if deleted != nil && deleted.StatusCode != 200 && deleted.StatusCode != 404 {

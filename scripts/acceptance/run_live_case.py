@@ -35,6 +35,8 @@ SAFE_DIAGNOSTIC = re.compile(
     r"\bphase=([a-z][a-z0-9-]{0,50})\s+(?:code|username|name)=(hermesacc-[0-9a-f]{16})(?:\s|$)"
 )
 SAFE_USERNAME = re.compile(r"\busername=(hermesacc-[0-9a-f]{16})(?:\s|$)")
+GROUP_PHASES = ('preflight-absent', 'apply-create', 'capture-id', 'verify-created', 'plan-converged', 'configure-all-update', 'plan-all-update', 'apply-all-update', 'verify-all-update', 'plan-update-converged', 'configure-original', 'apply-original', 'verify-original', 'configure-empty-description', 'apply-empty-description', 'verify-empty-description', 'restore-description', 'plan-code-replacement', 'plan-type-replacement', 'import-fresh-state', 'verify-imported-id', 'plan-import-converged', 'remote-drift', 'plan-drift', 'apply-reconcile', 'plan-reconverged', 'verify-owned-before-destroy', 'destroy', 'verify-absent')
+GROUP_PASSED = re.compile(r"^group phase=([a-z-]+) code=(hermesacc-[0-9a-f]{16}) result=passed$", re.MULTILINE)
 PUBLIC_ACCOUNT_PHASES = (
     "preflight-absent", "apply-create", "capture-id", "verify-created", "plan-converged",
     "configure-all-update", "plan-all-update", "apply-all-update", "verify-all-update",
@@ -92,7 +94,7 @@ def run(env=None, runner=subprocess.run):
     if listed.returncode or test not in listed.stdout.splitlines():
         raise RuntimeError("selected live test is missing")
     result = runner(["go", "test", "-count=1", "-run", "^" + test + "$", "./scripts/acceptance"] +
-                    (["-v"] if case in ("ext_idp", "public_account") else []) + [
+                    (["-v"] if case in ("group", "ext_idp", "public_account") else []) + [
                      "-args", "-authing-destructive-sandbox"],
                     cwd=repo, env=env, capture_output=True, text=True, check=False)
     if result.returncode:
@@ -126,12 +128,25 @@ def run(env=None, runner=subprocess.run):
                 diagnostic = SAFE_TENANT_STAGE.search(controlled)
                 if diagnostic:
                     outcome += "; " + diagnostic.group(0)
-            if case in ("tenant", "public_account"):
+            if case in ("group", "tenant", "public_account"):
                 pinned = re.search(r"\bstate_id_sha256=([0-9a-f]{64})(?=\s|$)", controlled)
                 if pinned:
                     outcome += "; state_id_sha256=" + pinned.group(1)
             raise RuntimeError(f"sandbox case {case} failed at {phase}; inspect only owned {identifier}{outcome}")
         raise RuntimeError(f"sandbox case {case} failed (output suppressed)")
+    if case == "group":
+        evidence = GROUP_PASSED.findall(result.stdout)
+        codes = {code for _, code in evidence}
+        if tuple(phase for phase, _ in evidence) != GROUP_PHASES or len(codes) != 1:
+            raise RuntimeError("group stage evidence missing or inconsistent (output suppressed)")
+        code = codes.pop()
+        complete = re.search(r"^group phase=complete code=" + re.escape(code) +
+                             r" cleanup=confirmed state_id_sha256=([0-9a-f]{64})$", result.stdout, re.MULTILINE)
+        if not complete:
+            raise RuntimeError("group cleanup evidence missing (output suppressed)")
+        for phase in GROUP_PHASES:
+            print(f"group phase={phase} code={code} result=passed")
+        print(f"group code={code} cleanup=confirmed state_id_sha256={complete.group(1)}")
     if case == "public_account":
         evidence = PUBLIC_ACCOUNT_PASSED.findall(result.stdout)
         codes = {code for _, code in evidence}
