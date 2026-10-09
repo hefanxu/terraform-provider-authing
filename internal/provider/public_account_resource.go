@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -142,6 +143,10 @@ func (r *PublicAccountResource) Create(ctx context.Context, req resource.CreateR
 	if resp.Diagnostics.HasError() {
 		return
 	}
+	if err := publicValidateFields(m); err != nil {
+		resp.Diagnostics.AddError("Invalid public account configuration", err.Error())
+		return
+	}
 	if m.Username.ValueString() == "" && m.Email.ValueString() == "" {
 		resp.Diagnostics.AddError("Invalid public account", "username or email must be set")
 		return
@@ -156,8 +161,34 @@ func (r *PublicAccountResource) Create(ctx context.Context, req resource.CreateR
 		resp.Diagnostics.AddError("Verify public account creation failed", fmt.Sprintf("Authing created public account %q but readback failed (%s). Import that ID before retrying to avoid creating a duplicate.", id, publicVerifyError(err)))
 		return
 	}
+	if err := publicVerifyConfigured(m, v); err != nil {
+		resp.Diagnostics.AddError("Verify public account creation failed", fmt.Sprintf("Authing created public account %q but %s. Import that ID before retrying.", id, err))
+		return
+	}
 	publicApply(&m, v)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &m)...)
+}
+func publicValidateFields(m PublicAccountModel) error {
+	for name, v := range map[string]types.String{"username": m.Username, "name": m.Name, "nickname": m.Nickname, "email": m.Email} {
+		if !v.IsNull() && !v.IsUnknown() && v.ValueString() == "" {
+			return fmt.Errorf("%s must be nonempty when configured; omit it to use the computed remote value", name)
+		}
+	}
+	return nil
+}
+func publicVerifyConfigured(m PublicAccountModel, v publicRemote) error {
+	for _, field := range []struct {
+		name    string
+		planned types.String
+		remote  string
+	}{
+		{"username", m.Username, v.Username}, {"name", m.Name, v.Name}, {"nickname", m.Nickname, v.Nickname}, {"email", m.Email, v.Email},
+	} {
+		if !field.planned.IsNull() && !field.planned.IsUnknown() && !field.planned.Equal(publicString(field.remote)) {
+			return fmt.Errorf("configured %s was not confirmed by exact-ID GET", field.name)
+		}
+	}
+	return nil
 }
 func publicVerifyError(err error) string {
 	if err != nil {
@@ -189,6 +220,10 @@ func (r *PublicAccountResource) Update(ctx context.Context, req resource.UpdateR
 	if resp.Diagnostics.HasError() {
 		return
 	}
+	if err := publicValidateFields(m); err != nil {
+		resp.Diagnostics.AddError("Invalid public account configuration", err.Error())
+		return
+	}
 	id := m.ID.ValueString()
 	if id == "" {
 		resp.Diagnostics.AddError("Invalid public account", "Missing user ID")
@@ -208,6 +243,10 @@ func (r *PublicAccountResource) Update(ctx context.Context, req resource.UpdateR
 	v, found, err := publicGet(ctx, r.client, id)
 	if err != nil || !found {
 		resp.Diagnostics.AddError("Verify public account update failed", publicVerifyError(err))
+		return
+	}
+	if err := publicVerifyConfigured(m, v); err != nil {
+		resp.Diagnostics.AddError("Verify public account update failed", err.Error())
 		return
 	}
 	publicApply(&m, v)
@@ -248,5 +287,9 @@ func (r *PublicAccountResource) Delete(ctx context.Context, req resource.DeleteR
 	}
 }
 func (r *PublicAccountResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	if req.ID == "" || strings.ContainsAny(req.ID, " 	\r\n:/") {
+		resp.Diagnostics.AddError("Invalid public account import ID", "Use one canonical userId, without whitespace, scope prefixes or path separators.")
+		return
+	}
 	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
 }

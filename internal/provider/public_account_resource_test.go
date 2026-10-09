@@ -143,6 +143,7 @@ func TestPublicAccountReadErrorsKeepState(t *testing.T) {
 		missing        bool
 	}{
 		{"missing", `{"statusCode":404}`, true}, {"server error", `{"statusCode":500}`, false}, {"empty", `{"statusCode":200,"data":null}`, false}, {"wrong identity", `{"statusCode":200,"data":{"userId":"other"}}`, false},
+		{"forbidden", `{"statusCode":403,"apiCode":4031}`, false}, {"invalid operation", `{"statusCode":422}`, false}, {"malformed", `{`, false}, {"missing status", `{"data":{"userId":"public-1"}}`, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			c := objectTestClient(t, func(w http.ResponseWriter, r *http.Request) { fmt.Fprint(w, tc.response) })

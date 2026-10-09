@@ -99,6 +99,61 @@ class SandboxDispatchTests(unittest.TestCase):
         self.assertIn("reason=update-rejected", str(caught.exception))
         self.assertNotIn("secret-marker", str(caught.exception))
 
+    def test_public_account_requires_full_stage_evidence(self):
+        test = mod.CASES["public_account"]
+        runner = Mock(side_effect=[subprocess.CompletedProcess([], 0, test + "\n", ""),
+                                  subprocess.CompletedProcess([], 0, "ok", "")])
+        with self.assertRaisesRegex(RuntimeError, "stage evidence"):
+            mod.run(self.env("public_account"), runner)
+
+    def test_public_account_rejects_incomplete_duplicate_and_foreign_evidence(self):
+        code = "hermesacc-1234567890abcdef"
+        lines = [f"public-account phase={phase} code={code} result=passed" for phase in mod.PUBLIC_ACCOUNT_PHASES]
+        complete = f"public-account phase=complete code={code} cleanup=confirmed state_id_sha256=" + "a" * 64
+        invalid = []
+        for index in range(len(lines)):
+            invalid.append(lines[:index] + lines[index + 1:] + [complete])
+        invalid += [lines + [lines[0], complete], [line.replace(code, "hermesacc-fedcba0987654321") if index == 2 else line for index, line in enumerate(lines)] + [complete], lines, lines + [complete.replace("confirmed", "unknown")]]
+        test = mod.CASES["public_account"]
+        for output in invalid:
+            runner = Mock(side_effect=[subprocess.CompletedProcess([], 0, test + "\n", ""), subprocess.CompletedProcess([], 0, "\n".join(output), "")])
+            with self.assertRaises(RuntimeError):
+                mod.run(self.env("public_account"), runner)
+
+    def test_public_account_actual_failures_survive_outer(self):
+        root = Path(__file__).resolve().parents[2]
+        for go_test, phase, cleanup, pinned in (
+            ("TestMockPublicAccountUnknownCreateIDIsNeverDeleted", "apply-create", "unknown", False),
+            ("TestMockPublicAccountReconcileAndCleanupFailures/reconcile", "apply-reconcile", "confirmed", True),
+            ("TestMockPublicAccountReconcileAndCleanupFailures/cleanup", "apply-reconcile", "incomplete", True),
+        ):
+            result = subprocess.run(["go", "test", "-count=1", "-v", "-run", "^" + go_test + "$", "./scripts/acceptance"], cwd=root, capture_output=True, text=True, check=False)
+            self.assertEqual(result.returncode, 0, "offline public-account failure injection failed")
+            result.returncode = 1
+            test = mod.CASES["public_account"]
+            runner = Mock(side_effect=[subprocess.CompletedProcess([], 0, test + "\n", ""), result])
+            with self.assertRaises(RuntimeError) as caught:
+                mod.run(self.env("public_account"), runner)
+            text = str(caught.exception)
+            for value in (phase, "hermesacc-1234567890abcdef", "cleanup=" + cleanup):
+                self.assertIn(value, text)
+            self.assertEqual("state_id_sha256=" in text, pinned)
+            for secret in ("mock-public-id", "credential-marker", "secret-marker", "mock-token", "key-marker"):
+                self.assertNotIn(secret, text)
+
+    def test_public_account_actual_success_survives_outer(self):
+        root = Path(__file__).resolve().parents[2]
+        result = subprocess.run(["go", "test", "-count=1", "-v", "-run", "^TestMockPublicAccountTerraformLifecycle$", "./scripts/acceptance"], cwd=root, capture_output=True, text=True, check=False)
+        self.assertEqual(result.returncode, 0, "offline public-account lifecycle failed")
+        test = mod.CASES["public_account"]
+        runner = Mock(side_effect=[subprocess.CompletedProcess([], 0, test + "\n", ""), result])
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            mod.run(self.env("public_account"), runner)
+        self.assertIn("phase=verify-all-update", output.getvalue())
+        self.assertIn("phase=plan-import-converged", output.getvalue())
+        self.assertIn("cleanup=confirmed state_id_sha256=", output.getvalue())
+
     def test_ext_idp_requires_full_stage_evidence_on_success(self):
         test = mod.CASES["ext_idp"]
         runner = Mock(side_effect=[subprocess.CompletedProcess([], 0, test + "\n", ""),
