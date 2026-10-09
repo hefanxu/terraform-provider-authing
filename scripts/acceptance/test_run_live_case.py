@@ -69,6 +69,16 @@ class SandboxDispatchTests(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 mod.run(self.env(), runner)
 
+    def test_group_readback_failure_diagnostics_survive_outer(self):
+        test = mod.CASES["group"]
+        output = "group phase=apply-empty-description code=hermesacc-1234567890abcdef cleanup=confirmed group_readback=identity description_readback=null business=200 api_code=0 secret-marker"
+        runner = Mock(side_effect=[subprocess.CompletedProcess([], 0, test + "\n", ""), subprocess.CompletedProcess([], 1, output, "")])
+        with self.assertRaises(RuntimeError) as caught:
+            mod.run(self.env(), runner)
+        for value in ("group_readback=identity", "description_readback=null", "business=200", "api_code=0"):
+            self.assertIn(value, str(caught.exception))
+        self.assertNotIn("secret-marker", str(caught.exception))
+
     def test_group_actual_failures_survive_outer(self):
         root = Path(__file__).resolve().parents[2]
         for go_test, phase, cleanup, pinned in (

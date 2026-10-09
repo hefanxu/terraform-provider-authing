@@ -124,6 +124,10 @@ def run(env=None, runner=subprocess.run):
                     outcome += f"; field={field[-1]}"
             if phase == "remote-drift" and reason:
                 outcome += f"; reason={reason[-1]}"
+            if case == "group":
+                diagnostic = re.search(r"\bgroup_readback=(?:identity|foreign|absent|http-error|business-error|invalid) description_readback=(?:empty|string|null|missing|unknown) business=[0-9]{1,3} api_code=[0-9]{1,10}(?=\s|$)", controlled)
+                if diagnostic:
+                    outcome += "; " + diagnostic.group(0)
             if case == "tenant":
                 diagnostic = SAFE_TENANT_STAGE.search(controlled)
                 if diagnostic:

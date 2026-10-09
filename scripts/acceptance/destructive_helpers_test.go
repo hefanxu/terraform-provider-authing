@@ -277,7 +277,7 @@ resource "authing_group" "sandbox" {
 	}
 	for _, phase := range phases {
 		if phase.run() != nil {
-			return fmt.Errorf("group phase=%s code=%s (output suppressed)", phase.name, code)
+			return fmt.Errorf("group phase=%s code=%s (output suppressed) %s", phase.name, code, groupReadbackDiagnostic(client, id))
 		}
 		fmt.Printf("group phase=%s code=%s result=passed\n", phase.name, code)
 	}

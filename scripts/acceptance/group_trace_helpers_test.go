@@ -118,6 +118,49 @@ func cleanupPinnedGroup(client *authingapi.Client, id, code string) error {
 	return nil
 }
 
+// Closed read-only diagnostics: never forward an API value or response body.
+func groupReadbackDiagnostic(client *authingapi.Client, id string) string {
+	category, shape, business, apiCode := "invalid", "unknown", 0, 0
+	raw, err := client.SendHttpRequestContext(context.Background(), "/api/v3/get-group", "GET", map[string]string{"code": id})
+	var out struct {
+		StatusCode int                        `json:"statusCode"`
+		ApiCode    int                        `json:"apiCode"`
+		Data       map[string]json.RawMessage `json:"data"`
+	}
+	if err != nil {
+		category = "http-error"
+	} else if json.Unmarshal(raw, &out) == nil {
+		business, apiCode = out.StatusCode, out.ApiCode
+		if business == 404 {
+			category = "absent"
+		} else if business != 200 {
+			category = "business-error"
+		} else {
+			var code string
+			if json.Unmarshal(out.Data["code"], &code) == nil && code == id && id != "" {
+				category = "identity"
+			} else {
+				category = "foreign"
+			}
+			value, ok := out.Data["description"]
+			if !ok {
+				shape = "missing"
+			} else if string(value) == "null" {
+				shape = "null"
+			} else {
+				var description string
+				if json.Unmarshal(value, &description) == nil {
+					shape = "string"
+					if description == "" {
+						shape = "empty"
+					}
+				}
+			}
+		}
+	}
+	return fmt.Sprintf("group_readback=%s description_readback=%s business=%d api_code=%d", category, shape, business, apiCode)
+}
+
 // Inspect replacement actions but never apply a replacement in the sandbox.
 func groupReplacementPlan(root, terraform string, env []string, hcl, field, value string) error {
 	file := filepath.Join(root, "example/main.tf")
