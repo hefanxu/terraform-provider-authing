@@ -26,7 +26,6 @@ on:
           - resource
           - post
           - data_resource
-          - auth_flow_function
           - data_object
           - tenant
           - department

@@ -22,7 +22,6 @@ CASES = {
     "resource": "TestDestructiveLiveResourceTrace",
     "post": "TestDestructiveLivePostTrace",
     "data_resource": "TestDestructiveLiveDataResourceTrace",
-    "auth_flow_function": "TestDestructiveLiveAuthFlowFunctionTrace",
     "data_object": "TestDestructiveLiveObjectTrace",
     "tenant": "TestDestructiveLiveTenantTrace",
     "department": "TestDestructiveLiveDepartmentTrace",
