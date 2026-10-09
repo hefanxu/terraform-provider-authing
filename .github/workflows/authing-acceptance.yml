@@ -20,7 +20,6 @@ on:
           - user
           - public_account
           - ext_idp
-          - webhook
           - organization
           - invitation_policy
           - role

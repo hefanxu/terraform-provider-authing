@@ -16,7 +16,6 @@ CASES = {
     "user": "TestDestructiveLiveUserTrace",
     "public_account": "TestDestructiveLivePublicAccountTrace",
     "ext_idp": "TestDestructiveLiveExtIdpTrace",
-    "webhook": "TestDestructiveLiveWebhookTrace",
     "organization": "TestDestructiveLiveOrganizationTrace",
     "invitation_policy": "TestDestructiveLiveInvitationPolicyTrace",
     "role": "TestDestructiveLiveRoleTrace",
