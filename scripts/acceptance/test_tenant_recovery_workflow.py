@@ -16,7 +16,7 @@ class TenantRecoveryWorkflowTests(unittest.TestCase):
         self.assertIn('          - tenant\n', workflow.split('      read_only_audit:', 1)[1])
         job = workflow.split('\n  tenant-recovery:\n', 1)[1].split('\n  destructive-case:', 1)[0]
         for gate in ("inputs.confirm == 'READ_ONLY_SANDBOX'", "inputs.read_only_audit == 'tenant'",
-                     "inputs.test_case == 'group'", "inputs.test_object_code == 'hermesacc-97f07719b2e15f0c'",
+                     "inputs.test_case == 'ext_idp'", "inputs.test_object_code == 'hermesacc-97f07719b2e15f0c'",
                      "inputs.audit_start == ''", "inputs.audit_end == ''", 'refs/heads/feat/management-api-coverage'):
             self.assertIn(gate, job)
         for required in ('environment: authing-sandbox', 'AUTHING_TENANT_RECOVERY_NAME:',

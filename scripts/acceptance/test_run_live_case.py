@@ -10,7 +10,21 @@ import run_live_case as mod
 
 
 class SandboxDispatchTests(unittest.TestCase):
+    def setUp(self):
+        # Group's tracer stays offline-tested even when its live selector is paused.
+        self.offline_group = patch.dict(mod.CASES, {"group": "TestDestructiveLiveGroupTrace"})
+        self.offline_group.start()
+        self.addCleanup(self.offline_group.stop)
+
+    def test_suspended_group_rejected_before_process(self):
+        self.offline_group.stop()
+        runner = Mock()
+        with self.assertRaises(ValueError):
+            mod.run(self.env("group"), runner)
+        runner.assert_not_called()
+
     def test_workflow_choices_map_to_existing_live_tests(self):
+        self.offline_group.stop()
         root = Path(__file__).resolve().parents[2]
         workflow = (root / ".github/workflows/authing-acceptance.yml").read_text()
         options = workflow.split("        options:\n", 1)[1].split("\n      test_object_code:", 1)[0]

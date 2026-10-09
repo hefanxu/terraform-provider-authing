@@ -186,7 +186,7 @@ func TestGroupCreateRequiredContract(t *testing.T) {
 			if out.Diagnostics.HasError() {
 				t.Fatal(out.Diagnostics)
 			}
-			if string(body["type"]) != `"static"` || string(body["description"]) != fmt.Sprintf("%q", tc.want) {
+			if len(body) != 4 || string(body["type"]) != `"static"` || string(body["description"]) != fmt.Sprintf("%q", tc.want) {
 				t.Fatalf("invalid create body: %v", body)
 			}
 		})
@@ -237,7 +237,7 @@ func TestGroupUpdateSendsRequiredDescription(t *testing.T) {
 	if out.Diagnostics.HasError() {
 		t.Fatal(out.Diagnostics)
 	}
-	if string(body["code"]) != `"engineering"` || string(body["description"]) != `""` {
+	if len(body) != 3 || string(body["code"]) != `"engineering"` || string(body["description"]) != `""` {
 		t.Fatalf("invalid update: %v", body)
 	}
 	if !strings.Contains(fmt.Sprint(body), "description") {

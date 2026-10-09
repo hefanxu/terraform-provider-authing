@@ -5,6 +5,7 @@
 | Resource | Live verdict | GitHub Actions run | Tested commit | Verified path |
 |---|---|---|---|---|
 | `authing_group` | **Historical partial pass: name drift only** | [37723568672](https://github.com/hefanxu/terraform-provider-authing/actions/runs/37723568672) | `c4fdaff9eadf2dafa5cc2991bf1cb043162b5c2f` | Sandbox create → no-change plan → direct `UpdateGroup` name drift → changed plan → apply reconciliation → no-change plan → destroy → exact-code GET returned explicit 404. |
+| `authing_group` (expanded supported-field lifecycle) | **Incomplete: empty-description compatibility blocker; both new objects confirmed absent** | [first expanded run 37909947059](https://github.com/hefanxu/terraform-provider-authing/actions/runs/37909947059); [closed readback diagnosis 37911241494](https://github.com/hefanxu/terraform-provider-authing/actions/runs/37911241494) | first `aa8cfc36693f75964d41f1838b68c0472dce8c83`; diagnosis `9cdcb40f753e5aaea7f70014c1d950c249d6ece9` | Both manually dispatched group-only traces reached `apply-empty-description` after create, state ID pinning, explicit HCL name+description update with exact GET/plan 0 and original-field restoration. Empty-string apply failed. The second run’s closed, exact-code GET diagnosis returned `group_readback=identity description_readback=string business=200 api_code=0`: description remained nonempty, not cleared. The mocked wire test asserts the update JSON has exactly `code`, `name`, `description` including the explicit empty string, and the HTTP client directly JSON-marshals that map. This proves nonconvergence, **not** whether the server rejected/ignored the write or another write-response compatibility condition failed; raw API/CLI output was not exposed. First generated code `hermesacc-69fb9c423513635b`, creating-state SHA-256 `154156ffa12ca4cdc4ee92405637c86df8a3e42c3b30e73b1fe328cfb23027be`; second code `hermesacc-c834fa2818addda0`, SHA-256 `f601b67483075a6a7d9680cc5312f975dca12f8034217ee9a1b01684b74e4f26`. Both emitted `cleanup=confirmed` through the outer sanitizer, which requires state-pinned exact identity, expected fields, explicit empty membership and exact-code GET 404. No new-object orphan is unresolved. Fresh import, full-field drift/repair, normal destroy and replacement plans are **offline-only** in this expanded tracer because the live sequence stopped before them. The group destructive choice and executable allowlist are paused; group-member remains paused independently, and no prior candidate was touched. |
 | `authing_user` | Passed | [37726266236](https://github.com/hefanxu/terraform-provider-authing/actions/runs/37726266236) | `99a874889bdc17c96ddb75ad61e2b3b4a63e2026` | Password-free sandbox user create → no-change plan → direct nickname drift → changed plan → apply reconciliation → no-change plan → destroy → exact-ID GET returned explicit 404. |
 | `authing_public_account` | **Passed for the complete supported basic schema** | [37905522617](https://github.com/hefanxu/terraform-provider-authing/actions/runs/37905522617) | `dd490946a35754c3ce687aca7e51da244b8466d8` | All ordered stages passed: exact generated username absence → create with username/name/nickname/email → state-pinned ID and exact GET → plan 0 → explicit HCL update of all four fields, plan 2/apply/exact GET/plan 0 → restore original fields → import into fresh state, exact ID and plan 0 → out-of-band drift of all four fields and GET → plan 2 → Terraform repair and plan 0 → guarded destroy → exact-ID GET 404 → cleanup confirmed. No credentials or live account PII logged; only generated identity and creating-state SHA-256. The schema excludes empty-string clearing, additional profile fields and tenant scope; this pass does not certify those. |
 | `authing_ext_idp` | **Default-scope OIDC lifecycle, configured update and import passed** | [37878214556](https://github.com/hefanxu/terraform-provider-authing/actions/runs/37878214556); [implementation CI 37877688807](https://github.com/hefanxu/terraform-provider-authing/actions/runs/37877688807) | `6929e13d5335d4fd2f08492c88393bf5d95e88ae` | The controlled wrapper validated all 21 expected phases for one generated identity: create → exact state ID/GET → plan 0 → explicit HCL name update, plan 2, apply and exact GET → plan 0 → restore name → import into fresh state, exact ID/GET and plan 0 → out-of-band name drift and GET → plan 2 → Terraform reconciliation and plan 0 → verified empty connections → destroy → exact-ID GET 404 → cleanup confirmed. No connection credentials or authentication triggers were used. Tenant-scoped live lifecycle, other types and replacement apply remain unverified; composite import and immutable-field replacement plans are offline-tested only. |
@@ -23,3 +24,39 @@
 Tenant diagnosis [37879630451](https://github.com/hefanxu/terraform-provider-authing/actions/runs/37879630451) completed the live read-only step; all nine other jobs were skipped. Before dispatch, the sandbox Environment readback showed zero required reviewers (owner-authorized), custom branch protection, and exactly one branch policy for `feat/management-api-coverage`. Its green job means the diagnosis executed, **not** tenant acceptance passed. `http_error=0` denotes unavailable underlying HTTP error status, not a claim of HTTP 200; business status 200 is explicit. The live [Management OpenAPI](https://api.authing.cn/openapi-json) was rechecked for the exact GET, unfiltered list and scoped member/admin/organization list contracts. No schema relaxation, 403-to-absence conversion, default-organization deletion exception or provider CRUD workaround is justified by this result. The source fix preserves first-phase closed diagnostics and creating-state ID fingerprints for future incidents through the outer allowlist; a real Terraform CLI mock reproduces the nonempty-organization failure and proves no update/delete is issued. It does not recover the old creating-state evidence or authorize the diagnostic candidate.
 
 The successful lifecycle runs completed their selected live trace steps while read-only jobs were skipped. Each tracer uses a generated `hermesacc-` identity and verifies ownership before cleanup; raw API/CLI output is suppressed. The passing cases do not prove all attributes or replacement paths. Earlier failed application codes were confirmed absent by read-only probes; the strategy case confirmed normal Terraform destroy and exact-ID absence. Other mutable application fields, particularly app-name update, remain unverified.
+
+## Group completion blocker and delivery scope
+
+The expanded group schema is unchanged in scope: `code` and `type` still force
+replacement, while `name` and `description` remain mutable. No attribute was
+removed and empty-string input was not silently forbidden to manufacture a pass.
+The offline real-Terraform tracer completes every supported-field update, explicit
+empty clearing, both immutable-field replacement plans (`delete,create` without
+applying), fresh import/plan 0, all mutable-field drift/GET/plan 2/repair/plan 0 and
+guarded normal destroy/GET 404. Negative tests cover mismatched/missing identity,
+missing readable fields, malformed/403/422/5xx reads, failed post-write readback,
+failed create without state-pin (no guessed deletion), first-phase preservation
+on reconcile/cleanup failures, and fail-closed empty member inventories. The outer
+runner requires one generated identity, the complete ordered phase list and
+explicit confirmed cleanup before printing a pass; it checks test existence first.
+
+The two live blank-description failures are a compatibility/acceptance blocker,
+not a billing/permission verdict and not a complete resource pass. No third
+creating run is scheduled. Before each dispatch the Environment GET showed zero
+reviewers (owner-authorized), custom branch policy and exactly one permitted
+branch, `feat/management-api-coverage`; secret **names only** were checked. Both
+runs selected `test_case=group`, `confirm=DESTRUCTIVE_SANDBOX`, tested their expected
+SHAs and completed the live step with failure; all nine other jobs were skipped.
+Neither failure promotes offline import, replacement or drift checks to live.
+The reviewed official Management contract SHA-256 was
+`357a3e7ca22784228a1acf1a7fdc4539435b028326328a9a7ce6ede04a4aa41f`;
+Tenant Management OpenAPI had no group operation. The contract exposes a GET
+`withCustomData` flag but no matching DTO field/clearing semantics, and no group
+type enum/default. These limits remain explicit in the field acceptance table.
+
+While the group destructive selector is paused, the separately confirmed
+read-only group-member/invitation-policy/webhook/tenant probes use `test_case=ext_idp`
+as their neutral routing input; they retain exact `READ_ONLY_SANDBOX`, incident
+scope and audit gates and perform no external-IdP mutation. Historical run inputs
+above remain their original `test_case=group` values. Pausing a selector does not
+authorize deletion of the previous group-member candidate.

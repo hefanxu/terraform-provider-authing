@@ -30,7 +30,7 @@ resource "authing_group" "devs" {
 
 ### Optional
 
-- `description` (String) Description of the group. Optional + computed. Omitted/null on create is sent as an empty string. After refresh/import, omitted/null adopts the remote value; omission is not a clearing operation. Configure `description = ""` to clear it explicitly.
+- `description` (String) Description of the group. Optional + computed. Omitted/null on create is sent as an empty string. After refresh/import, omitted/null adopts the remote value; omission is not a clearing operation. Configure `description = ""` to request clearing; this currently fails to converge in the live sandbox (see blocker below).
 
 ### Read-Only
 
@@ -59,9 +59,14 @@ expose a tenant selector. The API has no documented group-type enum or default.
 | `name` | Required, mutable; create/update/GET | Explicit HCL update + exact GET + plan 0; direct remote drift + GET + plan 2 + repair + plan 0 |
 | `description` | Optional + computed, mutable; API requires it in create/update | Explicit HCL update, explicit empty-string clearing + exact GET, remote drift and repair; omitted create offline-tested |
 
-The expanded lifecycle is offline verified; its live result is recorded in
-[the evidence ledger](../acceptance-evidence.md). The earlier name-only live run
-is not proof of complete supported-field acceptance.
+The expanded lifecycle is offline verified. Two live runs stopped at explicit
+empty-description apply; exact GET still returned a nonempty string in the
+diagnostic run. Both generated objects were state-pinned and confirmed absent
+after guarded cleanup. This is a completion blocker: fresh import, full-field
+drift/repair, normal destroy and replacement plans remain offline-only in this
+expanded tracer. The destructive selector is paused rather than removing the
+unsupported live dimension. See [the evidence ledger](../acceptance-evidence.md).
+The earlier name-only run is not complete supported-field acceptance.
 
 The API also exposes `customData` on create/update and `withCustomData` on GET,
 but the published group GET DTO does not describe a corresponding custom-data

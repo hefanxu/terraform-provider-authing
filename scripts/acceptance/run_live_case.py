@@ -9,7 +9,7 @@ from pathlib import Path
 
 # Add an entry only after an offline Terraform CLI + httptest lifecycle passes.
 CASES = {
-    "group": "TestDestructiveLiveGroupTrace",
+    # group paused: explicit empty-description apply does not converge in sandbox.
     "application": "TestDestructiveLiveApplicationTrace",
     "application_strategy": "TestDestructiveLiveApplicationStrategyTrace",
     "namespace": "TestDestructiveLiveNamespaceTrace",
