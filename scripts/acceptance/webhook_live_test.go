@@ -120,6 +120,11 @@ func TestMockWebhookFailedReconcileCleansUp(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected reconciliation failure")
 	}
+	for _, want := range []string{"phase=apply-reconcile", "code=" + webhookTestName, "cleanup=confirmed"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("missing controlled diagnostic %s: %v", want, err)
+		}
+	}
 	for _, secret := range []string{"key-marker", "secret-marker", "failure-marker", "mock-token"} {
 		if strings.Contains(err.Error(), secret) {
 			t.Fatal("leaked credential or API response")
@@ -129,6 +134,63 @@ func TestMockWebhookFailedReconcileCleansUp(t *testing.T) {
 	defer m.Unlock()
 	if m.id != "" || m.deletes != 1 {
 		t.Fatal("failed to clean owned webhook")
+	}
+}
+
+func TestMockWebhookFailedReconcileAndCleanupRetainsFirstPhase(t *testing.T) {
+	m := &mockWebhook{failReconcile: true}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/v3/list-webhooks" {
+			m.Lock()
+			created := m.id != ""
+			m.Unlock()
+			if created {
+				w.WriteHeader(500)
+				fmt.Fprint(w, `{"message":"secret-marker"}`)
+				return
+			}
+		}
+		m.serve(w, r)
+	}))
+	defer server.Close()
+	err := runWebhookTrace(t.TempDir(), map[string]string{"AUTHING_ACCESS_KEY_ID": "key", "AUTHING_ACCESS_KEY_SECRET": "secret", "AUTHING_HOST": server.URL}, webhookTestName)
+	if err == nil {
+		t.Fatal("expected failure")
+	}
+	for _, s := range []string{"phase=apply-reconcile", "code=" + webhookTestName, "cleanup=incomplete"} {
+		if !strings.Contains(err.Error(), s) {
+			t.Errorf("missing %s: %v", s, err)
+		}
+	}
+	if strings.Contains(err.Error(), "secret-marker") {
+		t.Fatal("leaked API body")
+	}
+	m.Lock()
+	defer m.Unlock()
+	if m.deletes != 0 {
+		t.Fatal("cleanup must fail closed on list failure")
+	}
+}
+
+func TestMockWebhookMalformedPreflightNeverWrites(t *testing.T) {
+	requests := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/v3/get-management-token" {
+			fmt.Fprint(w, `{"statusCode":200,"data":{"access_token":"mock-token","expires_in":3600}}`)
+			return
+		}
+		requests++
+		if r.Method != http.MethodGet || r.URL.Path != "/api/v3/list-webhooks" {
+			t.Errorf("unexpected write/request: %s %s", r.Method, r.URL.Path)
+			w.WriteHeader(405)
+			return
+		}
+		fmt.Fprint(w, `{"statusCode":200,"data":{"totalCount":0,"list":null}}`)
+	}))
+	defer server.Close()
+	err := runWebhookTrace(t.TempDir(), map[string]string{"AUTHING_ACCESS_KEY_ID": "key", "AUTHING_ACCESS_KEY_SECRET": "secret", "AUTHING_HOST": server.URL}, webhookTestName)
+	if err == nil || !strings.Contains(err.Error(), "phase=preflight code="+webhookTestName) || requests != 1 {
+		t.Errorf("preflight did not fail closed: requests=%d err=%v", requests, err)
 	}
 }
 

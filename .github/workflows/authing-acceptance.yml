@@ -183,6 +183,30 @@ jobs:
           AUTHING_HOST: ${{ vars.AUTHING_HOST }}
         run: go test -count=1 -v -run '^TestReadOnlyPostRecovery$' ./scripts/acceptance -args -authing-post-recovery-sandbox
 
+  webhook-shape-probe:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feat/management-api-coverage' && inputs.confirm == 'READ_ONLY_SANDBOX' && inputs.test_case == 'webhook' && inputs.test_object_code == 'hermesacc-630f7fb8a43f0400' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: authing-sandbox
+    steps:
+      - name: Checkout
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Verify GET-only shape probe and guards offline
+        run: go test -count=1 -run '^(TestWebhookProbeGuard|TestWebhookListShapeProbe)$' ./scripts/acceptance
+      - name: Inspect exact incident name in complete webhook inventory without writes
+        env:
+          AUTHING_TEST_OBJECT_CODE: ${{ inputs.test_object_code }}
+          AUTHING_ACCEPTANCE_CONFIRM: ${{ inputs.confirm }}
+          AUTHING_ACCESS_KEY_ID: ${{ secrets.AUTHING_ACCESS_KEY_ID }}
+          AUTHING_ACCESS_KEY_SECRET: ${{ secrets.AUTHING_ACCESS_KEY_SECRET }}
+          AUTHING_HOST: ${{ vars.AUTHING_HOST }}
+        run: go test -count=1 -v -run '^TestReadOnlyWebhookListShape$' ./scripts/acceptance -args -authing-webhook-shape-sandbox
+
   namespace-recovery:
     if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feat/management-api-coverage' && inputs.confirm == 'READ_ONLY_SANDBOX' && inputs.test_case == 'namespace' && inputs.test_object_code == 'hermesacc-a69a5cb1b971aa8e' }}
     runs-on: ubuntu-latest

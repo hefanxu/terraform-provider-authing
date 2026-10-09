@@ -192,22 +192,23 @@ resource "authing_webhook" "sandbox" {
 	// Once apply begins it may create remotely even without local state. Resolve
 	// only a unique exact generated name, then authorize deletion with exact GET.
 	defer func() {
+		// Keep the first failure untouched; cleanup is an independent result.
+		cleanup := "confirmed"
 		discovered, e := findWebhook(client, name)
 		if e != nil || (discovered != "" && id != "" && discovered != id) {
-			result = fmt.Errorf("webhook phase=cleanup-incomplete code=%s (output suppressed)", name)
-			return
-		}
-		if discovered != "" {
-			id = discovered
-		}
-		if id == "" {
-			if result != nil {
-				result = fmt.Errorf("webhook phase=cleanup-incomplete code=%s (no verified ID; output suppressed)", name)
+			cleanup = "incomplete"
+		} else {
+			if discovered != "" {
+				id = discovered
 			}
-			return
+			if id != "" && cleanupWebhook(client, id, name) != nil {
+				cleanup = "incomplete"
+			}
 		}
-		if cleanupWebhook(client, id, name) != nil {
-			result = fmt.Errorf("webhook phase=cleanup-incomplete code=%s id=%s (output suppressed)", name, id)
+		if result != nil {
+			result = fmt.Errorf("%v cleanup=%s", result, cleanup)
+		} else if cleanup != "confirmed" {
+			result = fmt.Errorf("webhook phase=cleanup code=%s cleanup=incomplete (output suppressed)", name)
 		}
 	}()
 	result = (traceCase{name: "webhook", code: name, phases: []tracePhase{

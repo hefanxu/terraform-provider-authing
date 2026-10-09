@@ -97,6 +97,17 @@ class SandboxDispatchTests(unittest.TestCase):
         self.assertIn("reason=update-rejected", str(caught.exception))
         self.assertNotIn("secret-marker", str(caught.exception))
 
+    def test_webhook_first_failure_survives_outer_allowlist(self):
+        test = mod.CASES["webhook"]
+        runner = Mock(side_effect=[subprocess.CompletedProcess([], 0, test + "\n", ""),
+                                   subprocess.CompletedProcess([], 1, "webhook phase=apply-reconcile code=hermesacc-1234567890abcdef cleanup=confirmed secret-marker", "secret-marker")])
+        with self.assertRaises(RuntimeError) as caught:
+            mod.run(self.env("webhook"), runner)
+        output = str(caught.exception)
+        for expected in ("apply-reconcile", "hermesacc-1234567890abcdef", "cleanup=confirmed"):
+            self.assertIn(expected, output)
+        self.assertNotIn("secret-marker", output)
+
 
 if __name__ == "__main__":
     unittest.main()
