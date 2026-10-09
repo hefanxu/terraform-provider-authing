@@ -85,8 +85,11 @@ with the imported object to obtain a no-change plan.
   create failure. Sandbox cleanup requires the ID pinned by the creating
   Terraform state; generated-name matches never authorize deletion.
 - Live evidence and the exact tested commits are maintained in
-  [acceptance-evidence](../acceptance-evidence.md). Historical name-drift lifecycle
-  evidence does not by itself prove explicit configured update or import.
+  [acceptance-evidence](../acceptance-evidence.md). Live run [37878214556](https://github.com/hefanxu/terraform-provider-authing/actions/runs/37878214556)
+  verified the default-scope OIDC container's create/read, explicit HCL name
+  update, fresh-state import with no-change plan, name drift/reconciliation,
+  and destroy followed by exact-ID GET 404. All expected phases and confirmed
+  cleanup were required by the controlled runner before it reported success.
 - No tenant-scoped live lifecycle, other connection types, connection CRUD,
   application/category-filter variants, external authentication, credential/key
   management, or replacement apply is claimed. Tenant-related live families are
