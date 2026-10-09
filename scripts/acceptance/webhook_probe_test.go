@@ -12,6 +12,58 @@ import (
 
 const incidentWebhookCode = "hermesacc-630f7fb8a43f0400"
 
+func TestWebhookListRejectsMissingCount(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/v3/get-management-token" {
+			fmt.Fprint(w, `{"statusCode":200,"data":{"access_token":"mock-token","expires_in":3600}}`)
+			return
+		}
+		if r.Method != http.MethodGet || r.URL.Path != "/api/v3/list-webhooks" {
+			t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
+			w.WriteHeader(405)
+			return
+		}
+		fmt.Fprint(w, `{"statusCode":200,"data":{"list":[]}}`)
+	}))
+	defer server.Close()
+	client, err := authingapi.NewClient(authingapi.Options{AccessKeyID: "key", AccessKeySecret: "secret", Host: server.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := findWebhook(client, webhookTestName); err == nil {
+		t.Fatal("missing totalCount must not establish absence")
+	}
+}
+
+func TestWebhookListRejectsChangingPaginationTotal(t *testing.T) {
+	page := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/v3/get-management-token" {
+			fmt.Fprint(w, `{"statusCode":200,"data":{"access_token":"mock-token","expires_in":3600}}`)
+			return
+		}
+		if r.Method != http.MethodGet || r.URL.Path != "/api/v3/list-webhooks" {
+			t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
+			w.WriteHeader(405)
+			return
+		}
+		page++
+		if page == 1 {
+			fmt.Fprint(w, `{"statusCode":200,"data":{"totalCount":2,"list":[{"webhookId":"other-id","name":"other"}]}}`)
+		} else {
+			fmt.Fprint(w, `{"statusCode":200,"data":{"totalCount":1,"list":[]}}`)
+		}
+	}))
+	defer server.Close()
+	client, err := authingapi.NewClient(authingapi.Options{AccessKeyID: "key", AccessKeySecret: "secret", Host: server.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := findWebhook(client, webhookTestName); err == nil {
+		t.Fatal("changing totalCount must not establish absence")
+	}
+}
+
 func TestWebhookListRespectsDocumentedMaximumPageSize(t *testing.T) {
 	requests := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

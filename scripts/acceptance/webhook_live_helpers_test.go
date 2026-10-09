@@ -23,6 +23,8 @@ const webhookEvent = "user.created"
 func findWebhook(client *authingapi.Client, name string) (string, error) {
 	var match string
 	seen := 0
+	total := -1
+	ids := map[string]bool{}
 	for page := 1; page <= 100; page++ {
 		body, err := client.SendHttpRequest("/api/v3/list-webhooks", "GET", map[string]any{"page": page, "limit": 50})
 		if err != nil {
@@ -35,22 +37,27 @@ func findWebhook(client *authingapi.Client, name string) (string, error) {
 					WebhookID string `json:"webhookId"`
 					Name      string `json:"name"`
 				} `json:"list"`
-				TotalCount int `json:"totalCount"`
+				TotalCount *int `json:"totalCount"`
 			} `json:"data"`
 		}
-		if json.Unmarshal(body, &result) != nil || result.StatusCode != 200 || result.Data == nil || result.Data.List == nil || result.Data.TotalCount < 0 || seen+len(result.Data.List) > result.Data.TotalCount {
+		if json.Unmarshal(body, &result) != nil || result.StatusCode != 200 || result.Data == nil || result.Data.List == nil || result.Data.TotalCount == nil || *result.Data.TotalCount < 0 || total >= 0 && total != *result.Data.TotalCount || len(result.Data.List) > 50 || seen+len(result.Data.List) > *result.Data.TotalCount {
 			return "", errors.New("invalid webhook listing")
 		}
+		total = *result.Data.TotalCount
 		for _, hook := range result.Data.List {
+			if hook.WebhookID == "" || ids[hook.WebhookID] {
+				return "", errors.New("invalid webhook identity in listing")
+			}
+			ids[hook.WebhookID] = true
 			if hook.Name == name || hook.Name == name+"-drift" {
-				if hook.WebhookID == "" || match != "" {
+				if match != "" {
 					return "", errors.New("ambiguous webhook ownership")
 				}
 				match = hook.WebhookID
 			}
 		}
 		seen += len(result.Data.List)
-		if seen == result.Data.TotalCount {
+		if seen == total {
 			return match, nil
 		}
 		if len(result.Data.List) == 0 {
@@ -189,21 +196,19 @@ resource "authing_webhook" "sandbox" {
 		return run(want, "plan", "-lock=false", "-input=false", "-no-color", "-detailed-exitcode")
 	}
 	id := ""
-	// Once apply begins it may create remotely even without local state. Resolve
-	// only a unique exact generated name, then authorize deletion with exact GET.
+	// Only a webhook ID pinned to this fresh Terraform state authorizes cleanup.
+	// A matching name after failed create is a candidate, not deletion proof.
 	defer func() {
 		// Keep the first failure untouched; cleanup is an independent result.
 		cleanup := "confirmed"
+		if id == "" {
+			id, _ = webhookStateID(root, env, terraform)
+		}
 		discovered, e := findWebhook(client, name)
-		if e != nil || (discovered != "" && id != "" && discovered != id) {
+		if e != nil || discovered != "" && (id == "" || discovered != id) {
 			cleanup = "incomplete"
-		} else {
-			if discovered != "" {
-				id = discovered
-			}
-			if id != "" && cleanupWebhook(client, id, name) != nil {
-				cleanup = "incomplete"
-			}
+		} else if id != "" && cleanupWebhook(client, id, name) != nil {
+			cleanup = "incomplete"
 		}
 		if result != nil {
 			result = fmt.Errorf("%v cleanup=%s", result, cleanup)

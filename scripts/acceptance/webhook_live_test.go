@@ -112,6 +112,32 @@ func TestMockWebhookTrace(t *testing.T) {
 		}
 	}
 }
+func TestMockWebhookFailedCreateWithoutStateNeverDeletesByName(t *testing.T) {
+	m := &mockWebhook{}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/v3/create-webhook" {
+			m.serve(httptest.NewRecorder(), r)
+			w.WriteHeader(500)
+			fmt.Fprint(w, "secret-marker")
+			return
+		}
+		m.serve(w, r)
+	}))
+	defer server.Close()
+	err := runWebhookTrace(t.TempDir(), map[string]string{"AUTHING_ACCESS_KEY_ID": "key", "AUTHING_ACCESS_KEY_SECRET": "secret", "AUTHING_HOST": server.URL}, webhookTestName)
+	if err == nil || !strings.Contains(err.Error(), "phase=apply-create") || !strings.Contains(err.Error(), "cleanup=incomplete") {
+		t.Fatalf("failed create must keep first phase and unknown cleanup: %v", err)
+	}
+	if strings.Contains(err.Error(), "secret-marker") {
+		t.Fatal("API response leaked")
+	}
+	m.Lock()
+	defer m.Unlock()
+	if m.id != "mock-webhook-123" || m.deletes != 0 {
+		t.Fatal("failed create deleted a remote webhook without state-pinned ID")
+	}
+}
+
 func TestMockWebhookFailedReconcileCleansUp(t *testing.T) {
 	m := &mockWebhook{failReconcile: true}
 	server := httptest.NewServer(http.HandlerFunc(m.serve))
