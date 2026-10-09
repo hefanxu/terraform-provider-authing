@@ -22,6 +22,8 @@ type mockFlow struct {
 	failReconcile             bool
 	failCreate                bool
 	foreignSource             bool
+	blockCleanup              bool
+	cleanupBlocked            bool
 	paths                     []string
 }
 
@@ -35,6 +37,10 @@ func (m *mockFlow) serve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.URL.Path == "/api/v3/get-auth-flow-function" {
+		if m.cleanupBlocked {
+			http.Error(w, "get-secret-marker", 500)
+			return
+		}
 		if r.Method != http.MethodGet || r.URL.Query().Get("funcId") != m.id || m.id == "" {
 			fmt.Fprint(w, `{"statusCode":404}`)
 			return
@@ -66,6 +72,7 @@ func (m *mockFlow) serve(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, `{"statusCode":200,"data":{"funcId":"mock-flow-123"}}`)
 	case "/api/v3/update-auth-flow-function":
 		if m.failReconcile && body["funcName"] == flowTestName {
+			m.cleanupBlocked = m.blockCleanup
 			http.Error(w, "response-secret-marker", 500)
 			return
 		}
@@ -119,6 +126,9 @@ func TestMockAuthFlowFailedReconcileCleansUp(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected failure")
 	}
+	if !strings.Contains(err.Error(), "phase=apply-reconcile") || !strings.Contains(err.Error(), "code="+flowTestName) || !strings.Contains(err.Error(), "cleanup=confirmed") {
+		t.Fatalf("lost original phase or verified cleanup: %v", err)
+	}
 	for _, secret := range []string{"key-marker", "credential-marker", "response-secret-marker", "mock-token", flowInertSource} {
 		if strings.Contains(err.Error(), secret) {
 			t.Fatal("sensitive material leaked")
@@ -159,13 +169,25 @@ func TestAuthFlowFailedCreateWithoutStateRefusesGuessedCleanup(t *testing.T) {
 	s := httptest.NewServer(http.HandlerFunc(m.serve))
 	defer s.Close()
 	err := runAuthFlowTrace(t.TempDir(), flowCredentials(s), flowTestName)
-	if err == nil || !strings.Contains(err.Error(), "cleanup-incomplete") || strings.Contains(err.Error(), "create-secret-marker") {
+	if err == nil || !strings.Contains(err.Error(), "phase=apply-create") || !strings.Contains(err.Error(), "code="+flowTestName) || !strings.Contains(err.Error(), "cleanup=incomplete") || strings.Contains(err.Error(), "create-secret-marker") {
 		t.Fatalf("failed create did not report safe cleanup boundary: %v", err)
 	}
 	m.Lock()
 	defer m.Unlock()
 	if m.creates != 0 || m.deletes != 0 {
 		t.Fatal("no-state failure touched function")
+	}
+}
+func TestAuthFlowCleanupUncertainRetainsFirstPhase(t *testing.T) {
+	m := &mockFlow{failReconcile: true, blockCleanup: true}
+	s := httptest.NewServer(http.HandlerFunc(m.serve))
+	defer s.Close()
+	err := runAuthFlowTrace(t.TempDir(), flowCredentials(s), flowTestName)
+	if err == nil || !strings.Contains(err.Error(), "phase=apply-reconcile") || !strings.Contains(err.Error(), "code="+flowTestName) || !strings.Contains(err.Error(), "cleanup=unknown") || strings.Contains(err.Error(), "get-secret-marker") {
+		t.Fatalf("uncertain cleanup lost the first failure or leaked body: %v", err)
+	}
+	if m.deletes != 0 {
+		t.Fatal("deleted without exact GET")
 	}
 }
 func TestAuthFlowTraceRejectsInvalidName(t *testing.T) {

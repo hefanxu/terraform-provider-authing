@@ -198,14 +198,22 @@ resource "authing_auth_flow_function" "sandbox" {
 	// There is no reliable name lookup to recover an ID when apply creates
 	// remotely but leaves no state. Never delete by guessed name or ID.
 	defer func() {
+		// result contains only a traceCase phase and generated code, never raw
+		// Terraform/API output. Keep it even when cleanup cannot be verified.
 		if id == "" {
 			if result != nil {
-				result = fmt.Errorf("auth-flow phase=cleanup-incomplete code=%s (no verified ID; output suppressed)", name)
+				result = fmt.Errorf("%v cleanup=incomplete (no state-pinned ID; output suppressed)", result)
 			}
 			return
 		}
 		if cleanupAuthFlow(c, id, name) != nil {
-			result = fmt.Errorf("auth-flow phase=cleanup-incomplete code=%s id=%s (output suppressed)", name, id)
+			if result == nil {
+				result = fmt.Errorf("auth-flow phase=cleanup code=%s cleanup=unknown (output suppressed)", name)
+			} else {
+				result = fmt.Errorf("%v cleanup=unknown (output suppressed)", result)
+			}
+		} else if result != nil {
+			result = fmt.Errorf("%v cleanup=confirmed", result)
 		}
 	}()
 	result = (traceCase{name: "auth-flow", code: name, phases: []tracePhase{
