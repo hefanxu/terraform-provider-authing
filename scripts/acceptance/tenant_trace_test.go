@@ -86,15 +86,31 @@ func tenantNameAbsent(c *authingapi.Client, name string) error {
 
 // A zero total without an explicit empty list is not proof of an empty scope.
 func emptyTenantCollection(c *authingapi.Client, path, method string, query any) error {
-	status, raw, err := tenantEnvelope(c, path, method, query)
-	var data struct {
-		Total *int            `json:"totalCount"`
-		List  json.RawMessage `json:"list"`
+	stage := "organizations"
+	if path == "/api/v3/list-tenant-users" {
+		stage = "users"
 	}
-	if err != nil || status != 200 || json.Unmarshal(raw, &data) != nil || data.Total == nil || *data.Total != 0 || string(data.List) != "[]" {
-		return errors.New("tenant dependency inventory nonempty or incomplete")
+	if path == "/api/v3/list-tenant-admin" {
+		stage = "admins"
 	}
-	return nil
+	s, raw := tenantProbeRequest(c, stage, path, method, query)
+	s.Pages = 1
+	if s.Category != "complete" {
+		return tenantDiagnosticError{s}
+	}
+	s, list, total := tenantProbePage(raw, s)
+	if s.Category != "complete" {
+		return tenantDiagnosticError{s}
+	}
+	s.Count = len(list)
+	if total == 0 && len(list) == 0 {
+		return nil
+	}
+	s.Category = "nonempty"
+	if total != len(list) && len(list) == 0 || total == 0 {
+		s.Category = "incomplete-inventory"
+	}
+	return tenantDiagnosticError{s}
 }
 func verifyEmptyOwnedTenant(c *authingapi.Client, id, expectedName string) error {
 	if !sandboxCode.MatchString(expectedName) && !strings.HasSuffix(expectedName, "-updated") {
@@ -104,9 +120,12 @@ func verifyEmptyOwnedTenant(c *authingapi.Client, id, expectedName string) error
 	if !sandboxCode.MatchString(base) || id == "" {
 		return errors.New("tenant identity not generated")
 	}
-	status, v, err := tenantGET(c, id)
-	if err != nil || status != 200 || v.Name != base && v.Name != base+"-updated" && v.Name != base+"-updated-drift" || len(*v.AppIDs) != 0 {
-		return errors.New("tenant ownership or app associations not verified")
+	get, apps := tenantProbeIdentity(c, id, base, base+"-updated", base+"-updated-drift")
+	if get.Category != "candidate" {
+		return tenantDiagnosticError{get}
+	}
+	if apps.Category != "empty" {
+		return tenantDiagnosticError{apps}
 	}
 	// Separate scoped inventories: membership includes ordinary and admin users;
 	// checking admin independently protects against an inconsistent membership view.
@@ -268,7 +287,7 @@ resource "authing_tenant" "sandbox" {
 		}
 	}()
 	started = true
-	result = (traceCase{name: "tenant", code: name, phases: []tracePhase{
+	result = executeTenantTrace(traceCase{name: "tenant", code: name, phases: []tracePhase{
 		{"apply-create", run(0, "apply", "-auto-approve", "-lock=false", "-input=false", "-no-color")},
 		{"pin-created-id", func() error { var e error; id, e = tenantStateID(root, terraform, env, name); return e }},
 		{"verify-created", func() error { return verifyEmptyOwnedTenant(c, id, expected) }},
@@ -338,6 +357,6 @@ resource "authing_tenant" "sandbox" {
 			}
 			return nil
 		}},
-	}}).execute()
+	}})
 	return result
 }
