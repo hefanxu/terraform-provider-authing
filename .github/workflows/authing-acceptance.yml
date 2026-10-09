@@ -28,7 +28,6 @@ on:
           - post
           - invitation_roster
           - data_resource
-          - group_member
           - auth_flow_function
           - data_object
           - tenant

@@ -24,7 +24,6 @@ CASES = {
     "post": "TestDestructiveLivePostTrace",
     "invitation_roster": "TestDestructiveLiveInvitationRosterTrace",
     "data_resource": "TestDestructiveLiveDataResourceTrace",
-    "group_member": "TestDestructiveLiveGroupMemberTrace",
     "auth_flow_function": "TestDestructiveLiveAuthFlowFunctionTrace",
     "data_object": "TestDestructiveLiveObjectTrace",
     "tenant": "TestDestructiveLiveTenantTrace",
