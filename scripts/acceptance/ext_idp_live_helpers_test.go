@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 
@@ -22,7 +23,7 @@ func ownedExtIdp(client *authingapi.Client, id, name string, drift bool) error {
 		return errors.New("invalid external IdP ownership key")
 	}
 	got := client.GetExtIdp(&dto.GetExtIdpDto{Id: id})
-	if got == nil || got.StatusCode != 200 || got.Data.Id != id || got.Data.Type != "oidc" || got.Data.TenantId != "" || got.Data.Name != name && (!drift || got.Data.Name != name+"-drift") {
+	if got == nil || got.StatusCode != 200 || got.Data.Id != id || got.Data.Type != "oidc" || got.Data.TenantId != "" || got.Data.Name != name && (!drift || got.Data.Name != name+"-drift" && got.Data.Name != name+"-updated") {
 		return errors.New("external IdP ownership not verified")
 	}
 	// Refuse deletion if the provider acquired a connection, or if the GET
@@ -162,16 +163,40 @@ resource "authing_ext_idp" "sandbox" {
 			id, _ = extIdpStateID(root, env, terraform)
 		}
 		if id == "" {
-			result = fmt.Errorf("external-idp phase=cleanup-incomplete code=%s (no proven ID; output suppressed)", name)
+			if result == nil {
+				result = fmt.Errorf("external-idp phase=cleanup-incomplete code=%s (output suppressed)", name)
+			}
+			result = fmt.Errorf("%w cleanup=unknown", result)
 			return
 		}
 		if cleanupExtIdp(client, id, name) != nil {
-			result = fmt.Errorf("external-idp phase=cleanup-incomplete code=%s id=%s (output suppressed)", name, id)
+			if result == nil {
+				result = fmt.Errorf("external-idp phase=cleanup-incomplete code=%s (output suppressed)", name)
+			}
+			result = fmt.Errorf("%w cleanup=incomplete", result)
+		} else if result != nil {
+			result = fmt.Errorf("%w cleanup=confirmed", result)
+		} else {
+			fmt.Printf("external-idp phase=complete code=%s cleanup=confirmed\n", name)
 		}
 	}()
-	result = (traceCase{name: "external-idp", code: name, phases: []tracePhase{
+	writeName := func(value string) error {
+		return os.WriteFile(filepath.Join(exampleDir, "main.tf"), []byte(strings.Replace(hcl, fmt.Sprintf("name = %q", name), fmt.Sprintf("name = %q", value), 1)), 0600)
+	}
+	verifyUpdated := func() error {
+		if err := ownedExtIdp(client, id, name, true); err != nil {
+			return err
+		}
+		got := client.GetExtIdp(&dto.GetExtIdpDto{Id: id})
+		if got == nil || got.StatusCode != 200 || got.Data.Id != id || got.Data.Name != name+"-updated" {
+			return errors.New("configured name update not confirmed")
+		}
+		return nil
+	}
+	importRoot := filepath.Join(root, "import")
+	importEnv := traceEnvironment(importRoot, config, credentials)
+	phases := []tracePhase{
 		{"apply-create", run(0, "apply", "-auto-approve", "-lock=false", "-input=false", "-no-color")},
-		{"plan-converged", plan(0)},
 		{"verify-created-id", func() error {
 			var e error
 			id, e = extIdpStateID(root, env, terraform)
@@ -179,6 +204,31 @@ resource "authing_ext_idp" "sandbox" {
 				return e
 			}
 			return ownedExtIdp(client, id, name, false)
+		}},
+		{"plan-converged", plan(0)},
+		{"configure-name-update", func() error { return writeName(name + "-updated") }},
+		{"plan-name-update", plan(2)},
+		{"apply-name-update", run(0, "apply", "-auto-approve", "-lock=false", "-input=false", "-no-color")},
+		{"verify-name-update", verifyUpdated},
+		{"plan-name-converged", plan(0)},
+		{"configure-original-name", func() error { return writeName(name) }},
+		{"apply-original-name", run(0, "apply", "-auto-approve", "-lock=false", "-input=false", "-no-color")},
+		{"verify-original-name", func() error { return ownedExtIdp(client, id, name, false) }},
+		{"import-fresh-state", func() error {
+			if os.MkdirAll(filepath.Join(importRoot, "example"), 0700) != nil || os.WriteFile(filepath.Join(importRoot, "example/main.tf"), []byte(hcl), 0600) != nil {
+				return errors.New("fresh import workspace failed")
+			}
+			return terraformExit(importRoot, importEnv, terraform, 0, "import", "-input=false", "-no-color", "authing_ext_idp.sandbox", id)
+		}},
+		{"verify-imported-id", func() error {
+			got, err := extIdpStateID(importRoot, importEnv, terraform)
+			if err != nil || got != id {
+				return errors.New("imported identity differs")
+			}
+			return ownedExtIdp(client, id, name, false)
+		}},
+		{"plan-import-converged", func() error {
+			return terraformExit(importRoot, importEnv, terraform, 0, "plan", "-lock=false", "-input=false", "-no-color", "-detailed-exitcode")
 		}},
 		{"remote-drift", func() error {
 			if err := ownedExtIdp(client, id, name, false); err != nil {
@@ -192,7 +242,7 @@ resource "authing_ext_idp" "sandbox" {
 			if got == nil || got.StatusCode != 200 || got.Data.Id != id || got.Data.Name != name+"-drift" || got.Data.Type != "oidc" || got.Data.TenantId != "" {
 				return errors.New("external IdP drift not visible")
 			}
-			return nil
+			return ownedExtIdp(client, id, name, true)
 		}},
 		{"plan-drift", plan(2)},
 		{"apply-reconcile", run(0, "apply", "-auto-approve", "-lock=false", "-input=false", "-no-color")},
@@ -206,7 +256,13 @@ resource "authing_ext_idp" "sandbox" {
 			}
 			return nil
 		}},
-	}}).execute()
+	}
+	for _, phase := range phases {
+		if phase.run() != nil {
+			return fmt.Errorf("external-idp phase=%s code=%s (output suppressed)", phase.name, name)
+		}
+		fmt.Printf("external-idp phase=%s code=%s result=passed\n", phase.name, name)
+	}
 	return result
 }
 

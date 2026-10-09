@@ -35,6 +35,7 @@ func extIdpReadModel(t *testing.T, st tfsdk.State) ExtIdpModel {
 func TestExtIdpTenantScopedLifecycle(t *testing.T) {
 	var calls []string
 	remoteName := "Original"
+	absent := false
 	svc := &ExtIdpResource{client: lifecycleFixture(t, func(w http.ResponseWriter, r *http.Request) {
 		calls = append(calls, r.URL.Path)
 		switch r.URL.Path {
@@ -54,13 +55,18 @@ func TestExtIdpTenantScopedLifecycle(t *testing.T) {
 				fmt.Fprint(w, `{"statusCode":200,"data":{"id":"idp-1","name":"Renamed","type":"oidc","tenantId":"tenant-A"}}`)
 			}
 			if r.URL.Path == "/api/v3/delete-ext-idp" {
+				absent = true
 				fmt.Fprint(w, `{"statusCode":200,"data":{"success":true}}`)
 			}
 		case "/api/v3/get-ext-idp":
 			if r.Method != http.MethodGet || r.URL.Query().Get("tenantId") != "tenant-A" || r.URL.Query().Get("id") != "idp-1" {
 				t.Errorf("unscoped read: %s", r.URL)
 			}
-			fmt.Fprintf(w, `{"statusCode":200,"data":{"id":"idp-1","name":%q,"type":"oidc","tenantId":"tenant-A"}}`, remoteName)
+			if absent {
+				fmt.Fprint(w, `{"statusCode":404}`)
+				return
+			}
+			fmt.Fprintf(w, `{"statusCode":200,"data":{"id":"idp-1","name":%q,"type":"oidc","tenantId":"tenant-A","connections":[]}}`, remoteName)
 		default:
 			t.Errorf("unexpected %s", r.URL)
 		}
@@ -95,7 +101,7 @@ func TestExtIdpTenantScopedLifecycle(t *testing.T) {
 	if deleted.Diagnostics.HasError() {
 		t.Fatal(deleted.Diagnostics)
 	}
-	if strings.Join(calls, ",") != "/api/v3/create-ext-idp,/api/v3/get-ext-idp,/api/v3/get-ext-idp,/api/v3/get-ext-idp,/api/v3/update-ext-idp,/api/v3/get-ext-idp,/api/v3/get-ext-idp,/api/v3/delete-ext-idp" {
+	if strings.Join(calls, ",") != "/api/v3/create-ext-idp,/api/v3/get-ext-idp,/api/v3/get-ext-idp,/api/v3/get-ext-idp,/api/v3/update-ext-idp,/api/v3/get-ext-idp,/api/v3/get-ext-idp,/api/v3/delete-ext-idp,/api/v3/get-ext-idp" {
 		t.Errorf("unexpected calls %v", calls)
 	}
 }

@@ -965,6 +965,10 @@ func (r *ExtIdpResource) Read(ctx context.Context, req resource.ReadRequest, res
 		return
 	}
 
+	if err := extIdpStateIdentityError(&state); err != nil {
+		resp.Diagnostics.AddError("Invalid external IdP state identity", err.Error())
+		return
+	}
 	res := r.getScopedExtIdp(&state)
 	if res != nil && res.StatusCode == 404 {
 		resp.State.RemoveResource(ctx)
@@ -1037,6 +1041,10 @@ func (r *ExtIdpResource) Delete(ctx context.Context, req resource.DeleteRequest,
 	if resp.Diagnostics.HasError() {
 		return
 	}
+	if err := extIdpStateIdentityError(&state); err != nil {
+		resp.Diagnostics.AddError("Invalid external IdP state identity", err.Error())
+		return
+	}
 	preflight := r.getScopedExtIdp(&state)
 	if preflight != nil && preflight.StatusCode == 404 {
 		return // Already absent in the requested scope.
@@ -1046,11 +1054,20 @@ func (r *ExtIdpResource) Delete(ctx context.Context, req resource.DeleteRequest,
 		return
 	}
 
+	connections, ok := preflight.Data.Connections.([]any)
+	if !ok || len(connections) != 0 {
+		resp.Diagnostics.AddError("Refusing external IdP deletion", "Exact-ID GET must confirm connections is an empty array; detach unmanaged connections before deleting this IdP.")
+		return
+	}
 	res := r.client.DeleteExtIdp(&dto.DeleteExtIdpDto{
 		Id: state.ExtIdpId.ValueString(), TenantId: state.TenantId.ValueString(),
 	})
 	if res == nil || res.StatusCode != 404 && (res.StatusCode != 200 || !res.Data.Success) {
 		resp.Diagnostics.AddError("Failed to delete external IdP", "Authing returned an invalid or unsuccessful response")
+		return
+	}
+	if got := r.getScopedExtIdp(&state); got == nil || got.StatusCode != 404 {
+		resp.Diagnostics.AddError("Failed to confirm external IdP deletion", "Exact-ID GET did not confirm absence; prior state was retained.")
 	}
 }
 
@@ -1058,15 +1075,25 @@ func (r *ExtIdpResource) getScopedExtIdp(state *ExtIdpModel) *dto.ExtIdpDetailSi
 	return r.client.GetExtIdp(&dto.GetExtIdpDto{Id: state.ExtIdpId.ValueString(), TenantId: state.TenantId.ValueString()})
 }
 
+func extIdpStateIdentityError(state *ExtIdpModel) error {
+	if state.ID.IsNull() || state.ID.IsUnknown() || state.ExtIdpId.IsNull() || state.ExtIdpId.IsUnknown() || state.ID.ValueString() == "" || state.ID != state.ExtIdpId || state.TenantId.IsUnknown() {
+		return fmt.Errorf("missing, unknown or mismatched external IdP identity in state")
+	}
+	return nil
+}
+
 func extIdpIdentityError(state *ExtIdpModel, remote *dto.ExtIdpDetail) error {
+	if err := extIdpStateIdentityError(state); err != nil {
+		return err
+	}
 	if remote.Id != state.ExtIdpId.ValueString() || remote.TenantId != state.TenantId.ValueString() {
 		return fmt.Errorf("requested IdP %q in tenant %q but received IdP %q in tenant %q", state.ExtIdpId.ValueString(), state.TenantId.ValueString(), remote.Id, remote.TenantId)
 	}
 	if !state.Type.IsNull() && !state.Type.IsUnknown() && state.Type.ValueString() != remote.Type {
 		return fmt.Errorf("IdP %q type changed from %q to %q", remote.Id, state.Type.ValueString(), remote.Type)
 	}
-	if remote.Type == "" {
-		return fmt.Errorf("IdP %q response omitted type", remote.Id)
+	if remote.Type == "" || remote.Name == "" {
+		return fmt.Errorf("IdP %q response omitted type or name", remote.Id)
 	}
 	return nil
 }

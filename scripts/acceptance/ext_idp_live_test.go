@@ -19,6 +19,7 @@ type mockExtIdp struct {
 	id, name                                                                            string
 	paths                                                                               []string
 	deletes                                                                             int
+	explicitUpdate                                                                      bool
 	failCreate, failDrift, foreignName, foreignID, hasConnections, hijackAfterReconcile bool
 }
 
@@ -66,17 +67,20 @@ func (m *mockExtIdp) serve(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "secret-marker", 500)
 			return
 		}
-		if r.Method != http.MethodPost || body.ID != m.id || m.id == "" || body.TenantID != "" || (body.Name != idpTestName && body.Name != idpTestName+"-drift") {
+		if r.Method != http.MethodPost || body.ID != m.id || m.id == "" || body.TenantID != "" || (body.Name != idpTestName && body.Name != idpTestName+"-drift" && body.Name != idpTestName+"-updated") {
 			http.Error(w, "invalid update", 500)
 			return
 		}
 		m.name = body.Name
+		if body.Name == idpTestName+"-updated" {
+			m.explicitUpdate = true
+		}
 		m.respond(w)
 		if m.hijackAfterReconcile && body.Name == idpTestName {
 			m.foreignName = true
 		}
 	case "/api/v3/delete-ext-idp":
-		if r.Method != http.MethodPost || body.ID != m.id || m.id == "" || body.TenantID != "" || m.foreignName || m.name != idpTestName && m.name != idpTestName+"-drift" {
+		if r.Method != http.MethodPost || body.ID != m.id || m.id == "" || body.TenantID != "" || m.foreignName || m.name != idpTestName && m.name != idpTestName+"-drift" && m.name != idpTestName+"-updated" {
 			http.Error(w, "unowned deletion", 500)
 			return
 		}
@@ -138,6 +142,9 @@ func TestMockExtIdpTerraformTrace(t *testing.T) {
 	if counts["POST /api/v3/update-ext-idp"] < 2 {
 		t.Fatal("drift was not reconciled")
 	}
+	if !m.explicitUpdate {
+		t.Fatal("explicit HCL name update was not exercised")
+	}
 }
 func TestMockExtIdpFailedCreateWithoutStateNeverDeletes(t *testing.T) {
 	m := &mockExtIdp{failCreate: true}
@@ -146,6 +153,9 @@ func TestMockExtIdpFailedCreateWithoutStateNeverDeletes(t *testing.T) {
 	err := runExtIdpTrace(t.TempDir(), idpCredentials(server), idpTestName)
 	if err == nil {
 		t.Fatal("expected failed create")
+	}
+	if !strings.Contains(err.Error(), "phase=apply-create") || !strings.Contains(err.Error(), "cleanup=unknown") {
+		t.Fatalf("first failure or cleanup verdict lost: %v", err)
 	}
 	for _, secret := range []string{"key-marker", "credential-marker", "secret-marker", "mock-token"} {
 		if strings.Contains(err.Error(), secret) {
@@ -162,6 +172,7 @@ func TestMockExtIdpFailedCreateWithoutStateNeverDeletes(t *testing.T) {
 			t.Fatal("delete attempted without state ID")
 		}
 	}
+	fmt.Println(err) // Controlled first-failure/cleanup evidence for the outer allowlist test.
 }
 func TestMockExtIdpCleanupRejectsForeignName(t *testing.T) {
 	m := &mockExtIdp{id: "mock-idp-123", name: idpTestName, foreignName: true}

@@ -1,4 +1,6 @@
 import re
+import contextlib
+import io
 import subprocess
 import unittest
 from pathlib import Path
@@ -97,6 +99,23 @@ class SandboxDispatchTests(unittest.TestCase):
         self.assertIn("reason=update-rejected", str(caught.exception))
         self.assertNotIn("secret-marker", str(caught.exception))
 
+    def test_ext_idp_requires_full_stage_evidence_on_success(self):
+        test = mod.CASES["ext_idp"]
+        runner = Mock(side_effect=[subprocess.CompletedProcess([], 0, test + "\n", ""),
+                                  subprocess.CompletedProcess([], 0, "ok", "")])
+        with self.assertRaisesRegex(RuntimeError, "stage evidence"):
+            mod.run(self.env("ext_idp"), runner)
+
+    def test_ext_idp_first_failure_and_cleanup_survive_outer_allowlist(self):
+        test = mod.CASES["ext_idp"]
+        runner = Mock(side_effect=[subprocess.CompletedProcess([], 0, test + "\n", ""),
+                                  subprocess.CompletedProcess([], 1, "external-idp phase=apply-name-update code=hermesacc-1234567890abcdef cleanup=confirmed secret-marker", "credential-marker")])
+        with self.assertRaises(RuntimeError) as caught:
+            mod.run(self.env("ext_idp"), runner)
+        for value in ("apply-name-update", "hermesacc-1234567890abcdef", "cleanup=confirmed"):
+            self.assertIn(value, str(caught.exception))
+        self.assertNotIn("credential-marker", str(caught.exception))
+
     def test_webhook_first_failure_survives_outer_allowlist(self):
         test = "TestDestructiveLiveWebhookTrace"
         runner = Mock(side_effect=[subprocess.CompletedProcess([], 0, test + "\n", ""),
@@ -107,6 +126,40 @@ class SandboxDispatchTests(unittest.TestCase):
         for expected in ("apply-reconcile", "hermesacc-1234567890abcdef", "cleanup=confirmed"):
             self.assertIn(expected, output)
         self.assertNotIn("secret-marker", output)
+
+    def test_ext_idp_actual_failed_create_preserves_first_failure_through_outer(self):
+        root = Path(__file__).resolve().parents[2]
+        result = subprocess.run(["go", "test", "-count=1", "-v", "-run", "^TestMockExtIdpFailedCreateWithoutStateNeverDeletes$", "./scripts/acceptance"],
+                                cwd=root, capture_output=True, text=True, check=False)
+        self.assertEqual(result.returncode, 0, "offline failure-safety test failed")
+        # The mock safety assertion passes; replay its actual captured tracer failure
+        # as a failing live invocation, without substituting any API response.
+        result.returncode = 1
+        test = mod.CASES["ext_idp"]
+        runner = Mock(side_effect=[subprocess.CompletedProcess([], 0, test + "\n", ""), result])
+        with self.assertRaises(RuntimeError) as caught:
+            mod.run(self.env("ext_idp"), runner)
+        for value in ("apply-create", "hermesacc-1234567890abcdef", "cleanup=unknown"):
+            self.assertIn(value, str(caught.exception))
+        for secret in ("credential-marker", "secret-marker", "mock-token", "key-marker"):
+            self.assertNotIn(secret, str(caught.exception))
+
+    def test_ext_idp_actual_mock_trace_survives_outer_success_allowlist(self):
+        root = Path(__file__).resolve().parents[2]
+        result = subprocess.run(["go", "test", "-count=1", "-v", "-run", "^TestMockExtIdpTerraformTrace$", "./scripts/acceptance"],
+                                cwd=root, capture_output=True, text=True, check=False)
+        self.assertEqual(result.returncode, 0, "offline external IdP tracer failed")
+        test = mod.CASES["ext_idp"]
+        runner = Mock(side_effect=[subprocess.CompletedProcess([], 0, test + "\n", ""), result])
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            mod.run(self.env("ext_idp"), runner)
+        for phase in mod.EXT_IDP_PHASES:
+            self.assertIn(f"phase={phase} code=hermesacc-1234567890abcdef result=passed", output.getvalue())
+        self.assertIn("cleanup=confirmed", output.getvalue())
+        self.assertIn("sandbox case ext_idp passed", output.getvalue())
+        for secret in ("credential-marker", "secret-marker", "mock-token", "key-marker"):
+            self.assertNotIn(secret, output.getvalue())
 
 
 if __name__ == "__main__":

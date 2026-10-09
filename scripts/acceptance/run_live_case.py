@@ -35,6 +35,18 @@ SAFE_DIAGNOSTIC = re.compile(
     r"\bphase=([a-z][a-z0-9-]{0,50})\s+(?:code|username|name)=(hermesacc-[0-9a-f]{16})(?:\s|$)"
 )
 SAFE_USERNAME = re.compile(r"\busername=(hermesacc-[0-9a-f]{16})(?:\s|$)")
+EXT_IDP_PHASES = (
+    "apply-create", "verify-created-id", "plan-converged",
+    "configure-name-update", "plan-name-update", "apply-name-update",
+    "verify-name-update", "plan-name-converged", "configure-original-name",
+    "apply-original-name", "verify-original-name", "import-fresh-state",
+    "verify-imported-id", "plan-import-converged", "remote-drift", "plan-drift",
+    "apply-reconcile", "plan-reconverged", "verify-owned-before-destroy",
+    "destroy", "verify-absent",
+)
+EXT_IDP_PASSED = re.compile(
+    r"^external-idp phase=([a-z-]+) code=(hermesacc-[0-9a-f]{16}) result=passed$", re.MULTILINE
+)
 SAFE_FAILURE = re.compile(
     r"\bfailure=(application-create|permission-strategy-update|permission-strategy-readback|permission-strategy-mismatch|inconsistent-result|unclassified)\b"
 )
@@ -61,7 +73,8 @@ def run(env=None, runner=subprocess.run):
                     cwd=repo, env=env, capture_output=True, text=True, check=False)
     if listed.returncode or test not in listed.stdout.splitlines():
         raise RuntimeError("selected live test is missing")
-    result = runner(["go", "test", "-count=1", "-run", "^" + test + "$", "./scripts/acceptance",
+    result = runner(["go", "test", "-count=1", "-run", "^" + test + "$", "./scripts/acceptance"] +
+                    (["-v"] if case == "ext_idp" else []) + [
                      "-args", "-authing-destructive-sandbox"],
                     cwd=repo, env=env, capture_output=True, text=True, check=False)
     if result.returncode:
@@ -93,6 +106,17 @@ def run(env=None, runner=subprocess.run):
                 outcome += f"; reason={reason[-1]}"
             raise RuntimeError(f"sandbox case {case} failed at {phase}; inspect only owned {identifier}{outcome}")
         raise RuntimeError(f"sandbox case {case} failed (output suppressed)")
+    if case == "ext_idp":
+        evidence = EXT_IDP_PASSED.findall(result.stdout)
+        codes = {code for _, code in evidence}
+        if tuple(phase for phase, _ in evidence) != EXT_IDP_PHASES or len(codes) != 1:
+            raise RuntimeError("external IdP stage evidence missing or inconsistent (output suppressed)")
+        code = codes.pop()
+        if f"external-idp phase=complete code={code} cleanup=confirmed" not in result.stdout.splitlines():
+            raise RuntimeError("external IdP cleanup evidence missing (output suppressed)")
+        for phase in EXT_IDP_PHASES:
+            print(f"ext_idp phase={phase} code={code} result=passed")
+        print(f"ext_idp code={code} cleanup=confirmed")
     print(f"sandbox case {case} passed")
 
 
