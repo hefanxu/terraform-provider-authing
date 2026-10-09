@@ -58,6 +58,13 @@ SAFE_FIELD = re.compile(
 SAFE_DRIFT_REASON = re.compile(
     r"\breason=(ownership-unverified|update-transport|update-invalid|update-rejected|update-unsuccessful|readback-unavailable|readback-name-mismatch|readback-marker-mismatch|unknown)\b"
 )
+SAFE_TENANT_STAGE = re.compile(
+    r"\bstage=(?:list|get|apps|users|admins|organizations|guard) "
+    r"category=(?:unknown|not-run|guard|transport|invalid-envelope|http-other|http-4xx|http-5xx|business-other|business-4xx|business-5xx|complete|candidate|absent|empty|nonempty|foreign|duplicate|invalid-shape|incomplete-inventory|page-cap) "
+    r"http_error=[0-9]{1,3} business=[0-9]{1,3} api_code=[0-9]{1,10} "
+    r"shape=(?:unavailable|count-list|identity|appids|invalid-data|missing-or-invalid-count|missing-or-invalid-list|invalid-item|invalid-identity|missing-or-invalid-appids) "
+    r"pages=[0-9]{1,3} count=-?[0-9]{1,10} matches=[0-9]{1,10} total=-?[0-9]{1,10}(?=\s|$)"
+)
 
 
 def run(env=None, runner=subprocess.run):
@@ -104,6 +111,10 @@ def run(env=None, runner=subprocess.run):
                     outcome += f"; field={field[-1]}"
             if phase == "remote-drift" and reason:
                 outcome += f"; reason={reason[-1]}"
+            if case == "tenant":
+                diagnostic = SAFE_TENANT_STAGE.search(controlled)
+                if diagnostic:
+                    outcome += "; " + diagnostic.group(0)
             raise RuntimeError(f"sandbox case {case} failed at {phase}; inspect only owned {identifier}{outcome}")
         raise RuntimeError(f"sandbox case {case} failed (output suppressed)")
     if case == "ext_idp":

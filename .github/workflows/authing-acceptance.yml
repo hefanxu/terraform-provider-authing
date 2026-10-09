@@ -46,6 +46,7 @@ on:
           - group_member
           - invitation_policy
           - webhook
+          - tenant
       audit_start:
         description: 'Read-only group-member audit window start (RFC3339 UTC)'
         required: false
@@ -134,7 +135,7 @@ jobs:
         run: go test -count=1 -v -run '^TestReadOnlyInvitationPolicyProbe$' ./scripts/acceptance -args -authing-invitation-policy-probe-sandbox
 
   application-recovery:
-    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feat/management-api-coverage' && inputs.confirm == 'READ_ONLY_SANDBOX' && inputs.test_case == 'application' && (inputs.test_object_code == 'hermesacc-c99546b76631e842' || inputs.test_object_code == 'hermesacc-05aa25aef574a094' || inputs.test_object_code == 'hermesacc-db3c63ade05f10bb' || inputs.test_object_code == 'hermesacc-fe2e944f9929d3d2' || inputs.test_object_code == 'hermesacc-959474ded514d455') }}
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feat/management-api-coverage' && inputs.confirm == 'READ_ONLY_SANDBOX' && inputs.test_case == 'application' && inputs.read_only_audit == 'none' && inputs.audit_start == '' && inputs.audit_end == '' && (inputs.test_object_code == 'hermesacc-c99546b76631e842' || inputs.test_object_code == 'hermesacc-05aa25aef574a094' || inputs.test_object_code == 'hermesacc-db3c63ade05f10bb' || inputs.test_object_code == 'hermesacc-fe2e944f9929d3d2' || inputs.test_object_code == 'hermesacc-959474ded514d455') }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: authing-sandbox
@@ -158,7 +159,7 @@ jobs:
         run: go test -count=1 -v -run '^TestReadOnlyApplicationRecovery$' ./scripts/acceptance -args -authing-application-recovery
 
   post-recovery:
-    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feat/management-api-coverage' && inputs.confirm == 'READ_ONLY_SANDBOX' && inputs.test_case == 'post' && inputs.test_object_code == 'hermesacc-52d2839776773ef4' }}
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feat/management-api-coverage' && inputs.confirm == 'READ_ONLY_SANDBOX' && inputs.test_case == 'post' && inputs.test_object_code == 'hermesacc-52d2839776773ef4' && inputs.read_only_audit == 'none' && inputs.audit_start == '' && inputs.audit_end == '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: authing-sandbox
@@ -206,7 +207,7 @@ jobs:
         run: go test -count=1 -v -run '^TestReadOnlyWebhookListShape$' ./scripts/acceptance -args -authing-webhook-shape-sandbox
 
   namespace-recovery:
-    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feat/management-api-coverage' && inputs.confirm == 'READ_ONLY_SANDBOX' && inputs.test_case == 'namespace' && inputs.test_object_code == 'hermesacc-a69a5cb1b971aa8e' }}
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feat/management-api-coverage' && inputs.confirm == 'READ_ONLY_SANDBOX' && inputs.test_case == 'namespace' && inputs.test_object_code == 'hermesacc-a69a5cb1b971aa8e' && inputs.read_only_audit == 'none' && inputs.audit_start == '' && inputs.audit_end == '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: authing-sandbox
@@ -229,8 +230,35 @@ jobs:
           AUTHING_HOST: ${{ vars.AUTHING_HOST }}
         run: go test -count=1 -v -run '^TestNamespaceRecoveryProbe$' ./scripts/acceptance -args -authing-namespace-recovery-sandbox
 
+  tenant-recovery:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feat/management-api-coverage' && inputs.confirm == 'READ_ONLY_SANDBOX' && inputs.test_case == 'group' && inputs.read_only_audit == 'tenant' && inputs.test_object_code == 'hermesacc-97f07719b2e15f0c' && inputs.audit_start == '' && inputs.audit_end == '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: authing-sandbox
+    steps:
+      - name: Checkout
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Verify tenant read-only guards, pagination and closed diagnostics offline
+        run: |
+          go test -count=1 -run '^TestTenantRecovery' ./scripts/acceptance
+          python3 -m unittest discover -s scripts/acceptance -p test_tenant_recovery_workflow.py
+          go test -list '^TestReadOnlySandboxTenantRecovery$' ./scripts/acceptance | grep -Fx TestReadOnlySandboxTenantRecovery
+      - name: Diagnose exact tenant incident without writes or deletion authority
+        env:
+          AUTHING_TENANT_RECOVERY_NAME: ${{ inputs.test_object_code }}
+          AUTHING_ACCEPTANCE_CONFIRM: ${{ inputs.confirm }}
+          AUTHING_ACCESS_KEY_ID: ${{ secrets.AUTHING_ACCESS_KEY_ID }}
+          AUTHING_ACCESS_KEY_SECRET: ${{ secrets.AUTHING_ACCESS_KEY_SECRET }}
+          AUTHING_HOST: ${{ vars.AUTHING_HOST }}
+        run: go test -count=1 -v -run '^TestReadOnlySandboxTenantRecovery$' ./scripts/acceptance -args -authing-tenant-recovery-sandbox
+
   destructive-case:
-    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feat/management-api-coverage' && inputs.confirm == 'DESTRUCTIVE_SANDBOX' && inputs.test_object_code == '' }}
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feat/management-api-coverage' && inputs.confirm == 'DESTRUCTIVE_SANDBOX' && inputs.test_object_code == '' && inputs.read_only_audit == 'none' && inputs.audit_start == '' && inputs.audit_end == '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment: authing-sandbox
@@ -258,7 +286,7 @@ jobs:
         run: python3 scripts/acceptance/run_live_case.py
 
   namespace-recovery-cleanup:
-    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feat/management-api-coverage' && inputs.confirm == 'DESTRUCTIVE_SANDBOX' && inputs.test_case == 'namespace' && inputs.test_object_code == 'hermesacc-a69a5cb1b971aa8e' }}
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feat/management-api-coverage' && inputs.confirm == 'DESTRUCTIVE_SANDBOX' && inputs.test_case == 'namespace' && inputs.test_object_code == 'hermesacc-a69a5cb1b971aa8e' && inputs.read_only_audit == 'none' && inputs.audit_start == '' && inputs.audit_end == '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: authing-sandbox
