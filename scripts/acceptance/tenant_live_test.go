@@ -244,6 +244,9 @@ func TestTenantFailedCreateWithoutStateNeverDeletes(t *testing.T) {
 	if e == nil || !strings.Contains(e.Error(), "phase=apply-create") || !strings.Contains(e.Error(), "cleanup=unknown") || m.creates != 1 || m.deletes != 0 {
 		t.Fatalf("unknown create identity was deleted or failure hidden: %v", e)
 	}
+	if strings.Contains(e.Error(), "state_id_sha256=") {
+		t.Fatal("discovery identity masqueraded as creating-state evidence")
+	}
 }
 func TestTenantIncompletePreflightFailsClosed(t *testing.T) {
 	for _, m := range []*mockTenant{{broken: true}, {partial: true, id: "other-id", name: "other-name"}} {

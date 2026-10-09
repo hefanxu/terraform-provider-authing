@@ -1,6 +1,7 @@
 package acceptance
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -278,12 +279,20 @@ resource "authing_tenant" "sandbox" {
 			}
 			return
 		}
+		// Future incident evidence is pinned to Terraform state, not discovery.
+		// A non-reversible fingerprint is safe for logs; it does not grant
+		// deletion authority to this run's read-only name-derived candidates.
+		if result != nil {
+			result = fmt.Errorf("%v state_id_sha256=%x", result, sha256.Sum256([]byte(id)))
+		}
 		if err := cleanupTenant(c, id, expected); err != nil {
 			if result != nil {
 				result = fmt.Errorf("%v cleanup=incomplete (manual inspection required)", result)
 			} else {
 				result = fmt.Errorf("tenant phase=cleanup-incomplete code=%s", name)
 			}
+		} else if result != nil {
+			result = fmt.Errorf("%v cleanup=confirmed", result)
 		}
 	}()
 	started = true

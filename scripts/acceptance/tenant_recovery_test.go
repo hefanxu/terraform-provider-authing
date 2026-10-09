@@ -1,6 +1,7 @@
 package acceptance
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -176,4 +177,30 @@ func TestTenantRecoveryGuardExactIncident(t *testing.T) {
 	if tenantRecoveryGuard(true, env, "hermesacc-97f07719b2e15f0c") {
 		t.Fatal("inexact confirmation accepted")
 	}
+}
+
+// Reproduce the live incident: a scoped organization remains after create.
+// Its presence never authorizes cascading tenant/organization cleanup.
+func TestTenantOrganizationIncidentKeepsPinnedEvidenceWithoutDeleting(t *testing.T) {
+	m := &mockTenant{orgs: true}
+	_, server := mockTenantClient(t, m)
+	defer server.Close()
+	err := runTenantTrace(t.TempDir(), postCredentials(server), tenantTestName)
+	if err == nil {
+		t.Fatal("nonempty organization inventory accepted")
+	}
+	for _, expected := range []string{"phase=verify-created", "cleanup=incomplete", "stage=organizations category=nonempty", "state_id_sha256=" + fmt.Sprintf("%x", sha256.Sum256([]byte("tenant-unique-id")))} {
+		if !strings.Contains(err.Error(), expected) {
+			t.Fatalf("incident evidence missing %s: %v", expected, err)
+		}
+	}
+	if m.creates != 1 || m.updates != 0 || m.deletes != 0 {
+		t.Fatal("unsafe incident mutation")
+	}
+	for _, private := range []string{"tenant-unique-id", "key-marker", "credential-marker", "mock-token"} {
+		if strings.Contains(err.Error(), private) {
+			t.Fatal("raw identity or credential exposed")
+		}
+	}
+	t.Log(err)
 }

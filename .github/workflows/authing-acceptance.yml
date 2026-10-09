@@ -243,6 +243,8 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+      - name: Install checksum-verified Terraform and verify provider protocol offline
+        run: python3 scripts/protocol_smoke.py
       - name: Verify tenant read-only guards, pagination and closed diagnostics offline
         run: |
           go test -count=1 -run '^TestTenantRecovery' ./scripts/acceptance

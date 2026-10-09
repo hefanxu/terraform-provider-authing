@@ -115,6 +115,9 @@ def run(env=None, runner=subprocess.run):
                 diagnostic = SAFE_TENANT_STAGE.search(controlled)
                 if diagnostic:
                     outcome += "; " + diagnostic.group(0)
+                pinned = re.search(r"\bstate_id_sha256=([0-9a-f]{64})(?=\s|$)", controlled)
+                if pinned:
+                    outcome += "; state_id_sha256=" + pinned.group(1)
             raise RuntimeError(f"sandbox case {case} failed at {phase}; inspect only owned {identifier}{outcome}")
         raise RuntimeError(f"sandbox case {case} failed (output suppressed)")
     if case == "ext_idp":

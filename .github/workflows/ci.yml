@@ -29,7 +29,7 @@ jobs:
       - name: Terraform plugin protocol smoke (no Authing API)
         run: python3 scripts/protocol_smoke.py
       - name: Sandbox dispatch guard tests (no Authing API)
-        run: python3 -m unittest discover -s scripts/acceptance -p test_run_live_case.py
+        run: python3 -m unittest discover -s scripts/acceptance -p 'test_*.py'
       - name: Vet
         run: go vet ./...
       - name: Test

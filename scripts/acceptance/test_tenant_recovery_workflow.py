@@ -1,4 +1,5 @@
 import re
+import hashlib
 import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
@@ -39,7 +40,8 @@ class TenantRecoveryWorkflowTests(unittest.TestCase):
     def test_typed_tenant_diagnostic_survives_outer_allowlist_without_raw_output(self):
         test = 'TestDestructiveLiveTenantTrace'
         stage = 'stage=apps category=invalid-shape http_error=0 business=200 api_code=0 shape=missing-or-invalid-appids pages=0 count=-1 matches=0 total=-1'
-        output = 'tenant phase=verify-created code=hermesacc-1234567890abcdef (output suppressed) ' + stage + ' cleanup=incomplete secret-marker raw-id-marker'
+        pinned = 'state_id_sha256=' + 'a' * 64
+        output = 'tenant phase=verify-created code=hermesacc-1234567890abcdef (output suppressed) ' + stage + ' cleanup=incomplete ' + pinned + ' secret-marker raw-id-marker'
         runner = Mock(side_effect=[subprocess.CompletedProcess([], 0, test + '\n', ''),
                                    subprocess.CompletedProcess([], 1, output, 'credential-marker')])
         env = {'ACCEPTANCE_TEST_CASE': 'tenant', 'AUTHING_ACCEPTANCE_CONFIRM': 'DESTRUCTIVE_SANDBOX',
@@ -47,9 +49,28 @@ class TenantRecoveryWorkflowTests(unittest.TestCase):
         with patch.dict(live.CASES, {'tenant': test}), self.assertRaises(RuntimeError) as caught:
             live.run(env, runner)
         self.assertIn(stage, str(caught.exception))
+        self.assertIn(pinned, str(caught.exception))
         self.assertIn('verify-created', str(caught.exception))
         self.assertIn('cleanup=incomplete', str(caught.exception))
         for private in ('secret-marker', 'credential-marker', 'raw-id-marker'):
+            self.assertNotIn(private, str(caught.exception))
+
+    def test_actual_organization_incident_failure_survives_outer_allowlist(self):
+        result = subprocess.run(['go', 'test', '-count=1', '-v', '-run',
+                                 '^TestTenantOrganizationIncidentKeepsPinnedEvidenceWithoutDeleting$',
+                                 './scripts/acceptance'], cwd=ROOT, capture_output=True, text=True, check=False)
+        self.assertEqual(result.returncode, 0, 'offline tenant incident regression failed')
+        result.returncode = 1  # Replay only the real captured mock trace failure.
+        test = 'TestDestructiveLiveTenantTrace'
+        runner = Mock(side_effect=[subprocess.CompletedProcess([], 0, test + '\n', ''), result])
+        env = {'ACCEPTANCE_TEST_CASE': 'tenant', 'AUTHING_ACCEPTANCE_CONFIRM': 'DESTRUCTIVE_SANDBOX',
+               'AUTHING_ACCESS_KEY_ID': 'credential-marker', 'AUTHING_ACCESS_KEY_SECRET': 'secret-marker'}
+        with patch.dict(live.CASES, {'tenant': test}), self.assertRaises(RuntimeError) as caught:
+            live.run(env, runner)
+        for expected in ('verify-created', 'cleanup=incomplete', 'stage=organizations category=nonempty',
+                         'state_id_sha256=' + hashlib.sha256(b'tenant-unique-id').hexdigest()):
+            self.assertIn(expected, str(caught.exception))
+        for private in ('tenant-unique-id', 'credential-marker', 'secret-marker', 'mock-token'):
             self.assertNotIn(private, str(caught.exception))
 
 
