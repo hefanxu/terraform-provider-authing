@@ -228,7 +228,7 @@ func runInvitationPolicyTrace(root string, credentials map[string]string, name s
 		}
 		discovered, e := findInvitationPolicy(client, name)
 		if e != nil || id != "" && discovered != "" && discovered != id {
-			result = fmt.Errorf("invitation-policy phase=cleanup-incomplete code=%s id=%s (output suppressed)", name, id)
+			result = invitationPolicyCleanupFailure(result, name, id)
 			return
 		}
 		if discovered != "" {
@@ -236,12 +236,12 @@ func runInvitationPolicyTrace(root string, credentials map[string]string, name s
 		}
 		if id == "" {
 			if result != nil {
-				result = fmt.Errorf("invitation-policy phase=cleanup-incomplete code=%s (output suppressed)", name)
+				result = invitationPolicyCleanupFailure(result, name, "")
 			}
 			return
 		}
 		if e = cleanupInvitationPolicy(client, id, name); e != nil {
-			result = fmt.Errorf("invitation-policy phase=cleanup-incomplete code=%s id=%s (output suppressed)", name, id)
+			result = invitationPolicyCleanupFailure(result, name, id)
 		}
 	}()
 	providerDir, exampleDir := filepath.Join(root, "provider"), filepath.Join(root, "example")
