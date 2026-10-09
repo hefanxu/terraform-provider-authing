@@ -48,6 +48,7 @@ on:
           - none
           - group_member
           - invitation_policy
+          - webhook
       audit_start:
         description: 'Read-only group-member audit window start (RFC3339 UTC)'
         required: false
@@ -184,7 +185,7 @@ jobs:
         run: go test -count=1 -v -run '^TestReadOnlyPostRecovery$' ./scripts/acceptance -args -authing-post-recovery-sandbox
 
   webhook-shape-probe:
-    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feat/management-api-coverage' && inputs.confirm == 'READ_ONLY_SANDBOX' && inputs.test_case == 'webhook' && inputs.test_object_code == 'hermesacc-630f7fb8a43f0400' }}
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feat/management-api-coverage' && inputs.confirm == 'READ_ONLY_SANDBOX' && inputs.test_case == 'group' && inputs.read_only_audit == 'webhook' && inputs.test_object_code == 'hermesacc-630f7fb8a43f0400' && inputs.audit_start == '' && inputs.audit_end == '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: authing-sandbox
