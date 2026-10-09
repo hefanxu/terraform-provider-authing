@@ -39,13 +39,29 @@ on:
         description: 'Read-only recovery: exact generated incident code only'
         required: false
         type: string
+      read_only_audit:
+        description: 'Optional scoped read-only audit; never deletes an object'
+        required: false
+        default: none
+        type: choice
+        options:
+          - none
+          - group_member
+      audit_start:
+        description: 'Read-only group-member audit window start (RFC3339 UTC)'
+        required: false
+        type: string
+      audit_end:
+        description: 'Read-only group-member audit window end (RFC3339 UTC; at most 24h after start)'
+        required: false
+        type: string
 
 permissions:
   contents: read
 
 jobs:
   read-only-plan:
-    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feat/management-api-coverage' && inputs.confirm == 'READ_ONLY_SANDBOX' && inputs.test_object_code == '' }}
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feat/management-api-coverage' && inputs.confirm == 'READ_ONLY_SANDBOX' && inputs.test_object_code == '' && inputs.read_only_audit == 'none' && inputs.audit_start == '' && inputs.audit_end == '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: authing-sandbox
@@ -68,6 +84,31 @@ jobs:
           AUTHING_ACCESS_KEY_SECRET: ${{ secrets.AUTHING_ACCESS_KEY_SECRET }}
           AUTHING_HOST: ${{ vars.AUTHING_HOST }}
         run: go test -count=1 -run '^TestReadOnlyPlan$' ./scripts/acceptance -args -authing-read-only-sandbox
+
+  group-member-audit:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feat/management-api-coverage' && inputs.confirm == 'READ_ONLY_SANDBOX' && inputs.test_case == 'group' && inputs.test_object_code == '' && inputs.read_only_audit == 'group_member' && inputs.audit_start != '' && inputs.audit_end != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: authing-sandbox
+    steps:
+      - name: Checkout
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Verify audit scope and fail-closed pagination offline
+        run: go test -count=1 -run '^TestGroupMemberAudit' ./scripts/acceptance
+      - name: Audit only generated group and user candidates without mutations
+        env:
+          AUTHING_ACCEPTANCE_CONFIRM: ${{ inputs.confirm }}
+          AUTHING_AUDIT_START: ${{ inputs.audit_start }}
+          AUTHING_AUDIT_END: ${{ inputs.audit_end }}
+          AUTHING_ACCESS_KEY_ID: ${{ secrets.AUTHING_ACCESS_KEY_ID }}
+          AUTHING_ACCESS_KEY_SECRET: ${{ secrets.AUTHING_ACCESS_KEY_SECRET }}
+          AUTHING_HOST: ${{ vars.AUTHING_HOST }}
+        run: go test -count=1 -v -run '^TestReadOnlyGroupMemberAudit$' ./scripts/acceptance -args -authing-group-member-audit
 
   application-recovery:
     if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feat/management-api-coverage' && inputs.confirm == 'READ_ONLY_SANDBOX' && inputs.test_case == 'application' && (inputs.test_object_code == 'hermesacc-c99546b76631e842' || inputs.test_object_code == 'hermesacc-05aa25aef574a094' || inputs.test_object_code == 'hermesacc-db3c63ade05f10bb' || inputs.test_object_code == 'hermesacc-fe2e944f9929d3d2' || inputs.test_object_code == 'hermesacc-959474ded514d455') }}

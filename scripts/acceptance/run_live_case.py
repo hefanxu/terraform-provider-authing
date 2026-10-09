@@ -37,6 +37,7 @@ CASES = {
 SAFE_DIAGNOSTIC = re.compile(
     r"\bphase=([a-z][a-z0-9-]{0,50})\s+(?:code|username|name)=(hermesacc-[0-9a-f]{16})(?:\s|$)"
 )
+SAFE_USERNAME = re.compile(r"\busername=(hermesacc-[0-9a-f]{16})(?:\s|$)")
 SAFE_FAILURE = re.compile(
     r"\bfailure=(application-create|permission-strategy-update|permission-strategy-readback|permission-strategy-mismatch|inconsistent-result|unclassified)\b"
 )
@@ -72,8 +73,12 @@ def run(env=None, runner=subprocess.run):
         if matches:
             phase, identifier = matches[-1]
             controlled = result.stdout + "\n" + result.stderr
-            cleanup = re.findall(r"\bcleanup=(confirmed|incomplete)\b", controlled)
+            cleanup = re.findall(r"\bcleanup=(confirmed|incomplete|unknown)\b", controlled)
             outcome = f"; cleanup={cleanup[-1]}" if cleanup else ""
+            if case == "group_member":
+                usernames = SAFE_USERNAME.findall(controlled)
+                if usernames:
+                    outcome += f"; username={usernames[-1]}"
             failure = SAFE_FAILURE.findall(controlled)
             api_code = SAFE_API_CODE.findall(controlled)
             detail_code = SAFE_DETAIL_CODE.findall(controlled)

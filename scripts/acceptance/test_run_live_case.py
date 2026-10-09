@@ -2,7 +2,7 @@ import re
 import subprocess
 import unittest
 from pathlib import Path
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import run_live_case as mod
 
@@ -11,7 +11,7 @@ class SandboxDispatchTests(unittest.TestCase):
     def test_workflow_choices_map_to_existing_live_tests(self):
         root = Path(__file__).resolve().parents[2]
         workflow = (root / ".github/workflows/authing-acceptance.yml").read_text()
-        options = workflow.split("        options:\n", 1)[1].split("\npermissions:", 1)[0]
+        options = workflow.split("        options:\n", 1)[1].split("\n      test_object_code:", 1)[0]
         choices = re.findall(r"^          - ([a-z_]+)$", options, re.MULTILINE)
         self.assertCountEqual(choices, mod.CASES)
         names = set()
@@ -73,6 +73,20 @@ class SandboxDispatchTests(unittest.TestCase):
         self.assertIn("field=loginConfig", str(caught.exception))
         self.assertNotIn("secret-marker", str(caught.exception))
         self.assertNotIn("credential-marker", str(caught.exception))
+
+    def test_group_member_failure_keeps_safe_username_and_unknown_cleanup(self):
+        test = "TestDestructiveLiveGroupMemberTrace"
+        runner = Mock(side_effect=[subprocess.CompletedProcess([], 0, test + "\n", ""),
+                                   subprocess.CompletedProcess([], 1, "phase=plan-converged code=hermesacc-1234567890abcdef username=hermesacc-fedcba0987654321 cleanup=unknown secret-marker", "credential-marker")])
+        with patch.dict(mod.CASES, {"group_member": test}), self.assertRaises(RuntimeError) as caught:
+            mod.run(self.env("group_member"), runner)
+        message = str(caught.exception)
+        self.assertIn("plan-converged", message)
+        self.assertIn("hermesacc-1234567890abcdef", message)
+        self.assertIn("username=hermesacc-fedcba0987654321", message)
+        self.assertIn("cleanup=unknown", message)
+        self.assertNotIn("secret-marker", message)
+        self.assertNotIn("credential-marker", message)
 
     def test_drift_reason_is_allowlisted(self):
         test = mod.CASES["application"]
