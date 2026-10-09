@@ -1,11 +1,58 @@
-name: Authing read-only sandbox acceptance
+name: Authing sandbox acceptance
 
 on:
   workflow_dispatch:
     inputs:
       confirm:
-        description: 'Type READ_ONLY_SANDBOX to authorize one read-only plan against the isolated Authing sandbox'
+        description: 'READ_ONLY_SANDBOX: one GET plan; DESTRUCTIVE_SANDBOX: one disposable resource lifecycle'
         required: true
+        type: string
+      test_case:
+        description: 'Select exactly one resource for a destructive sandbox test'
+        required: true
+        default: ext_idp
+        type: choice
+        options:
+          - application
+          - application_strategy
+          - namespace
+          - user
+          - public_account
+          - ext_idp
+          - webhook
+          - organization
+          - role
+          - resource
+          - post
+          - data_resource
+          - data_object
+          - department
+          - role_assignment
+          - department_member
+          - pipeline_function
+          - data_object_field
+      test_object_code:
+        description: 'Read-only recovery: exact generated incident code only'
+        required: false
+        type: string
+      read_only_audit:
+        description: 'Optional scoped read-only audit; never deletes an object'
+        required: false
+        default: none
+        type: choice
+        options:
+          - none
+          - group_member
+          - invitation_policy
+          - webhook
+          - tenant
+      audit_start:
+        description: 'Read-only group-member audit window start (RFC3339 UTC)'
+        required: false
+        type: string
+      audit_end:
+        description: 'Read-only group-member audit window end (RFC3339 UTC; at most 24h after start)'
+        required: false
         type: string
 
 permissions:
@@ -13,7 +60,7 @@ permissions:
 
 jobs:
   read-only-plan:
-    if: ${{ github.ref == 'refs/heads/feat/management-api-coverage' && inputs.confirm == 'READ_ONLY_SANDBOX' }}
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feat/management-api-coverage' && inputs.confirm == 'READ_ONLY_SANDBOX' && inputs.test_object_code == '' && inputs.read_only_audit == 'none' && inputs.audit_start == '' && inputs.audit_end == '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: authing-sandbox
@@ -36,3 +83,229 @@ jobs:
           AUTHING_ACCESS_KEY_SECRET: ${{ secrets.AUTHING_ACCESS_KEY_SECRET }}
           AUTHING_HOST: ${{ vars.AUTHING_HOST }}
         run: go test -count=1 -run '^TestReadOnlyPlan$' ./scripts/acceptance -args -authing-read-only-sandbox
+
+  group-member-audit:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feat/management-api-coverage' && inputs.confirm == 'READ_ONLY_SANDBOX' && inputs.test_case == 'ext_idp' && inputs.test_object_code == '' && inputs.read_only_audit == 'group_member' && inputs.audit_start != '' && inputs.audit_end != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: authing-sandbox
+    steps:
+      - name: Checkout
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Verify audit scope and fail-closed pagination offline
+        run: go test -count=1 -run '^TestGroupMemberAudit' ./scripts/acceptance
+      - name: Audit only generated group and user candidates without mutations
+        env:
+          AUTHING_ACCEPTANCE_CONFIRM: ${{ inputs.confirm }}
+          AUTHING_AUDIT_START: ${{ inputs.audit_start }}
+          AUTHING_AUDIT_END: ${{ inputs.audit_end }}
+          AUTHING_ACCESS_KEY_ID: ${{ secrets.AUTHING_ACCESS_KEY_ID }}
+          AUTHING_ACCESS_KEY_SECRET: ${{ secrets.AUTHING_ACCESS_KEY_SECRET }}
+          AUTHING_HOST: ${{ vars.AUTHING_HOST }}
+        run: go test -count=1 -v -run '^TestReadOnlyGroupMemberAudit$' ./scripts/acceptance -args -authing-group-member-audit
+
+  invitation-policy-probe:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feat/management-api-coverage' && inputs.confirm == 'READ_ONLY_SANDBOX' && inputs.test_case == 'ext_idp' && inputs.read_only_audit == 'invitation_policy' && inputs.test_object_code == 'hermesacc-ece1527c4751401c' && inputs.audit_start == '' && inputs.audit_end == '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: authing-sandbox
+    steps:
+      - name: Checkout
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Verify scoped policy list probe offline
+        run: go test -count=1 -run '^TestInvitationPolicyProbe' ./scripts/acceptance
+      - name: Probe exact incident policy name without mutations
+        env:
+          AUTHING_TEST_OBJECT_CODE: ${{ inputs.test_object_code }}
+          AUTHING_ACCEPTANCE_CONFIRM: ${{ inputs.confirm }}
+          AUTHING_ACCESS_KEY_ID: ${{ secrets.AUTHING_ACCESS_KEY_ID }}
+          AUTHING_ACCESS_KEY_SECRET: ${{ secrets.AUTHING_ACCESS_KEY_SECRET }}
+          AUTHING_HOST: ${{ vars.AUTHING_HOST }}
+        run: go test -count=1 -v -run '^TestReadOnlyInvitationPolicyProbe$' ./scripts/acceptance -args -authing-invitation-policy-probe-sandbox
+
+  application-recovery:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feat/management-api-coverage' && inputs.confirm == 'READ_ONLY_SANDBOX' && inputs.test_case == 'application' && inputs.read_only_audit == 'none' && inputs.audit_start == '' && inputs.audit_end == '' && (inputs.test_object_code == 'hermesacc-c99546b76631e842' || inputs.test_object_code == 'hermesacc-05aa25aef574a094' || inputs.test_object_code == 'hermesacc-db3c63ade05f10bb' || inputs.test_object_code == 'hermesacc-fe2e944f9929d3d2' || inputs.test_object_code == 'hermesacc-959474ded514d455') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: authing-sandbox
+    steps:
+      - name: Checkout
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Verify recovery probe offline
+        run: go test -count=1 -run '^(TestApplicationRecoveryProbe|TestApplicationRecoveryGuard|TestApplicationDiscoveryUnfiltered)$' ./scripts/acceptance
+      - name: Probe exact incident application with GET only
+        env:
+          ACCEPTANCE_TEST_OBJECT_CODE: ${{ inputs.test_object_code }}
+          AUTHING_ACCEPTANCE_CONFIRM: ${{ inputs.confirm }}
+          AUTHING_ACCESS_KEY_ID: ${{ secrets.AUTHING_ACCESS_KEY_ID }}
+          AUTHING_ACCESS_KEY_SECRET: ${{ secrets.AUTHING_ACCESS_KEY_SECRET }}
+          AUTHING_HOST: ${{ vars.AUTHING_HOST }}
+        run: go test -count=1 -v -run '^TestReadOnlyApplicationRecovery$' ./scripts/acceptance -args -authing-application-recovery
+
+  post-recovery:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feat/management-api-coverage' && inputs.confirm == 'READ_ONLY_SANDBOX' && inputs.test_case == 'post' && inputs.test_object_code == 'hermesacc-52d2839776773ef4' && inputs.read_only_audit == 'none' && inputs.audit_start == '' && inputs.audit_end == '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: authing-sandbox
+    steps:
+      - name: Checkout
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Verify lookup guard, scope and diagnostics offline
+        run: go test -count=1 -run '^(TestPostRecoveryProbeGuardMock|TestPostRecoveryProbeMock)$' ./scripts/acceptance
+      - name: Compare exact post GET and scoped list lookup without CRUD
+        env:
+          AUTHING_TEST_OBJECT_CODE: ${{ inputs.test_object_code }}
+          AUTHING_ACCEPTANCE_CONFIRM: ${{ inputs.confirm }}
+          AUTHING_ACCESS_KEY_ID: ${{ secrets.AUTHING_ACCESS_KEY_ID }}
+          AUTHING_ACCESS_KEY_SECRET: ${{ secrets.AUTHING_ACCESS_KEY_SECRET }}
+          AUTHING_HOST: ${{ vars.AUTHING_HOST }}
+        run: go test -count=1 -v -run '^TestReadOnlyPostRecovery$' ./scripts/acceptance -args -authing-post-recovery-sandbox
+
+  webhook-shape-probe:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feat/management-api-coverage' && inputs.confirm == 'READ_ONLY_SANDBOX' && inputs.test_case == 'ext_idp' && inputs.read_only_audit == 'webhook' && inputs.test_object_code == 'hermesacc-630f7fb8a43f0400' && inputs.audit_start == '' && inputs.audit_end == '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: authing-sandbox
+    steps:
+      - name: Checkout
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Verify GET-only shape probe and guards offline
+        run: go test -count=1 -run '^(TestWebhookProbeGuard|TestWebhookListShapeProbe)$' ./scripts/acceptance
+      - name: Inspect exact incident name in complete webhook inventory without writes
+        env:
+          AUTHING_TEST_OBJECT_CODE: ${{ inputs.test_object_code }}
+          AUTHING_ACCEPTANCE_CONFIRM: ${{ inputs.confirm }}
+          AUTHING_ACCESS_KEY_ID: ${{ secrets.AUTHING_ACCESS_KEY_ID }}
+          AUTHING_ACCESS_KEY_SECRET: ${{ secrets.AUTHING_ACCESS_KEY_SECRET }}
+          AUTHING_HOST: ${{ vars.AUTHING_HOST }}
+        run: go test -count=1 -v -run '^TestReadOnlyWebhookListShape$' ./scripts/acceptance -args -authing-webhook-shape-sandbox
+
+  namespace-recovery:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feat/management-api-coverage' && inputs.confirm == 'READ_ONLY_SANDBOX' && inputs.test_case == 'namespace' && inputs.test_object_code == 'hermesacc-a69a5cb1b971aa8e' && inputs.read_only_audit == 'none' && inputs.audit_start == '' && inputs.audit_end == '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: authing-sandbox
+    steps:
+      - name: Checkout
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Verify read-only recovery probe offline
+        run: go test -count=1 -run '^(TestNamespaceRecoveryProbeMock|TestNamespaceRecoveryProbeGuard|TestNamespaceRecoveryProbeInventoryFailureIsUnknown|TestNamespaceRecoveryProbeDoesNotConflateFailureWithAbsence)$' ./scripts/acceptance
+      - name: Probe exact incident namespace with GET only
+        env:
+          AUTHING_TEST_OBJECT_CODE: ${{ inputs.test_object_code }}
+          AUTHING_ACCEPTANCE_CONFIRM: ${{ inputs.confirm }}
+          AUTHING_ACCESS_KEY_ID: ${{ secrets.AUTHING_ACCESS_KEY_ID }}
+          AUTHING_ACCESS_KEY_SECRET: ${{ secrets.AUTHING_ACCESS_KEY_SECRET }}
+          AUTHING_HOST: ${{ vars.AUTHING_HOST }}
+        run: go test -count=1 -v -run '^TestNamespaceRecoveryProbe$' ./scripts/acceptance -args -authing-namespace-recovery-sandbox
+
+  tenant-recovery:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feat/management-api-coverage' && inputs.confirm == 'READ_ONLY_SANDBOX' && inputs.test_case == 'ext_idp' && inputs.read_only_audit == 'tenant' && inputs.test_object_code == 'hermesacc-97f07719b2e15f0c' && inputs.audit_start == '' && inputs.audit_end == '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: authing-sandbox
+    steps:
+      - name: Checkout
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Install checksum-verified Terraform and verify provider protocol offline
+        run: python3 scripts/protocol_smoke.py
+      - name: Verify tenant read-only guards, pagination and closed diagnostics offline
+        run: |
+          go test -count=1 -run '^TestTenantRecovery' ./scripts/acceptance
+          python3 -m unittest discover -s scripts/acceptance -p test_tenant_recovery_workflow.py
+          go test -list '^TestReadOnlySandboxTenantRecovery$' ./scripts/acceptance | grep -Fx TestReadOnlySandboxTenantRecovery
+      - name: Diagnose exact tenant incident without writes or deletion authority
+        env:
+          AUTHING_TENANT_RECOVERY_NAME: ${{ inputs.test_object_code }}
+          AUTHING_ACCEPTANCE_CONFIRM: ${{ inputs.confirm }}
+          AUTHING_ACCESS_KEY_ID: ${{ secrets.AUTHING_ACCESS_KEY_ID }}
+          AUTHING_ACCESS_KEY_SECRET: ${{ secrets.AUTHING_ACCESS_KEY_SECRET }}
+          AUTHING_HOST: ${{ vars.AUTHING_HOST }}
+        run: go test -count=1 -v -run '^TestReadOnlySandboxTenantRecovery$' ./scripts/acceptance -args -authing-tenant-recovery-sandbox
+
+  destructive-case:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feat/management-api-coverage' && inputs.confirm == 'DESTRUCTIVE_SANDBOX' && inputs.test_object_code == '' && inputs.read_only_audit == 'none' && inputs.audit_start == '' && inputs.audit_end == '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: authing-sandbox
+    steps:
+      - name: Checkout
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Install checksum-verified Terraform and verify provider protocol offline
+        run: python3 scripts/protocol_smoke.py
+      - name: Verify selection, guard, and redacted diagnostics offline
+        run: python3 -m unittest discover -s scripts/acceptance -p test_run_live_case.py
+      - name: Verify mock Terraform lifecycles offline
+        run: go test -count=1 ./scripts/acceptance
+      - name: Trace one selected lifecycle in isolated Authing sandbox
+        env:
+          ACCEPTANCE_TEST_CASE: ${{ inputs.test_case }}
+          AUTHING_ACCEPTANCE_CONFIRM: ${{ inputs.confirm }}
+          AUTHING_ACCESS_KEY_ID: ${{ secrets.AUTHING_ACCESS_KEY_ID }}
+          AUTHING_ACCESS_KEY_SECRET: ${{ secrets.AUTHING_ACCESS_KEY_SECRET }}
+          AUTHING_HOST: ${{ vars.AUTHING_HOST }}
+        run: python3 scripts/acceptance/run_live_case.py
+
+  namespace-recovery-cleanup:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feat/management-api-coverage' && inputs.confirm == 'DESTRUCTIVE_SANDBOX' && inputs.test_case == 'namespace' && inputs.test_object_code == 'hermesacc-a69a5cb1b971aa8e' && inputs.read_only_audit == 'none' && inputs.audit_start == '' && inputs.audit_end == '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: authing-sandbox
+    steps:
+      - name: Checkout
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Verify ownership and cleanup refusal offline
+        run: go test -count=1 -run '^(TestNamespaceCleanupGuard|TestNamespaceRecoveryCleanupMockSuccess|TestNamespaceCleanupRefusesAnyGlobalPolicyOrUnknownInventory|TestNamespaceResourceInventoryAllowsOnlyCompleteEmptyRuntimeShape)$' ./scripts/acceptance
+      - name: Delete exact test-owned namespace only after fresh empty inventories
+        env:
+          AUTHING_TEST_OBJECT_CODE: ${{ inputs.test_object_code }}
+          AUTHING_ACCEPTANCE_CONFIRM: ${{ inputs.confirm }}
+          AUTHING_ACCESS_KEY_ID: ${{ secrets.AUTHING_ACCESS_KEY_ID }}
+          AUTHING_ACCESS_KEY_SECRET: ${{ secrets.AUTHING_ACCESS_KEY_SECRET }}
+          AUTHING_HOST: ${{ vars.AUTHING_HOST }}
+        run: go test -count=1 -v -run '^TestNamespaceRecoveryCleanup$' ./scripts/acceptance -args -authing-namespace-cleanup-sandbox

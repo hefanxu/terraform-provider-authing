@@ -4,10 +4,10 @@ import (
 	"context"
 
 	"github.com/Authing/authing-golang-sdk/v3/dto"
-	"github.com/Authing/authing-golang-sdk/v3/management"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"terraform-provider-authing/internal/authingapi"
 )
 
 var _ datasource.DataSource = &UserDataSource{}
@@ -17,7 +17,7 @@ func NewUserDataSource() datasource.DataSource {
 }
 
 type UserDataSource struct {
-	client *management.ManagementClient
+	client *authingapi.Client
 }
 
 type UserDataSourceModel struct {
@@ -94,9 +94,9 @@ func (d *UserDataSource) Configure(ctx context.Context, req datasource.Configure
 	if req.ProviderData == nil {
 		return
 	}
-	client, ok := req.ProviderData.(*management.ManagementClient)
+	client, ok := req.ProviderData.(*authingapi.Client)
 	if !ok {
-		resp.Diagnostics.AddError("Unexpected DataSource Configure Type", "Expected *management.ManagementClient")
+		resp.Diagnostics.AddError("Unexpected DataSource Configure Type", "Expected *authingapi.Client")
 		return
 	}
 	d.client = client
@@ -157,7 +157,7 @@ func NewUsersDataSource() datasource.DataSource {
 }
 
 type UsersDataSource struct {
-	client *management.ManagementClient
+	client *authingapi.Client
 }
 
 type UsersDataSourceModel struct {
@@ -229,9 +229,9 @@ func (d *UsersDataSource) Configure(ctx context.Context, req datasource.Configur
 	if req.ProviderData == nil {
 		return
 	}
-	client, ok := req.ProviderData.(*management.ManagementClient)
+	client, ok := req.ProviderData.(*authingapi.Client)
 	if !ok {
-		resp.Diagnostics.AddError("Unexpected DataSource Configure Type", "Expected *management.ManagementClient")
+		resp.Diagnostics.AddError("Unexpected DataSource Configure Type", "Expected *authingapi.Client")
 		return
 	}
 	d.client = client

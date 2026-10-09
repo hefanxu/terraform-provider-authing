@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/Authing/authing-golang-sdk/v3/management"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"terraform-provider-authing/internal/authingapi"
 )
 
 var _ provider.Provider = &AuthingProvider{}
@@ -109,18 +109,18 @@ func (p *AuthingProvider) Configure(ctx context.Context, req provider.ConfigureR
 		return
 	}
 
-	opts := &management.ManagementClientOptions{
-		AccessKeyId:     ak,
+	opts := authingapi.Options{
+		AccessKeyID:     ak,
 		AccessKeySecret: sk,
 		Host:            host,
-		TenantId:        tenantId,
+		TenantID:        tenantId,
 	}
 
-	client, err := management.NewManagementClient(opts)
+	client, err := authingapi.NewClient(opts)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Unable to create Authing Management Client",
-			fmt.Sprintf("Failed to initialize Authing SDK client: %s", err.Error()),
+			fmt.Sprintf("Failed to initialize Authing API client: %s", err.Error()),
 		)
 		return
 	}
@@ -133,6 +133,7 @@ func (p *AuthingProvider) Resources(ctx context.Context) []func() resource.Resou
 	return []func() resource.Resource{
 		// Identity & Users
 		NewUserResource,
+		NewPublicAccountResource,
 		// Groups & Organizations & Departments & Posts
 		NewGroupResource,
 		NewDepartmentResource,
@@ -143,6 +144,14 @@ func (p *AuthingProvider) Resources(ctx context.Context) []func() resource.Resou
 		NewRoleResource,
 		NewResourceResource,
 		NewDataPolicyResource,
+		NewInvitationPolicyResource,
+		NewInvitationRosterResource,
+		NewInvitationInviteeResource,
+		NewDataPolicyAssignmentResource,
+		NewTenantMembershipResource,
+		NewTenantOrganizationResource,
+		NewCustomDomainResource,
+		NewTenantAdminResource,
 		NewRoleAssignmentResource,
 		NewGroupMemberResource,
 		NewDepartmentMemberResource,
@@ -151,12 +160,18 @@ func (p *AuthingProvider) Resources(ctx context.Context) []func() resource.Resou
 		NewExtIdpResource,
 		NewWebhookResource,
 		NewPipelineFunctionResource,
+		NewAuthFlowFunctionResource,
+		NewDataResourceResource,
+		NewTenantResource,
+		NewDataObjectResource,
+		NewDataObjectFieldResource,
 	}
 }
 
 func (p *AuthingProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
 		NewUserDataSource,
+		NewPublicAccountDataSource,
 		NewUsersDataSource,
 		NewGroupDataSource,
 		NewDepartmentDataSource,
@@ -164,6 +179,20 @@ func (p *AuthingProvider) DataSources(ctx context.Context) []func() datasource.D
 		NewNamespaceDataSource,
 		NewRoleDataSource,
 		NewResourceDataSource,
+		NewDataResourceDataSource,
+		NewDataResourceExtensionFieldDataSource,
+		NewTenantDataSource,
+		NewTenantUserDataSource,
+		NewTenantCustomFieldDataSource,
+		NewTenantDepartmentDataSource,
+		NewDataObjectRowDataSource,
 		NewApplicationDataSource,
+		NewDeviceStatusDataSource,
+		NewApplicationSubjectAuthDataSource,
+		NewExtIdpConnectionDataSource,
+		NewGlobalSecuritySettingsDataSource,
+		NewGlobalMFASettingsDataSource,
+		NewDeviceExclusiveRuleSettingsDataSource,
+		NewDeviceExclusiveValidScopeSettingsDataSource,
 	}
 }
