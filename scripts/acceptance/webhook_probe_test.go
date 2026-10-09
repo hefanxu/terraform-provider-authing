@@ -12,6 +12,41 @@ import (
 
 const incidentWebhookCode = "hermesacc-630f7fb8a43f0400"
 
+func TestWebhookListRespectsDocumentedMaximumPageSize(t *testing.T) {
+	requests := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/v3/get-management-token" {
+			fmt.Fprint(w, `{"statusCode":200,"data":{"access_token":"mock-token","expires_in":3600}}`)
+			return
+		}
+		if r.Method != http.MethodGet || r.URL.Path != "/api/v3/list-webhooks" {
+			t.Errorf("unexpected method/path %s %s", r.Method, r.URL.Path)
+			w.WriteHeader(405)
+			return
+		}
+		requests++
+		if r.URL.Query().Get("page") != "1" || r.URL.Query().Get("limit") != "50" {
+			fmt.Fprint(w, `{"statusCode":400,"data":null}`)
+			return
+		}
+		fmt.Fprint(w, `{"statusCode":200,"data":{"totalCount":0,"list":[]}}`)
+	}))
+	defer server.Close()
+	client, err := authingapi.NewClient(authingapi.Options{AccessKeyID: "key", AccessKeySecret: "secret", Host: server.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := findWebhook(client, webhookTestName); err != nil {
+		t.Fatal("webhook ownership inventory must respect API maximum page size")
+	}
+	if got := probeWebhookListShape(client, incidentWebhookCode); got.State != "zero" {
+		t.Fatalf("read-only inventory ignored API page size: state=%s reason=%s", got.State, got.Reason)
+	}
+	if requests != 2 {
+		t.Fatalf("expected one page per list, got %d", requests)
+	}
+}
+
 func TestWebhookProbeGuard(t *testing.T) {
 	valid := map[string]string{"AUTHING_ACCEPTANCE_CONFIRM": "READ_ONLY_SANDBOX", "AUTHING_ACCESS_KEY_ID": "key", "AUTHING_ACCESS_KEY_SECRET": "secret"}
 	if !webhookProbeGuard(true, valid, incidentWebhookCode) {
@@ -72,7 +107,7 @@ func TestWebhookListShapeProbe(t *testing.T) {
 					fmt.Fprint(w, `{"statusCode":200,"data":{"access_token":"mock-token","expires_in":3600}}`)
 					return
 				}
-				if r.Method != http.MethodGet || r.URL.Path != "/api/v3/list-webhooks" || r.URL.Query().Get("page") != fmt.Sprint(requests+1) || r.URL.Query().Get("limit") != "100" {
+				if r.Method != http.MethodGet || r.URL.Path != "/api/v3/list-webhooks" || r.URL.Query().Get("page") != fmt.Sprint(requests+1) || r.URL.Query().Get("limit") != "50" {
 					t.Errorf("unexpected request method/path/page")
 					w.WriteHeader(405)
 					return

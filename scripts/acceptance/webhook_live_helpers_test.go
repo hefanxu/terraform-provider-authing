@@ -24,7 +24,7 @@ func findWebhook(client *authingapi.Client, name string) (string, error) {
 	var match string
 	seen := 0
 	for page := 1; page <= 100; page++ {
-		body, err := client.SendHttpRequest("/api/v3/list-webhooks", "GET", map[string]any{"page": page, "limit": 100})
+		body, err := client.SendHttpRequest("/api/v3/list-webhooks", "GET", map[string]any{"page": page, "limit": 50})
 		if err != nil {
 			return "", errors.New("webhook listing failed")
 		}

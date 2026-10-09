@@ -47,7 +47,7 @@ func probeWebhookListShape(client *authingapi.Client, code string) webhookShapeS
 	seen, total, matches := 0, -1, 0
 	names := map[string]bool{}
 	for page := 1; page <= 100; page++ {
-		body, err := client.SendHttpRequest("/api/v3/list-webhooks", http.MethodGet, map[string]any{"page": page, "limit": 100})
+		body, err := client.SendHttpRequest("/api/v3/list-webhooks", http.MethodGet, map[string]any{"page": page, "limit": 50})
 		if err != nil {
 			return webhookShapeFailure(err, page)
 		}
@@ -104,7 +104,7 @@ func probeWebhookListShape(client *authingapi.Client, code string) webhookShapeS
 			stage.Shape = "invalid-data"
 			return stage
 		}
-		if total >= 0 && count != total || len(entries) > 100 || seen+len(entries) > count || len(entries) == 0 && seen < count {
+		if total >= 0 && count != total || len(entries) > 50 || seen+len(entries) > count || len(entries) == 0 && seen < count {
 			stage.Reason = "incomplete"
 			stage.Shape = "incomplete"
 			return stage
