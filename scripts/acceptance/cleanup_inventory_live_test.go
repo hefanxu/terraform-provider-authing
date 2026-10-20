@@ -48,6 +48,7 @@ func cleanupFamilies() []cleanupFamily {
 		{Family: "webhook", Path: "/api/v3/list-webhooks", ID: "webhookId", Name: "name", Get: "/api/v3/get-webhook", GetID: "webhookId", Paged: true},
 		{Family: "pipeline_function", Path: "/api/v3/list-pipeline-functions", ID: "funcId", Name: "funcName", Get: "/api/v3/get-pipeline-function", GetID: "funcId", Extra: map[string]any{"scene": "PRE_REGISTER"}},
 		{Family: "tenant", Path: "/api/v3/list-tenants", ID: "tenantId", Name: "name", Get: "/api/v3/get-tenant", GetID: "tenantId", Paged: true, PageKind: "strings"},
+		{Family: "organization", Path: "/api/v3/list-organizations", ID: "organizationCode", Name: "organizationName", Get: "/api/v3/get-organization", GetID: "organizationCode", Paged: true},
 	}
 	// The complete published pipeline scene enum is searched only for candidates.
 	// Even AUTH_FLOW_FUNCTION here cannot establish auth-flow-function absence.
@@ -169,11 +170,12 @@ func cleanupKnownCodeGETs(c *authingapi.Client, emit func(cleanupEvent)) {
 		{"group", "hermesacc-69fb9c423513635b", "/api/v3/get-group", "code"},
 		{"group", "hermesacc-c834fa2818addda0", "/api/v3/get-group", "code"},
 		{"group", "hermesacc-d4ecff84407c6617", "/api/v3/get-group", "code"},
+		{"user", "hermesacc-9628c310fcf35671", "/api/v3/get-user", "userId"},
 		{"namespace", "hermesacc-a69a5cb1b971aa8e", "/api/v3/get-namespace", "code"},
 		{"public_account", "hermesacc-802de9a7c2297afd", "/api/v3/get-public-account", "userId"},
 	} {
 		arg := map[string]any{target.key: target.code}
-		if target.family == "public_account" {
+		if target.family == "public_account" || target.family == "user" {
 			arg["userIdType"] = "username"
 		}
 		_, business, state := cleanupRead(c, target.path, "GET", arg)
@@ -191,6 +193,7 @@ func TestReadOnlyCleanupInventory(t *testing.T) {
 	if err != nil {
 		t.Fatal("cleanup inventory client unavailable")
 	}
+	tenantAbsent := false
 	for _, f := range cleanupFamilies() {
 		emit := cleanupEmit
 		if scene, ok := f.Extra["scene"].(string); ok {
@@ -202,6 +205,9 @@ func TestReadOnlyCleanupInventory(t *testing.T) {
 			}
 		}
 		items, state := cleanupInventory(c, f, nil, emit)
+		if f.Family == "tenant" && state == "complete" && len(items) == 0 {
+			tenantAbsent = true
+		}
 		matches := 0
 		if state == "complete" {
 			for _, item := range items {
@@ -215,6 +221,9 @@ func TestReadOnlyCleanupInventory(t *testing.T) {
 		emit(cleanupEvent{Kind: "family", Family: f.Family, State: state, Authority: "none", Count: cleanupCount(matches, state), Total: cleanupCount(len(items), state)})
 	}
 	cleanupKnownCodeGETs(c, cleanupEmit)
+	if tenantAbsent {
+		cleanupRecoverVanishedScopes(c, cleanupEmit)
+	}
 	// No published auth-flow-function enumeration contract. A pipeline inventory is
 	// intentionally never used as absence proof for this different resource family.
 	cleanupEmit(cleanupEvent{Kind: "gap", Family: "auth_flow_function", Code: "hermesacc-4cba9ad3756d8fa0", State: "no-published-enumeration-or-exact-id", Authority: "none", Count: -1, Total: -1})

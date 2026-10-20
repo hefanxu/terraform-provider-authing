@@ -7,9 +7,9 @@ import subprocess
 import sys
 from pathlib import Path
 
-FAMILIES=set('group user public_account application namespace ext_idp webhook pipeline_function tenant group_members group_member user_groups tenant_apps tenant_users tenant_admins tenant_organizations organization_root organization_children organization_members auth_flow_function'.split())
-KINDS=set('candidate exact dependency relation page family known_exact gap'.split())
-STATES=set('guard transport-or-http-error invalid-envelope absent business-error invalid-data invalid-page inventory-unavailable incomplete-inventory duplicate-or-missing-identity page-cap complete observed-not-authority discovered-not-verified identity-mismatch candidate-exact-identity candidate-not-authority invalid-appids scoped-candidate foreign-scope missing-root no-published-enumeration-or-exact-id'.split())
+FAMILIES=set('group user public_account application namespace ext_idp webhook pipeline_function tenant organization audit_tenant audit_org group_members group_member user_groups tenant_apps tenant_users tenant_admins tenant_organizations organization_root organization_children organization_members auth_flow_function'.split())
+KINDS=set('candidate exact dependency relation page family known_exact recovered_exact gap'.split())
+STATES=set('guard transport-or-http-error invalid-envelope absent business-error invalid-data invalid-page inventory-unavailable incomplete-inventory duplicate-or-missing-identity page-cap complete observed-not-authority discovered-not-verified identity-mismatch candidate-exact-identity candidate-not-authority invalid-appids scoped-candidate foreign-scope missing-root no-published-enumeration-or-exact-id exact-id-not-recovered'.split())
 ALLOWED=set('kind family scope_sha256 generated_code id_sha256 state authority marker_matches business page count total'.split())
 
 def safe_event(row):

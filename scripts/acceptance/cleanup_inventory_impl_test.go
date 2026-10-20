@@ -23,6 +23,7 @@ var cleanupReadPaths = map[string]string{
 	"/api/v3/list-pipeline-functions": "GET", "/api/v3/get-pipeline-function": "GET",
 	"/api/v3/list-tenants": "GET", "/api/v3/get-tenant": "GET", "/api/v3/list-tenant-users": "POST", "/api/v3/list-tenant-admin": "POST",
 	"/api/v3/list-organizations": "GET", "/api/v3/get-organization": "GET", "/api/v3/list-children-departments": "GET", "/api/v3/list-department-members": "GET",
+	"/api/v3/get-admin-audit-logs": "POST",
 }
 
 func cleanupRead(c *authingapi.Client, path, method string, arg any) (json.RawMessage, int, string) {
@@ -95,6 +96,8 @@ func cleanupInventory(c *authingapi.Client, f cleanupFamily, scope map[string]an
 			switch f.PageKind {
 			case "options":
 				arg["options"] = map[string]any{"pagination": map[string]int{"page": page, "limit": 50}}
+			case "pagination":
+				arg["pagination"] = map[string]int{"page": page, "limit": 50}
 			case "strings":
 				arg["page"] = fmt.Sprint(page)
 				arg["limit"] = "50"

@@ -1062,6 +1062,53 @@
           }
         ]
       }
+    },
+    "/api/v3/get-admin-audit-logs": {
+      "post": {
+        "parameters": [],
+        "request_properties": {
+          "requestId": {
+            "type": "string",
+            "schema_refs": []
+          },
+          "clientIp": {
+            "type": "string",
+            "schema_refs": []
+          },
+          "operationType": {
+            "type": "string",
+            "schema_refs": []
+          },
+          "resourceType": {
+            "type": "string",
+            "schema_refs": []
+          },
+          "userId": {
+            "type": "string",
+            "schema_refs": []
+          },
+          "success": {
+            "type": "boolean",
+            "schema_refs": []
+          },
+          "start": {
+            "type": "number",
+            "schema_refs": []
+          },
+          "end": {
+            "type": "number",
+            "schema_refs": []
+          },
+          "pagination": {
+            "type": null,
+            "schema_refs": [
+              {
+                "$ref": "#/components/schemas/ListWebhooksDto"
+              }
+            ]
+          }
+        }
+      }
     }
   }
 }
