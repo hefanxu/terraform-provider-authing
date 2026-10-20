@@ -2,10 +2,11 @@ package provider
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"net/http"
 
 	"github.com/Authing/authing-golang-sdk/v3/dto"
-	"github.com/Authing/authing-golang-sdk/v3/management"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	dschema "github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -14,6 +15,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"terraform-provider-authing/internal/authingapi"
 )
 
 // --- Organization Resource ---
@@ -26,7 +28,7 @@ func NewOrganizationResource() resource.Resource {
 }
 
 type OrganizationResource struct {
-	client *management.ManagementClient
+	client *authingapi.Client
 }
 
 type OrganizationModel struct {
@@ -42,7 +44,7 @@ func (r *OrganizationResource) Metadata(ctx context.Context, req resource.Metada
 
 func (r *OrganizationResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		Description: "Manages an Authing Organization.",
+		Description: "Manages an Authing Organization. Deletion is refused if child departments exist or their status cannot be confirmed; Authing deletes the entire organization tree.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Computed: true,
@@ -51,8 +53,7 @@ func (r *OrganizationResource) Schema(ctx context.Context, req resource.SchemaRe
 				},
 			},
 			"organization_code": schema.StringAttribute{
-				Optional:    true,
-				Computed:    true,
+				Required:    true,
 				Description: "Unique code for the organization.",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
@@ -75,9 +76,9 @@ func (r *OrganizationResource) Configure(ctx context.Context, req resource.Confi
 	if req.ProviderData == nil {
 		return
 	}
-	client, ok := req.ProviderData.(*management.ManagementClient)
+	client, ok := req.ProviderData.(*authingapi.Client)
 	if !ok {
-		resp.Diagnostics.AddError("Unexpected Resource Configure Type", "Expected *management.ManagementClient")
+		resp.Diagnostics.AddError("Unexpected Resource Configure Type", "Expected *authingapi.Client")
 		return
 	}
 	r.client = client
@@ -92,10 +93,13 @@ func (r *OrganizationResource) Create(ctx context.Context, req resource.CreateRe
 	}
 
 	createReq := &dto.CreateOrganizationReqDto{
+		OrganizationCode: plan.OrganizationCode.ValueString(),
 		OrganizationName: plan.OrganizationName.ValueString(),
+		Metadata:         map[string]any{},
 	}
-	if !plan.OrganizationCode.IsNull() {
-		createReq.OrganizationCode = plan.OrganizationCode.ValueString()
+	if plan.OrganizationCode.IsNull() || plan.OrganizationCode.IsUnknown() || plan.OrganizationCode.ValueString() == "" {
+		resp.Diagnostics.AddError("Invalid organization code", "organization_code must be nonempty")
+		return
 	}
 	if !plan.Description.IsNull() {
 		createReq.Description = plan.Description.ValueString()
@@ -133,8 +137,12 @@ func (r *OrganizationResource) Read(ctx context.Context, req resource.ReadReques
 	res := r.client.GetOrganization(&dto.GetOrganizationDto{
 		OrganizationCode: state.OrganizationCode.ValueString(),
 	})
-	if res == nil || res.StatusCode != 200 || res.Data.OrganizationCode == "" {
+	if res != nil && res.StatusCode == 404 {
 		resp.State.RemoveResource(ctx)
+		return
+	}
+	if res == nil || res.StatusCode != 200 || res.Data.OrganizationCode == "" {
+		resp.Diagnostics.AddError("Failed to read Authing organization", "Authing returned an invalid or unsuccessful response")
 		return
 	}
 
@@ -186,9 +194,63 @@ func (r *OrganizationResource) Delete(ctx context.Context, req resource.DeleteRe
 		return
 	}
 
-	_ = r.client.DeleteOrganization(&dto.DeleteOrganizationReqDto{
-		OrganizationCode: state.OrganizationCode.ValueString(),
+	code := state.OrganizationCode.ValueString()
+	if state.OrganizationCode.IsNull() || state.OrganizationCode.IsUnknown() || code == "" || !state.ID.IsNull() && !state.ID.IsUnknown() && state.ID.ValueString() != code {
+		resp.Diagnostics.AddError("Invalid organization identity", "id and organization_code must identify the same nonempty organization")
+		return
+	}
+	before, missing, err := r.organizationDeleteCheck(ctx, code)
+	if err != nil {
+		resp.Diagnostics.AddError("Check organization before delete failed", err.Error())
+		return
+	}
+	if missing {
+		return
+	}
+	if before.HasChildren == nil || *before.HasChildren {
+		resp.Diagnostics.AddError("Unsafe organization deletion", "Authing deletes the entire organization tree; child-department status is unknown or children exist. Remove departments first.")
+		return
+	}
+	res := r.client.DeleteOrganization(&dto.DeleteOrganizationReqDto{
+		OrganizationCode: code,
 	})
+	if res == nil || res.StatusCode != 200 || !res.Data.Success {
+		resp.Diagnostics.AddError("Failed to delete Authing organization", "Authing returned an invalid or unsuccessful response")
+		return
+	}
+	_, missing, err = r.organizationDeleteCheck(ctx, code)
+	if err != nil || !missing {
+		resp.Diagnostics.AddError("Verify organization deletion failed", "Authing did not confirm absence of the exact organization")
+	}
+}
+
+type organizationDeleteData struct {
+	OrganizationCode string `json:"organizationCode"`
+	HasChildren      *bool  `json:"hasChildren"`
+}
+
+// A raw envelope preserves the difference between absent and false hasChildren;
+// the SDK's bool field erases that distinction.
+func (r *OrganizationResource) organizationDeleteCheck(ctx context.Context, code string) (organizationDeleteData, bool, error) {
+	var data organizationDeleteData
+	body, err := r.client.SendHttpRequestContext(ctx, "/api/v3/get-organization", http.MethodGet, &dto.GetOrganizationDto{OrganizationCode: code})
+	if err != nil {
+		return data, false, fmt.Errorf("get-organization failed: %w", err)
+	}
+	var out struct {
+		StatusCode int                     `json:"statusCode"`
+		Data       *organizationDeleteData `json:"data"`
+	}
+	if err := json.Unmarshal(body, &out); err != nil {
+		return data, false, fmt.Errorf("invalid get-organization response: %w", err)
+	}
+	if out.StatusCode == 404 {
+		return data, true, nil
+	}
+	if out.StatusCode != 200 || out.Data == nil || out.Data.OrganizationCode != code {
+		return data, false, fmt.Errorf("get-organization returned failure or mismatched organization code (status %d)", out.StatusCode)
+	}
+	return *out.Data, false, nil
 }
 
 func (r *OrganizationResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
@@ -205,7 +267,7 @@ func NewDepartmentResource() resource.Resource {
 }
 
 type DepartmentResource struct {
-	client *management.ManagementClient
+	client *authingapi.Client
 }
 
 type DepartmentModel struct {
@@ -267,9 +329,9 @@ func (r *DepartmentResource) Configure(ctx context.Context, req resource.Configu
 	if req.ProviderData == nil {
 		return
 	}
-	client, ok := req.ProviderData.(*management.ManagementClient)
+	client, ok := req.ProviderData.(*authingapi.Client)
 	if !ok {
-		resp.Diagnostics.AddError("Unexpected Resource Configure Type", "Expected *management.ManagementClient")
+		resp.Diagnostics.AddError("Unexpected Resource Configure Type", "Expected *authingapi.Client")
 		return
 	}
 	r.client = client
@@ -287,9 +349,10 @@ func (r *DepartmentResource) Create(ctx context.Context, req resource.CreateRequ
 		OrganizationCode:   plan.OrganizationCode.ValueString(),
 		Name:               plan.Name.ValueString(),
 		ParentDepartmentId: plan.ParentDepartmentId.ValueString(),
+		Metadata:           map[string]any{},
 	}
-	if !plan.DepartmentId.IsNull() {
-		createReq.DepartmentIdType = plan.DepartmentId.ValueString()
+	if !plan.DepartmentId.IsNull() && !plan.DepartmentId.IsUnknown() {
+		createReq.OpenDepartmentId = plan.DepartmentId.ValueString()
 	}
 	if !plan.Description.IsNull() {
 		createReq.Description = plan.Description.ValueString()
@@ -305,8 +368,14 @@ func (r *DepartmentResource) Create(ctx context.Context, req resource.CreateRequ
 		return
 	}
 
+	if res.Data.OrganizationCode != plan.OrganizationCode.ValueString() || res.Data.ParentDepartmentId != plan.ParentDepartmentId.ValueString() || res.Data.Name != plan.Name.ValueString() || !plan.DepartmentId.IsUnknown() && !plan.DepartmentId.IsNull() && res.Data.OpenDepartmentId != plan.DepartmentId.ValueString() {
+		resp.Diagnostics.AddError("Failed to verify created Authing department", fmt.Sprintf("Created department ID %q needs manual import/review; response identity differs from configuration", res.Data.DepartmentId))
+		return
+	}
 	plan.ID = types.StringValue(res.Data.DepartmentId)
-	plan.DepartmentId = types.StringValue(res.Data.DepartmentId)
+	if plan.DepartmentId.IsUnknown() || plan.DepartmentId.IsNull() {
+		plan.DepartmentId = types.StringValue(res.Data.OpenDepartmentId)
+	}
 	plan.Name = types.StringValue(res.Data.Name)
 	plan.ParentDepartmentId = types.StringValue(res.Data.ParentDepartmentId)
 	if res.Data.Description != "" {
@@ -329,17 +398,19 @@ func (r *DepartmentResource) Read(ctx context.Context, req resource.ReadRequest,
 		OrganizationCode: state.OrganizationCode.ValueString(),
 		DepartmentId:     state.ID.ValueString(),
 	})
-	if res == nil || res.StatusCode != 200 || res.Data.DepartmentId == "" {
+	if res != nil && res.StatusCode == 404 {
 		resp.State.RemoveResource(ctx)
+		return
+	}
+	if res == nil || res.StatusCode != 200 || res.Data.DepartmentId != state.ID.ValueString() || res.Data.OrganizationCode != state.OrganizationCode.ValueString() || !state.DepartmentId.IsNull() && !state.DepartmentId.IsUnknown() && res.Data.OpenDepartmentId != state.DepartmentId.ValueString() {
+		resp.Diagnostics.AddError("Failed to read Authing department", "Authing returned an invalid or unsuccessful response")
 		return
 	}
 
 	state.ID = types.StringValue(res.Data.DepartmentId)
 	state.Name = types.StringValue(res.Data.Name)
 	state.ParentDepartmentId = types.StringValue(res.Data.ParentDepartmentId)
-	if res.Data.Description != "" {
-		state.Description = types.StringValue(res.Data.Description)
-	}
+	state.Description = types.StringValue(res.Data.Description)
 
 	diags = resp.State.Set(ctx, &state)
 	resp.Diagnostics.Append(diags...)
@@ -387,10 +458,13 @@ func (r *DepartmentResource) Delete(ctx context.Context, req resource.DeleteRequ
 		return
 	}
 
-	_ = r.client.DeleteDepartment(&dto.DeleteDepartmentReqDto{
+	res := r.client.DeleteDepartment(&dto.DeleteDepartmentReqDto{
 		OrganizationCode: state.OrganizationCode.ValueString(),
 		DepartmentId:     state.ID.ValueString(),
 	})
+	if res == nil || res.StatusCode != 404 && (res.StatusCode != 200 || !res.Data.Success) {
+		resp.Diagnostics.AddError("Failed to delete Authing department", "Authing returned an invalid or unsuccessful response")
+	}
 }
 
 func (r *DepartmentResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
@@ -406,7 +480,7 @@ func NewDepartmentMemberResource() resource.Resource {
 }
 
 type DepartmentMemberResource struct {
-	client *management.ManagementClient
+	client *authingapi.Client
 }
 
 type DepartmentMemberModel struct {
@@ -444,9 +518,9 @@ func (r *DepartmentMemberResource) Configure(ctx context.Context, req resource.C
 	if req.ProviderData == nil {
 		return
 	}
-	client, ok := req.ProviderData.(*management.ManagementClient)
+	client, ok := req.ProviderData.(*authingapi.Client)
 	if !ok {
-		resp.Diagnostics.AddError("Unexpected Resource Configure Type", "Expected *management.ManagementClient")
+		resp.Diagnostics.AddError("Unexpected Resource Configure Type", "Expected *authingapi.Client")
 		return
 	}
 	r.client = client
@@ -465,7 +539,7 @@ func (r *DepartmentMemberResource) Create(ctx context.Context, req resource.Crea
 		DepartmentId:     plan.DepartmentId.ValueString(),
 		UserIds:          []string{plan.UserId.ValueString()},
 	})
-	if res == nil || res.StatusCode != 200 {
+	if res == nil || res.StatusCode != 200 || !res.Data.Success {
 		resp.Diagnostics.AddError("Failed to add user to department", "Error response from Authing")
 		return
 	}
@@ -479,6 +553,62 @@ func (r *DepartmentMemberResource) Read(ctx context.Context, req resource.ReadRe
 	var state DepartmentMemberModel
 	diags := req.State.Get(ctx, &state)
 	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// A match on an early page is not enough: complete the exact scoped inventory.
+	const limit = 100
+	seenUsers := map[string]bool{}
+	total := -1
+	found := false
+	for page := 1; page <= 10000; page++ {
+		body, err := r.client.SendHttpRequestContext(ctx, "/api/v3/list-department-members", http.MethodGet, map[string]any{
+			"organizationCode": state.OrganizationCode.ValueString(), "departmentId": state.DepartmentId.ValueString(),
+			"page": page, "limit": limit, "includeChildrenDepartments": false,
+		})
+		var result struct {
+			StatusCode int `json:"statusCode"`
+			Data       *struct {
+				TotalCount *int `json:"totalCount"`
+				List       *[]struct {
+					UserId string `json:"userId"`
+				} `json:"list"`
+			} `json:"data"`
+		}
+		if err != nil || json.Unmarshal(body, &result) != nil || result.StatusCode != 200 || result.Data == nil || result.Data.List == nil || result.Data.TotalCount == nil || *result.Data.TotalCount < 0 {
+			resp.Diagnostics.AddError("Failed to read department member", "Authing returned an incomplete membership list")
+			return
+		}
+		if total < 0 {
+			total = *result.Data.TotalCount
+		}
+		remaining := total - len(seenUsers)
+		if remaining > limit {
+			remaining = limit
+		}
+		if total != *result.Data.TotalCount || remaining < 0 || len(*result.Data.List) != remaining {
+			resp.Diagnostics.AddError("Failed to read department member", "Authing returned an incomplete membership page")
+			return
+		}
+		for _, user := range *result.Data.List {
+			if user.UserId == "" || seenUsers[user.UserId] {
+				resp.Diagnostics.AddError("Failed to read department member", "Authing returned an invalid membership identity")
+				return
+			}
+			seenUsers[user.UserId] = true
+			if user.UserId == state.UserId.ValueString() {
+				found = true
+			}
+		}
+		if len(seenUsers) == total {
+			if !found {
+				resp.State.RemoveResource(ctx)
+			}
+			return
+		}
+	}
+	resp.Diagnostics.AddError("Failed to read department member", "Authing membership pagination exceeded the safe bound")
 }
 
 func (r *DepartmentMemberResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
@@ -492,11 +622,14 @@ func (r *DepartmentMemberResource) Delete(ctx context.Context, req resource.Dele
 		return
 	}
 
-	_ = r.client.RemoveDepartmentMembers(&dto.RemoveDepartmentMembersReqDto{
+	res := r.client.RemoveDepartmentMembers(&dto.RemoveDepartmentMembersReqDto{
 		OrganizationCode: state.OrganizationCode.ValueString(),
 		DepartmentId:     state.DepartmentId.ValueString(),
 		UserIds:          []string{state.UserId.ValueString()},
 	})
+	if res == nil || res.StatusCode != 404 && (res.StatusCode != 200 || !res.Data.Success) {
+		resp.Diagnostics.AddError("Failed to remove department member", "Authing returned an invalid or unsuccessful response")
+	}
 }
 
 // --- Post Resource (Job Title / Position) ---
@@ -508,7 +641,7 @@ func NewPostResource() resource.Resource {
 }
 
 type PostResource struct {
-	client *management.ManagementClient
+	client *authingapi.Client
 }
 
 type PostModel struct {
@@ -528,10 +661,16 @@ func (r *PostResource) Schema(ctx context.Context, req resource.SchemaRequest, r
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Computed: true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"code": schema.StringAttribute{
 				Required:    true,
-				Description: "Code for the post.",
+				Description: "Code for the post. Changing it replaces the post.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"name": schema.StringAttribute{
 				Required:    true,
@@ -550,9 +689,9 @@ func (r *PostResource) Configure(ctx context.Context, req resource.ConfigureRequ
 	if req.ProviderData == nil {
 		return
 	}
-	client, ok := req.ProviderData.(*management.ManagementClient)
+	client, ok := req.ProviderData.(*authingapi.Client)
 	if !ok {
-		resp.Diagnostics.AddError("Unexpected Resource Configure Type", "Expected *management.ManagementClient")
+		resp.Diagnostics.AddError("Unexpected Resource Configure Type", "Expected *authingapi.Client")
 		return
 	}
 	r.client = client
@@ -597,13 +736,22 @@ func (r *PostResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 		return
 	}
 
-	res := r.client.GetPost(&dto.GetPostDto{
-		Code: state.Code.ValueString(),
-	})
-	if res == nil || res.Code == "" {
+	// GetPost's SDK return type is CreatePostDto, which has no statusCode.
+	// Decode the envelope directly so an API failure cannot look like absence.
+	body, err := r.client.SendHttpRequestContext(ctx, "/api/v3/get-post", http.MethodGet, &dto.GetPostDto{Code: state.Code.ValueString()})
+	var result struct {
+		StatusCode int                `json:"statusCode"`
+		Data       *dto.CreatePostDto `json:"data"`
+	}
+	if json.Unmarshal(body, &result) == nil && result.StatusCode == 404 {
 		resp.State.RemoveResource(ctx)
 		return
 	}
+	if err != nil || result.StatusCode != 200 || result.Data == nil || result.Data.Code == "" {
+		resp.Diagnostics.AddError("Failed to read Authing post", "Authing returned an invalid or unsuccessful response")
+		return
+	}
+	res := result.Data
 
 	state.ID = types.StringValue(res.Code)
 	state.Name = types.StringValue(res.Name)
@@ -649,9 +797,12 @@ func (r *PostResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 		return
 	}
 
-	_ = r.client.RemovePost(&dto.RemovePostDto{
+	res := r.client.RemovePost(&dto.RemovePostDto{
 		Code: state.Code.ValueString(),
 	})
+	if res == nil || res.StatusCode != 404 && res.StatusCode != 200 {
+		resp.Diagnostics.AddError("Failed to remove Authing post", "Authing returned an invalid or unsuccessful response")
+	}
 }
 
 // --- Data Sources for Org & Dept ---
@@ -663,7 +814,7 @@ func NewOrganizationDataSource() datasource.DataSource {
 }
 
 type OrganizationDataSource struct {
-	client *management.ManagementClient
+	client *authingapi.Client
 }
 
 func (d *OrganizationDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
@@ -694,9 +845,9 @@ func (d *OrganizationDataSource) Configure(ctx context.Context, req datasource.C
 	if req.ProviderData == nil {
 		return
 	}
-	client, ok := req.ProviderData.(*management.ManagementClient)
+	client, ok := req.ProviderData.(*authingapi.Client)
 	if !ok {
-		resp.Diagnostics.AddError("Unexpected DataSource Configure Type", "Expected *management.ManagementClient")
+		resp.Diagnostics.AddError("Unexpected DataSource Configure Type", "Expected *authingapi.Client")
 		return
 	}
 	d.client = client
@@ -735,7 +886,7 @@ func NewDepartmentDataSource() datasource.DataSource {
 }
 
 type DepartmentDataSource struct {
-	client *management.ManagementClient
+	client *authingapi.Client
 }
 
 func (d *DepartmentDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
@@ -772,9 +923,9 @@ func (d *DepartmentDataSource) Configure(ctx context.Context, req datasource.Con
 	if req.ProviderData == nil {
 		return
 	}
-	client, ok := req.ProviderData.(*management.ManagementClient)
+	client, ok := req.ProviderData.(*authingapi.Client)
 	if !ok {
-		resp.Diagnostics.AddError("Unexpected DataSource Configure Type", "Expected *management.ManagementClient")
+		resp.Diagnostics.AddError("Unexpected DataSource Configure Type", "Expected *authingapi.Client")
 		return
 	}
 	d.client = client

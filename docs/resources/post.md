@@ -23,7 +23,7 @@ resource "authing_post" "architect" {
 
 ### Required
 
-- `code` (String) Unique code for the post.
+- `code` (String) Unique code for the post. Changing it replaces the post.
 - `name` (String) Name of the post.
 
 ### Optional

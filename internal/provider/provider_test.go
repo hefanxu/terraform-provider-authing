@@ -13,8 +13,8 @@ func TestRegisteredResourcesExposeMetadataAndSchema(t *testing.T) {
 	provider := &AuthingProvider{}
 	resourceFactories := provider.Resources(context.Background())
 
-	if len(resourceFactories) != 16 {
-		t.Fatalf("expected 16 registered resources, got %d", len(resourceFactories))
+	if len(resourceFactories) != 30 {
+		t.Fatalf("expected 30 registered resources, got %d", len(resourceFactories))
 	}
 
 	resourceNames := make([]string, 0, len(resourceFactories))
@@ -39,19 +39,33 @@ func TestRegisteredResourcesExposeMetadataAndSchema(t *testing.T) {
 
 	assertServiceNames(t, resourceNames, []string{
 		"authing_application",
+		"authing_auth_flow_function",
+		"authing_data_object",
+		"authing_data_object_field",
+		"authing_data_resource",
 		"authing_data_policy",
+		"authing_data_policy_assignment",
 		"authing_department",
 		"authing_department_member",
 		"authing_ext_idp",
 		"authing_group",
 		"authing_group_member",
+		"authing_invitation_policy",
+		"authing_invitation_invitee",
+		"authing_invitation_roster",
 		"authing_namespace",
 		"authing_organization",
 		"authing_pipeline_function",
 		"authing_post",
+		"authing_public_account",
 		"authing_resource",
 		"authing_role",
 		"authing_role_assignment",
+		"authing_tenant",
+		"authing_tenant_admin",
+		"authing_tenant_membership",
+		"authing_tenant_organization",
+		"authing_custom_domain",
 		"authing_user",
 		"authing_webhook",
 	})
@@ -61,8 +75,8 @@ func TestRegisteredDataSourcesExposeMetadataAndSchema(t *testing.T) {
 	provider := &AuthingProvider{}
 	dataSourceFactories := provider.DataSources(context.Background())
 
-	if len(dataSourceFactories) != 9 {
-		t.Fatalf("expected 9 registered data sources, got %d", len(dataSourceFactories))
+	if len(dataSourceFactories) != 24 {
+		t.Fatalf("expected 24 registered data sources, got %d", len(dataSourceFactories))
 	}
 
 	dataSourceNames := make([]string, 0, len(dataSourceFactories))
@@ -87,12 +101,27 @@ func TestRegisteredDataSourcesExposeMetadataAndSchema(t *testing.T) {
 
 	assertServiceNames(t, dataSourceNames, []string{
 		"authing_application",
+		"authing_application_subject_auth",
+		"authing_data_resource",
+		"authing_data_resource_extension_field",
+		"authing_data_object_row",
 		"authing_department",
+		"authing_device_exclusive_rule_settings",
+		"authing_device_exclusive_valid_scope_settings",
+		"authing_device_status",
+		"authing_ext_idp_connection",
+		"authing_global_mfa_settings",
+		"authing_global_security_settings",
 		"authing_group",
 		"authing_namespace",
 		"authing_organization",
 		"authing_resource",
+		"authing_public_account",
 		"authing_role",
+		"authing_tenant",
+		"authing_tenant_custom_field",
+		"authing_tenant_department",
+		"authing_tenant_user",
 		"authing_user",
 		"authing_users",
 	})

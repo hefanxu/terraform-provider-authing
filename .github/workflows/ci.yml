@@ -11,9 +11,9 @@ permissions:
 
 jobs:
   validate:
-    name: Go format, vet, test, race and build
+    name: Go format, vet, test, race, build and Terraform protocol
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - name: Checkout
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
@@ -26,6 +26,10 @@ jobs:
         run: test -z "$(gofmt -l $(git ls-files '*.go'))"
       - name: Download dependencies
         run: go mod download
+      - name: Terraform plugin protocol smoke (no Authing API)
+        run: python3 scripts/protocol_smoke.py
+      - name: Sandbox dispatch guard tests (no Authing API)
+        run: python3 -m unittest discover -s scripts/acceptance -p 'test_*.py'
       - name: Vet
         run: go vet ./...
       - name: Test

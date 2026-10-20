@@ -2,10 +2,11 @@ package provider
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"net/http"
 
 	"github.com/Authing/authing-golang-sdk/v3/dto"
-	"github.com/Authing/authing-golang-sdk/v3/management"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	dschema "github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -14,6 +15,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"terraform-provider-authing/internal/authingapi"
 )
 
 // --- Permission Namespace Resource ---
@@ -26,7 +28,7 @@ func NewNamespaceResource() resource.Resource {
 }
 
 type NamespaceResource struct {
-	client *management.ManagementClient
+	client *authingapi.Client
 }
 
 type NamespaceModel struct {
@@ -74,9 +76,9 @@ func (r *NamespaceResource) Configure(ctx context.Context, req resource.Configur
 	if req.ProviderData == nil {
 		return
 	}
-	client, ok := req.ProviderData.(*management.ManagementClient)
+	client, ok := req.ProviderData.(*authingapi.Client)
 	if !ok {
-		resp.Diagnostics.AddError("Unexpected Resource Configure Type", "Expected *management.ManagementClient")
+		resp.Diagnostics.AddError("Unexpected Resource Configure Type", "Expected *authingapi.Client")
 		return
 	}
 	r.client = client
@@ -130,8 +132,12 @@ func (r *NamespaceResource) Read(ctx context.Context, req resource.ReadRequest, 
 	res := r.client.GetPermissionNamespace(&dto.GetPermissionNamespaceDto{
 		Code: state.Code.ValueString(),
 	})
-	if res == nil || res.StatusCode != 200 || res.Data.Code == "" {
+	if res != nil && res.StatusCode == 404 {
 		resp.State.RemoveResource(ctx)
+		return
+	}
+	if res == nil || res.StatusCode != 200 || res.Data.Code == "" {
+		resp.Diagnostics.AddError("Failed to read Authing namespace", "Authing returned an invalid or unsuccessful response")
 		return
 	}
 
@@ -183,9 +189,12 @@ func (r *NamespaceResource) Delete(ctx context.Context, req resource.DeleteReque
 		return
 	}
 
-	_ = r.client.DeletePermissionNamespace(&dto.DeletePermissionNamespaceDto{
+	res := r.client.DeletePermissionNamespace(&dto.DeletePermissionNamespaceDto{
 		Code: state.Code.ValueString(),
 	})
+	if res == nil || res.StatusCode != 404 && (res.StatusCode != 200 || !res.Data.Success) {
+		resp.Diagnostics.AddError("Failed to delete Authing namespace", "Authing returned an invalid or unsuccessful response")
+	}
 }
 
 func (r *NamespaceResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
@@ -202,7 +211,7 @@ func NewRoleResource() resource.Resource {
 }
 
 type RoleResource struct {
-	client *management.ManagementClient
+	client *authingapi.Client
 }
 
 type RoleModel struct {
@@ -260,9 +269,9 @@ func (r *RoleResource) Configure(ctx context.Context, req resource.ConfigureRequ
 	if req.ProviderData == nil {
 		return
 	}
-	client, ok := req.ProviderData.(*management.ManagementClient)
+	client, ok := req.ProviderData.(*authingapi.Client)
 	if !ok {
-		resp.Diagnostics.AddError("Unexpected Resource Configure Type", "Expected *management.ManagementClient")
+		resp.Diagnostics.AddError("Unexpected Resource Configure Type", "Expected *authingapi.Client")
 		return
 	}
 	r.client = client
@@ -328,8 +337,12 @@ func (r *RoleResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 	}
 
 	res := r.client.GetRole(getReq)
-	if res == nil || res.StatusCode != 200 || res.Data.Code == "" {
+	if res != nil && res.StatusCode == 404 {
 		resp.State.RemoveResource(ctx)
+		return
+	}
+	if res == nil || res.StatusCode != 200 || res.Data.Code == "" {
+		resp.Diagnostics.AddError("Failed to read Authing role", "Authing returned an invalid or unsuccessful response")
 		return
 	}
 
@@ -351,7 +364,12 @@ func (r *RoleResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	}
 
 	updateReq := &dto.UpdateRoleDto{
-		Code: plan.Code.ValueString(),
+		Code:    plan.Code.ValueString(),
+		NewCode: plan.Code.ValueString(),
+		Name:    plan.Name.ValueString(),
+	}
+	if updateReq.Name == "" {
+		updateReq.Name = plan.Code.ValueString()
 	}
 	if !plan.Namespace.IsNull() {
 		updateReq.Namespace = plan.Namespace.ValueString()
@@ -389,7 +407,10 @@ func (r *RoleResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 		delReq.Namespace = state.Namespace.ValueString()
 	}
 
-	_ = r.client.DeleteRolesBatch(delReq)
+	res := r.client.DeleteRolesBatch(delReq)
+	if res == nil || res.StatusCode != 404 && (res.StatusCode != 200 || !res.Data.Success) {
+		resp.Diagnostics.AddError("Failed to delete Authing role", "Authing returned an invalid or unsuccessful response")
+	}
 }
 
 func (r *RoleResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
@@ -405,7 +426,7 @@ func NewRoleAssignmentResource() resource.Resource {
 }
 
 type RoleAssignmentResource struct {
-	client *management.ManagementClient
+	client *authingapi.Client
 }
 
 type RoleAssignmentModel struct {
@@ -464,9 +485,9 @@ func (r *RoleAssignmentResource) Configure(ctx context.Context, req resource.Con
 	if req.ProviderData == nil {
 		return
 	}
-	client, ok := req.ProviderData.(*management.ManagementClient)
+	client, ok := req.ProviderData.(*authingapi.Client)
 	if !ok {
-		resp.Diagnostics.AddError("Unexpected Resource Configure Type", "Expected *management.ManagementClient")
+		resp.Diagnostics.AddError("Unexpected Resource Configure Type", "Expected *authingapi.Client")
 		return
 	}
 	r.client = client
@@ -508,6 +529,96 @@ func (r *RoleAssignmentResource) Read(ctx context.Context, req resource.ReadRequ
 	var state RoleAssignmentModel
 	diags := req.State.Get(ctx, &state)
 	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	if r.client == nil || state.RoleCode.IsNull() || state.RoleCode.IsUnknown() || state.RoleCode.ValueString() == "" ||
+		state.TargetId.IsNull() || state.TargetId.IsUnknown() || state.TargetId.ValueString() == "" ||
+		state.Namespace.IsUnknown() {
+		resp.Diagnostics.AddError("Failed to read role assignment", "Missing client or invalid assignment identity in state")
+		return
+	}
+
+	// These endpoints return *direct* grants. get-user-roles can include roles
+	// inherited from departments and cannot prove this assignment still exists.
+	endpoint, key := "", ""
+	switch state.TargetType.ValueString() {
+	case "USER":
+		endpoint, key = "/api/v3/list-role-members", "userId"
+	case "DEPARTMENT":
+		endpoint, key = "/api/v3/list-role-departments", "id"
+	default:
+		resp.Diagnostics.AddError("Failed to read role assignment", "Unsupported target type: cannot verify a direct assignment")
+		return
+	}
+
+	const limit = 50 // Maximum documented page size for both direct lists.
+	found := false
+	total := -1
+	for page, seen := 1, 0; ; page++ {
+		query := map[string]any{"code": state.RoleCode.ValueString(), "page": page, "limit": limit}
+		if !state.Namespace.IsNull() {
+			query["namespace"] = state.Namespace.ValueString()
+		}
+		body, err := r.client.SendHttpRequestContext(ctx, endpoint, http.MethodGet, query)
+		if err != nil {
+			resp.Diagnostics.AddError("Failed to read role assignment", "Authing direct-assignment request failed: "+err.Error())
+			return
+		}
+		var envelope struct {
+			StatusCode int `json:"statusCode"`
+			Data       *struct {
+				TotalCount *int              `json:"totalCount"`
+				List       []json.RawMessage `json:"list"`
+			} `json:"data"`
+		}
+		if json.Unmarshal(body, &envelope) != nil {
+			resp.Diagnostics.AddError("Failed to read role assignment", "Invalid Authing direct-assignment response")
+			return
+		}
+		if envelope.StatusCode == http.StatusNotFound && page == 1 {
+			resp.State.RemoveResource(ctx)
+			return
+		}
+		if envelope.StatusCode != http.StatusOK || envelope.Data == nil || envelope.Data.TotalCount == nil || *envelope.Data.TotalCount < 0 || envelope.Data.List == nil {
+			resp.Diagnostics.AddError("Failed to read role assignment", "Incomplete or unsuccessful Authing direct-assignment response")
+			return
+		}
+		if total == -1 {
+			total = *envelope.Data.TotalCount
+		}
+		if total != *envelope.Data.TotalCount {
+			resp.Diagnostics.AddError("Failed to read role assignment", "Direct-assignment count changed during pagination")
+			return
+		}
+		for _, entry := range envelope.Data.List {
+			var identity map[string]json.RawMessage
+			if json.Unmarshal(entry, &identity) != nil {
+				resp.Diagnostics.AddError("Failed to read role assignment", "Invalid direct-assignment entry")
+				return
+			}
+			var id string
+			if json.Unmarshal(identity[key], &id) != nil || id == "" {
+				resp.Diagnostics.AddError("Failed to read role assignment", "Direct-assignment entry lacks a target ID")
+				return
+			}
+			if id == state.TargetId.ValueString() {
+				found = true
+			}
+		}
+		seen += len(envelope.Data.List)
+		if seen > total || seen < total && len(envelope.Data.List) < limit {
+			resp.Diagnostics.AddError("Failed to read role assignment", "Incomplete direct-assignment pagination")
+			return
+		}
+		if seen == total {
+			if found {
+				return // Leave the exact stored identity and namespace unchanged.
+			}
+			resp.State.RemoveResource(ctx)
+			return
+		}
+	}
 }
 
 func (r *RoleAssignmentResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
@@ -534,7 +645,10 @@ func (r *RoleAssignmentResource) Delete(ctx context.Context, req resource.Delete
 		revokeReq.Namespace = state.Namespace.ValueString()
 	}
 
-	_ = r.client.RevokeRole(revokeReq)
+	res := r.client.RevokeRole(revokeReq)
+	if res == nil || res.StatusCode != 404 && (res.StatusCode != 200 || !res.Data.Success) {
+		resp.Diagnostics.AddError("Failed to revoke Authing role", "Authing returned an invalid or unsuccessful response")
+	}
 }
 
 // --- Authing Resource (ACL / RBAC Resource Definition) ---
@@ -546,7 +660,7 @@ func NewResourceResource() resource.Resource {
 }
 
 type ResourceResource struct {
-	client *management.ManagementClient
+	client *authingapi.Client
 }
 
 type ResourceActionModel struct {
@@ -614,9 +728,9 @@ func (r *ResourceResource) Configure(ctx context.Context, req resource.Configure
 	if req.ProviderData == nil {
 		return
 	}
-	client, ok := req.ProviderData.(*management.ManagementClient)
+	client, ok := req.ProviderData.(*authingapi.Client)
 	if !ok {
-		resp.Diagnostics.AddError("Unexpected Resource Configure Type", "Expected *management.ManagementClient")
+		resp.Diagnostics.AddError("Unexpected Resource Configure Type", "Expected *authingapi.Client")
 		return
 	}
 	r.client = client
@@ -681,8 +795,12 @@ func (r *ResourceResource) Read(ctx context.Context, req resource.ReadRequest, r
 	}
 
 	res := r.client.GetResource(getReq)
-	if res == nil || res.StatusCode != 200 || res.Data.Code == "" {
+	if res != nil && res.StatusCode == 404 {
 		resp.State.RemoveResource(ctx)
+		return
+	}
+	if res == nil || res.StatusCode != 200 || res.Data.Code == "" {
+		resp.Diagnostics.AddError("Failed to read Authing resource", "Authing returned an invalid or unsuccessful response")
 		return
 	}
 
@@ -734,6 +852,8 @@ func (r *ResourceResource) Update(ctx context.Context, req resource.UpdateReques
 		return
 	}
 
+	// The ID is the stable resource code; it must be known after an update.
+	plan.ID = types.StringValue(plan.Code.ValueString())
 	diags = resp.State.Set(ctx, plan)
 	resp.Diagnostics.Append(diags...)
 }
@@ -753,7 +873,10 @@ func (r *ResourceResource) Delete(ctx context.Context, req resource.DeleteReques
 		delReq.Namespace = state.Namespace.ValueString()
 	}
 
-	_ = r.client.DeleteResource(delReq)
+	res := r.client.DeleteResource(delReq)
+	if res == nil || res.StatusCode != 404 && (res.StatusCode != 200 || !res.Data.Success) {
+		resp.Diagnostics.AddError("Failed to delete Authing resource", "Authing returned an invalid or unsuccessful response")
+	}
 }
 
 // --- Data Policy Resource ---
@@ -765,7 +888,7 @@ func NewDataPolicyResource() resource.Resource {
 }
 
 type DataPolicyResource struct {
-	client *management.ManagementClient
+	client *authingapi.Client
 }
 
 type StatementModel struct {
@@ -789,7 +912,8 @@ func (r *DataPolicyResource) Schema(ctx context.Context, req resource.SchemaRequ
 		Description: "Manages an Authing Data Policy (数据策略).",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
-				Computed: true,
+				Computed:      true,
+				PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
 			},
 			"policy_name": schema.StringAttribute{
 				Required:    true,
@@ -825,9 +949,9 @@ func (r *DataPolicyResource) Configure(ctx context.Context, req resource.Configu
 	if req.ProviderData == nil {
 		return
 	}
-	client, ok := req.ProviderData.(*management.ManagementClient)
+	client, ok := req.ProviderData.(*authingapi.Client)
 	if !ok {
-		resp.Diagnostics.AddError("Unexpected Resource Configure Type", "Expected *management.ManagementClient")
+		resp.Diagnostics.AddError("Unexpected Resource Configure Type", "Expected *authingapi.Client")
 		return
 	}
 	r.client = client
@@ -887,8 +1011,12 @@ func (r *DataPolicyResource) Read(ctx context.Context, req resource.ReadRequest,
 	res := r.client.GetDataPolicy(&dto.GetDataPolicyDto{
 		PolicyId: state.ID.ValueString(),
 	})
-	if res == nil || res.StatusCode != 200 || res.Data.PolicyId == "" {
+	if res != nil && res.StatusCode == 404 {
 		resp.State.RemoveResource(ctx)
+		return
+	}
+	if res == nil || res.StatusCode != 200 || res.Data.PolicyId == "" {
+		resp.Diagnostics.AddError("Failed to read Authing data policy", "Authing returned an invalid or unsuccessful response")
 		return
 	}
 
@@ -952,9 +1080,12 @@ func (r *DataPolicyResource) Delete(ctx context.Context, req resource.DeleteRequ
 		return
 	}
 
-	_ = r.client.DeleteDataPolicy(&dto.DeleteDataPolicyDto{
+	res := r.client.DeleteDataPolicy(&dto.DeleteDataPolicyDto{
 		PolicyId: state.ID.ValueString(),
 	})
+	if res == nil || res.StatusCode != 404 && res.StatusCode != 200 {
+		resp.Diagnostics.AddError("Failed to delete Authing data policy", "Authing returned an invalid or unsuccessful response")
+	}
 }
 
 // --- Data Sources for Namespace, Role & Resource ---
@@ -966,7 +1097,7 @@ func NewNamespaceDataSource() datasource.DataSource {
 }
 
 type NamespaceDataSource struct {
-	client *management.ManagementClient
+	client *authingapi.Client
 }
 
 func (d *NamespaceDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
@@ -997,9 +1128,9 @@ func (d *NamespaceDataSource) Configure(ctx context.Context, req datasource.Conf
 	if req.ProviderData == nil {
 		return
 	}
-	client, ok := req.ProviderData.(*management.ManagementClient)
+	client, ok := req.ProviderData.(*authingapi.Client)
 	if !ok {
-		resp.Diagnostics.AddError("Unexpected DataSource Configure Type", "Expected *management.ManagementClient")
+		resp.Diagnostics.AddError("Unexpected DataSource Configure Type", "Expected *authingapi.Client")
 		return
 	}
 	d.client = client
@@ -1038,7 +1169,7 @@ func NewRoleDataSource() datasource.DataSource {
 }
 
 type RoleDataSource struct {
-	client *management.ManagementClient
+	client *authingapi.Client
 }
 
 type RoleDataSourceModel struct {
@@ -1076,9 +1207,9 @@ func (d *RoleDataSource) Configure(ctx context.Context, req datasource.Configure
 	if req.ProviderData == nil {
 		return
 	}
-	client, ok := req.ProviderData.(*management.ManagementClient)
+	client, ok := req.ProviderData.(*authingapi.Client)
 	if !ok {
-		resp.Diagnostics.AddError("Unexpected DataSource Configure Type", "Expected *management.ManagementClient")
+		resp.Diagnostics.AddError("Unexpected DataSource Configure Type", "Expected *authingapi.Client")
 		return
 	}
 	d.client = client
@@ -1121,7 +1252,7 @@ func NewResourceDataSource() datasource.DataSource {
 }
 
 type ResourceDataSource struct {
-	client *management.ManagementClient
+	client *authingapi.Client
 }
 
 type ResourceDataSourceModel struct {
@@ -1163,9 +1294,9 @@ func (d *ResourceDataSource) Configure(ctx context.Context, req datasource.Confi
 	if req.ProviderData == nil {
 		return
 	}
-	client, ok := req.ProviderData.(*management.ManagementClient)
+	client, ok := req.ProviderData.(*authingapi.Client)
 	if !ok {
-		resp.Diagnostics.AddError("Unexpected DataSource Configure Type", "Expected *management.ManagementClient")
+		resp.Diagnostics.AddError("Unexpected DataSource Configure Type", "Expected *authingapi.Client")
 		return
 	}
 	d.client = client

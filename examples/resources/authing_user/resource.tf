@@ -13,6 +13,7 @@ resource "authing_user" "developer" {
 resource "authing_group" "backend" {
   code        = "backend_devs"
   name        = "Backend Developers"
+  type        = "static"
   description = "Engineers responsible for backend microservices"
 }
 

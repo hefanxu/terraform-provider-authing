@@ -1,0 +1,1114 @@
+{
+  "source": "https://api.authing.cn/openapi-json",
+  "sha256": "e61fa13a887c049cee31ec0bc76ba81de717f76ccdd790fccc82274a484b114e",
+  "paths": {
+    "/api/v3/list-groups": {
+      "get": {
+        "parameters": [
+          {
+            "name": "keywords",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "type": "number"
+            }
+          },
+          {
+            "name": "withMetadata",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "withCustomData",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "flatCustomData",
+            "required": false,
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v3/get-group": {
+      "get": {
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "withCustomData",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v3/list-group-members": {
+      "get": {
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "type": "number"
+            }
+          },
+          {
+            "name": "withCustomData",
+            "required": false,
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "withIdentities",
+            "required": false,
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "withDepartmentIds",
+            "required": false,
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "flatCustomData",
+            "required": false,
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v3/list-users": {
+      "post": {
+        "parameters": []
+      },
+      "get": {
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "minimum": 1,
+              "maximum": 50,
+              "default": 10,
+              "type": "number"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "schema": {
+              "enum": [
+                "Suspended",
+                "Resigned",
+                "Activated",
+                "Archived",
+                "Deactivated"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "updatedAtStart",
+            "required": false,
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "updatedAtEnd",
+            "required": false,
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "withCustomData",
+            "required": false,
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "withPost",
+            "required": false,
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "withIdentities",
+            "required": false,
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "withDepartmentIds",
+            "required": false,
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "withUserPasswordExpireTime",
+            "required": false,
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v3/get-user": {
+      "get": {
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userIdType",
+            "required": false,
+            "schema": {
+              "default": "user_id",
+              "enum": [
+                "user_id",
+                "external_id",
+                "phone",
+                "email",
+                "username",
+                "identity",
+                "sync_relation",
+                "custom_field"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "flatCustomData",
+            "required": false,
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "withCustomData",
+            "required": false,
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "withPost",
+            "required": false,
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "withIdentities",
+            "required": false,
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "withDepartmentIds",
+            "required": false,
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "withTenantIds",
+            "required": false,
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v3/get-user-groups": {
+      "get": {
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userIdType",
+            "required": false,
+            "schema": {
+              "default": "user_id",
+              "enum": [
+                "user_id",
+                "external_id",
+                "phone",
+                "email",
+                "username",
+                "identity",
+                "sync_relation",
+                "custom_field"
+              ],
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v3/list-public-accounts": {
+      "post": {
+        "parameters": []
+      }
+    },
+    "/api/v3/get-public-account": {
+      "get": {
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userIdType",
+            "required": false,
+            "schema": {
+              "default": "user_id",
+              "enum": [
+                "user_id",
+                "external_id",
+                "phone",
+                "email",
+                "username",
+                "identity",
+                "sync_relation",
+                "custom_field"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "withCustomData",
+            "required": false,
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "withDepartmentIds",
+            "required": false,
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v3/list-applications": {
+      "get": {
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "type": "number"
+            }
+          },
+          {
+            "name": "isIntegrateApp",
+            "required": false,
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "isSelfBuiltApp",
+            "required": false,
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "ssoEnabled",
+            "required": false,
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "keywords",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "all",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v3/get-application": {
+      "get": {
+        "parameters": [
+          {
+            "name": "appId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v3/list-namespaces": {
+      "get": {
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "type": "number"
+            }
+          },
+          {
+            "name": "keywords",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v3/get-namespace": {
+      "get": {
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v3/list-ext-idp": {
+      "get": {
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "appId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v3/get-ext-idp": {
+      "get": {
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "appId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "type",
+            "required": false,
+            "schema": {
+              "enum": [
+                "social",
+                "enterprise"
+              ],
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v3/list-ext-idp-conns": {
+      "get": {
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v3/list-webhooks": {
+      "get": {
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "type": "number"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v3/get-webhook": {
+      "get": {
+        "parameters": [
+          {
+            "name": "webhookId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v3/list-pipeline-functions": {
+      "get": {
+        "parameters": [
+          {
+            "name": "scene",
+            "required": true,
+            "schema": {
+              "enum": [
+                "PRE_REGISTER",
+                "POST_REGISTER",
+                "PRE_AUTHENTICATION",
+                "POST_AUTHENTICATION",
+                "PRE_OIDC_ID_TOKEN_ISSUED",
+                "PRE_OIDC_ACCESS_TOKEN_ISSUED",
+                "PRE_COMPLETE_USER_INFO",
+                "PRE_MFA_VERIFY",
+                "POST_MFA_VERIFY",
+                "AUTH_FLOW_FUNCTION"
+              ],
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v3/get-pipeline-function": {
+      "get": {
+        "parameters": [
+          {
+            "name": "funcId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v3/list-tenants": {
+      "get": {
+        "parameters": [
+          {
+            "name": "keywords",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "withMembersCount",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "withAppDetail",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "withCreatorDetail",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "withSourceAppDetail",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "withMetadata",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "source",
+            "required": false,
+            "schema": {}
+          }
+        ]
+      }
+    },
+    "/api/v3/get-tenant": {
+      "get": {
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "withMembersCount",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "withAppDetail",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "withCreatorDetail",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "withSourceAppDetail",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "withMetadata",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v3/list-tenant-users": {
+      "post": {
+        "parameters": []
+      }
+    },
+    "/api/v3/list-tenant-admin": {
+      "post": {
+        "parameters": []
+      }
+    },
+    "/api/v3/list-organizations": {
+      "get": {
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "type": "number"
+            }
+          },
+          {
+            "name": "fetchAll",
+            "required": false,
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "withCustomData",
+            "required": false,
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "withPost",
+            "required": false,
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "tenantId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v3/get-organization": {
+      "get": {
+        "parameters": [
+          {
+            "name": "organizationCode",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "withCustomData",
+            "required": false,
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "withPost",
+            "required": false,
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "tenantId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v3/list-children-departments": {
+      "get": {
+        "parameters": [
+          {
+            "name": "organizationCode",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "departmentId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "departmentIdType",
+            "required": false,
+            "schema": {
+              "default": "department_id",
+              "enum": [
+                "department_id",
+                "open_department_id",
+                "sync_relation",
+                "custom_field",
+                "code"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "excludeVirtualNode",
+            "required": false,
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "onlyVirtualNode",
+            "required": false,
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "withCustomData",
+            "required": false,
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "tenantId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v3/list-department-members": {
+      "get": {
+        "parameters": [
+          {
+            "name": "organizationCode",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "departmentId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sortBy",
+            "required": false,
+            "schema": {
+              "default": "JoinDepartmentAt",
+              "enum": [
+                "Default",
+                "JoinDepartmentAt",
+                "userId",
+                "createAt",
+                "updatedAt"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "orderBy",
+            "required": false,
+            "schema": {
+              "default": "Desc",
+              "enum": [
+                "Asc",
+                "Desc"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "departmentIdType",
+            "required": false,
+            "schema": {
+              "default": "department_id",
+              "enum": [
+                "department_id",
+                "open_department_id",
+                "sync_relation",
+                "custom_field",
+                "code"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "includeChildrenDepartments",
+            "required": false,
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "minimum": 1,
+              "maximum": 50,
+              "default": 10,
+              "type": "number"
+            }
+          },
+          {
+            "name": "withCustomData",
+            "required": false,
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "withIdentities",
+            "required": false,
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "withDepartmentIds",
+            "required": false,
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "tenantId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v3/get-admin-audit-logs": {
+      "post": {
+        "parameters": [],
+        "request_properties": {
+          "requestId": {
+            "type": "string",
+            "schema_refs": []
+          },
+          "clientIp": {
+            "type": "string",
+            "schema_refs": []
+          },
+          "operationType": {
+            "type": "string",
+            "schema_refs": []
+          },
+          "resourceType": {
+            "type": "string",
+            "schema_refs": []
+          },
+          "userId": {
+            "type": "string",
+            "schema_refs": []
+          },
+          "success": {
+            "type": "boolean",
+            "schema_refs": []
+          },
+          "start": {
+            "type": "number",
+            "schema_refs": []
+          },
+          "end": {
+            "type": "number",
+            "schema_refs": []
+          },
+          "pagination": {
+            "type": null,
+            "schema_refs": [
+              {
+                "$ref": "#/components/schemas/ListWebhooksDto"
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+}

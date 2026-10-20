@@ -4,6 +4,9 @@ resource "authing_organization" "acme" {
   description       = "Headquarters organization tree"
 }
 
+# Delete child departments in a prior apply before destroying this root:
+# Authing's organization deletion removes the entire tree, so this provider refuses it while children exist.
+
 resource "authing_department" "tech" {
   organization_code    = authing_organization.acme.organization_code
   name                 = "Technology Department"

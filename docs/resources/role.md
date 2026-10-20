@@ -41,6 +41,10 @@ resource "authing_role" "admin" {
 
 - `id` (String) The role code.
 
+## Destructive sandbox acceptance
+
+`TestDestructiveLiveRoleTrace` is opt-in and skipped in normal tests. In a **disposable sandbox only**, after owner approval, use `-authing-destructive-sandbox` with `AUTHING_ACCEPTANCE_CONFIRM=DESTRUCTIVE_SANDBOX` and sandbox environment AK/SK. The tracer generates an isolated `hermesacc-` namespace and a marked role whose `namespace` HCL reference enforces parent-first creation. It checks Terraform apply → plan 0 → external **description** drift → plan 2 → reconcile → plan 0, then destroys the role before its namespace and independently GETs absence of both exact codes. Its offline `httptest` test exercises the real Terraform CLI/provider protocol but cannot prove live Authing semantics. Role name drift is **not** tested: `authing_role` Read does not refresh `name`, so a Terraform plan cannot observe out-of-band renames; description updates send the configured name and unchanged code because the API requires both fields. Namespace deletion refuses missing ownership, unrelated roles/resources/data resources, incomplete inventories, and **any** global data policy (the policy list API has no namespace filter). A refused cleanup reports the generated codes for manual investigation; it never deletes another identity. The live tracer has not been run.
+
 ## Import
 
 Roles can be imported using `code`:

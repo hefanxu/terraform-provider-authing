@@ -8,10 +8,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/Authing/authing-golang-sdk/v3/management"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"terraform-provider-authing/internal/authingapi"
 )
 
 func TestGroupResourceCreate(t *testing.T) {
@@ -27,14 +27,16 @@ func TestGroupResourceCreate(t *testing.T) {
 				t.Errorf("decode create request: %v", err)
 			}
 			fmt.Fprint(w, `{"statusCode":200,"data":{"code":"engineering","name":"Engineering","description":"Platform team"}}`)
+		case "/api/v3/get-group":
+			fmt.Fprint(w, `{"statusCode":200,"data":{"code":"engineering","name":"Engineering","description":"Platform team","type":"static"}}`)
 		default:
 			http.NotFound(w, r)
 		}
 	}))
 	defer server.Close()
 
-	client, err := management.NewManagementClient(&management.ManagementClientOptions{
-		AccessKeyId:     "group-resource-create-test",
+	client, err := authingapi.NewClient(authingapi.Options{
+		AccessKeyID:     "group-resource-create-test",
 		AccessKeySecret: "test-secret",
 		Host:            server.URL,
 	})
@@ -49,6 +51,7 @@ func TestGroupResourceCreate(t *testing.T) {
 	planDiags := plan.Set(ctx, &GroupModel{
 		Code:        types.StringValue("engineering"),
 		Name:        types.StringValue("Engineering"),
+		Type:        types.StringValue("static"),
 		Description: types.StringValue("Platform team"),
 	})
 	if planDiags.HasError() {
@@ -60,7 +63,7 @@ func TestGroupResourceCreate(t *testing.T) {
 	if response.Diagnostics.HasError() {
 		t.Fatalf("create group returned diagnostics: %v", response.Diagnostics)
 	}
-	if createRequest["code"] != "engineering" || createRequest["name"] != "Engineering" || createRequest["description"] != "Platform team" {
+	if createRequest["code"] != "engineering" || createRequest["name"] != "Engineering" || createRequest["description"] != "Platform team" || createRequest["type"] != "static" {
 		t.Fatalf("unexpected Authing request: %#v", createRequest)
 	}
 
