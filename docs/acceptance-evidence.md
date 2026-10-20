@@ -1,5 +1,7 @@
 # Authing sandbox acceptance evidence
 
+> **Cleanup supersedes feature acceptance:** live create/update/drift dispatches are paused. See [the remote cleanup ledger](cleanup/README.md) for the before/after inventory, exact readbacks, unattributed external changes, zero deletions by this execution, and the remaining auth-flow-function/original tenant-organization scope checks. Historical passes below are not new cleanup operations or proof that every current scope is empty.
+
 `docs/acceptance-matrix.csv` lists all registered resources. `not_run` means no complete Terraform CLI tracer; `implemented_not_run` means offline `httptest` + Terraform CLI passed but no live Authing execution; `live_partial` means a cited live case passed for specific fields while other exposed mutable fields remain unverified; `live_pass` requires a successful manually approved GitHub Actions run for the stated resource lifecycle. `live_failed_preflight` means the guarded live test stopped before mutation because absence/identity was unproven. `live_failed_cleanup_unverified` means a live failure with unknown remote cleanup; `live_failed_no_orphan_confirmed` means later exact-identity absence was confirmed but the lifecycle still failed. These statuses do not certify untested attributes, import, replacement, pagination, or production readiness.
 
 | Resource | Live verdict | GitHub Actions run | Tested commit | Verified path |

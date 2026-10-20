@@ -1,0 +1,59 @@
+{
+  "historical_workflow_runs": 48,
+  "current_read_only_cleanup_runs": 4,
+  "all_workflow_runs_reconciled": 52,
+  "history_missing_logs": 1,
+  "history_missing_step_metadata": 2,
+  "ledger_rows_not_physical_object_count": 30,
+  "row_kinds": {
+    "named_target": 20,
+    "scoped_object": 1,
+    "relation": 1,
+    "historical_success_identity_unlogged": 8
+  },
+  "agent_created": 0,
+  "agent_updated": 0,
+  "agent_deleted_and_verified": 0,
+  "fresh_exact_notfound_targets": 6,
+  "complete_tenant_inventory_total": 0,
+  "known_current_targets_absent_exact_or_complete_tenant_list": 7,
+  "complete_resource_inventory_scopes": 19,
+  "complete_resource_families": 10,
+  "current_generated_or_known_fingerprint_candidates": 0,
+  "full_fingerprint_checks": 7,
+  "full_fingerprint_matches": 0,
+  "organization_hash_check_scope": "default_pool_only_not_original_tenant_scope",
+  "initial_present_candidate_objects": 4,
+  "initial_present_relation_candidates": 1,
+  "historical_success_exact_identity_unlogged": 8,
+  "diagnostic_gap_records": 3,
+  "diagnostic_gaps": [
+    {
+      "family": "tenant",
+      "state": "exact-id-not-recovered"
+    },
+    {
+      "family": "tenant_organizations",
+      "state": "exact-id-not-recovered"
+    },
+    {
+      "family": "auth_flow_function",
+      "state": "no-published-enumeration-or-exact-id"
+    }
+  ],
+  "actionable_console_checks": [
+    "auth_flow_function_exact_identity_and_presence",
+    "original_tenant_scoped_organization_presence_and_origin"
+  ],
+  "audit_recovery_complete": false,
+  "audit_recovery_failure": "duplicate_or_missing_request_identity_fail_closed",
+  "external_change": "initial_group_user_tenant_candidates_disappeared_between_read_only_sweeps;not_attributed_to_this_agent",
+  "readback_run_url": "https://github.com/hefanxu/terraform-provider-authing/actions/runs/39362459089",
+  "tested_sha": "17b2ce6c33a7f7eff1814eecbfa354bed7dc1025",
+  "coverage_limits": [
+    "Historical successful traces with no emitted identity rely on historical cleanup evidence, not fresh exact GET.",
+    "No complete auth-flow-function enumeration is published; pipeline scenes are a different family.",
+    "A global organization list cannot establish absence in a vanished tenant scope.",
+    "First-sweep user_groups collection error is unknown, never an empty dependency inventory."
+  ]
+}
