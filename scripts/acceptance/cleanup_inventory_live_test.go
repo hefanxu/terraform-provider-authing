@@ -38,7 +38,7 @@ func cleanupCandidate(f cleanupFamily, item map[string]json.RawMessage) cleanupE
 	return cleanupEvent{Kind: "candidate", Family: f.Family, Code: code, Hash: cleanupHash(id), State: "discovered-not-verified", Authority: "none", Marker: marker, Count: 1, Total: 1}
 }
 func cleanupFamilies() []cleanupFamily {
-	return []cleanupFamily{
+	families := []cleanupFamily{
 		{Family: "group", Path: "/api/v3/list-groups", ID: "code", Name: "code", Get: "/api/v3/get-group", GetID: "code", Paged: true},
 		{Family: "user", Path: "/api/v3/list-users", ID: "userId", Name: "username", Get: "/api/v3/get-user", GetID: "userId", Paged: true, PageKind: "options"},
 		{Family: "public_account", Path: "/api/v3/list-public-accounts", ID: "userId", Name: "username", Get: "/api/v3/get-public-account", GetID: "userId", Paged: true, PageKind: "options"},
@@ -49,6 +49,12 @@ func cleanupFamilies() []cleanupFamily {
 		{Family: "pipeline_function", Path: "/api/v3/list-pipeline-functions", ID: "funcId", Name: "funcName", Get: "/api/v3/get-pipeline-function", GetID: "funcId", Extra: map[string]any{"scene": "PRE_REGISTER"}},
 		{Family: "tenant", Path: "/api/v3/list-tenants", ID: "tenantId", Name: "name", Get: "/api/v3/get-tenant", GetID: "tenantId", Paged: true, PageKind: "strings"},
 	}
+	// The complete published pipeline scene enum is searched only for candidates.
+	// Even AUTH_FLOW_FUNCTION here cannot establish auth-flow-function absence.
+	for _, scene := range []string{"POST_REGISTER", "PRE_AUTHENTICATION", "POST_AUTHENTICATION", "PRE_OIDC_ID_TOKEN_ISSUED", "PRE_OIDC_ACCESS_TOKEN_ISSUED", "PRE_COMPLETE_USER_INFO", "PRE_MFA_VERIFY", "POST_MFA_VERIFY", "AUTH_FLOW_FUNCTION"} {
+		families = append(families, cleanupFamily{Family: "pipeline_function", Path: "/api/v3/list-pipeline-functions", ID: "funcId", Name: "funcName", Get: "/api/v3/get-pipeline-function", GetID: "funcId", Extra: map[string]any{"scene": scene}})
+	}
+	return families
 }
 func cleanupEmit(e cleanupEvent) {
 	raw, _ := json.Marshal(e)
@@ -75,7 +81,7 @@ func cleanupInspect(c *authingapi.Client, f cleanupFamily, item map[string]json.
 	}
 	if f.Family == "group" {
 		members, s := cleanupInventory(c, cleanupFamily{Family: "group_members", Path: "/api/v3/list-group-members", ID: "userId", Paged: true}, map[string]any{"code": id}, emit)
-		emit(cleanupEvent{Kind: "dependency", Family: "group_members", Code: e.Code, ScopeHash: e.Hash, State: s, Authority: "none", Count: len(members), Total: len(members)})
+		emit(cleanupEvent{Kind: "dependency", Family: "group_members", Code: e.Code, ScopeHash: e.Hash, State: s, Authority: "none", Count: cleanupCount(len(members), s), Total: cleanupCount(len(members), s)})
 		if s == "complete" {
 			for _, m := range members {
 				emit(cleanupEvent{Kind: "relation", Family: "group_member", Code: e.Code, ScopeHash: e.Hash, Hash: cleanupHash(cleanupString(m, "userId")), State: "candidate-not-authority", Authority: "none", Count: 1, Total: 1})
@@ -83,8 +89,8 @@ func cleanupInspect(c *authingapi.Client, f cleanupFamily, item map[string]json.
 		}
 	}
 	if f.Family == "user" {
-		groups, s := cleanupInventory(c, cleanupFamily{Family: "user_groups", Path: "/api/v3/list-user-groups", ID: "code", Paged: true}, map[string]any{"userId": id}, emit)
-		emit(cleanupEvent{Kind: "dependency", Family: "user_groups", ScopeHash: e.Hash, Code: e.Code, State: s, Authority: "none", Count: len(groups), Total: len(groups)})
+		groups, s := cleanupInventory(c, cleanupFamily{Family: "user_groups", Path: "/api/v3/get-user-groups", ID: "code"}, map[string]any{"userId": id}, emit)
+		emit(cleanupEvent{Kind: "dependency", Family: "user_groups", ScopeHash: e.Hash, Code: e.Code, State: s, Authority: "none", Count: cleanupCount(len(groups), s), Total: cleanupCount(len(groups), s)})
 	}
 	if f.Family == "tenant" {
 		var apps *[]string
@@ -101,7 +107,7 @@ func cleanupInspect(c *authingapi.Client, f cleanupFamily, item map[string]json.
 			{Family: "tenant_organizations", Path: "/api/v3/list-organizations", ID: "organizationCode", Name: "organizationName", Get: "/api/v3/get-organization", GetID: "organizationCode", Paged: true},
 		} {
 			items, s := cleanupInventory(c, dep, map[string]any{"tenantId": id}, emit)
-			emit(cleanupEvent{Kind: "dependency", Family: dep.Family, ScopeHash: e.Hash, State: s, Authority: "none", Count: len(items), Total: len(items)})
+			emit(cleanupEvent{Kind: "dependency", Family: dep.Family, ScopeHash: e.Hash, State: s, Authority: "none", Count: cleanupCount(len(items), s), Total: cleanupCount(len(items), s)})
 			if s != "complete" {
 				continue
 			}
@@ -144,13 +150,19 @@ func cleanupInspect(c *authingapi.Client, f cleanupFamily, item map[string]json.
 								args["includeChildrenDepartments"] = true
 							}
 							ds, dsState := cleanupInventory(c, rootDep, args, emit)
-							emit(cleanupEvent{Kind: "dependency", Family: rootDep.Family, ScopeHash: depEvent.Hash, State: dsState, Authority: "none", Count: len(ds), Total: len(ds)})
+							emit(cleanupEvent{Kind: "dependency", Family: rootDep.Family, ScopeHash: depEvent.Hash, State: dsState, Authority: "none", Count: cleanupCount(len(ds), dsState), Total: cleanupCount(len(ds), dsState)})
 						}
 					}
 				}
 			}
 		}
 	}
+}
+func cleanupCount(count int, state string) int {
+	if state != "complete" {
+		return -1
+	}
+	return count
 }
 func cleanupKnownCodeGETs(c *authingapi.Client, emit func(cleanupEvent)) {
 	for _, target := range []struct{ family, code, path, key string }{
@@ -180,18 +192,27 @@ func TestReadOnlyCleanupInventory(t *testing.T) {
 		t.Fatal("cleanup inventory client unavailable")
 	}
 	for _, f := range cleanupFamilies() {
-		items, state := cleanupInventory(c, f, nil, cleanupEmit)
+		emit := cleanupEmit
+		if scene, ok := f.Extra["scene"].(string); ok {
+			emit = func(e cleanupEvent) {
+				if e.ScopeHash == "" {
+					e.ScopeHash = cleanupHash("pipeline-scene:" + scene)
+				}
+				cleanupEmit(e)
+			}
+		}
+		items, state := cleanupInventory(c, f, nil, emit)
 		matches := 0
 		if state == "complete" {
 			for _, item := range items {
 				candidate := cleanupCandidate(f, item)
 				if candidate.Code != "" {
 					matches++
-					cleanupInspect(c, f, item, cleanupEmit)
+					cleanupInspect(c, f, item, emit)
 				}
 			}
 		}
-		cleanupEmit(cleanupEvent{Kind: "family", Family: f.Family, State: state, Authority: "none", Count: matches, Total: len(items)})
+		emit(cleanupEvent{Kind: "family", Family: f.Family, State: state, Authority: "none", Count: cleanupCount(matches, state), Total: cleanupCount(len(items), state)})
 	}
 	cleanupKnownCodeGETs(c, cleanupEmit)
 	// No published auth-flow-function enumeration contract. A pipeline inventory is

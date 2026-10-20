@@ -14,7 +14,7 @@ import (
 // no create/update/delete or guessed endpoint can pass this boundary.
 var cleanupReadPaths = map[string]string{
 	"/api/v3/list-groups": "GET", "/api/v3/get-group": "GET", "/api/v3/list-group-members": "GET",
-	"/api/v3/list-users": "POST", "/api/v3/get-user": "GET", "/api/v3/list-user-groups": "GET",
+	"/api/v3/list-users": "POST", "/api/v3/get-user": "GET", "/api/v3/get-user-groups": "GET",
 	"/api/v3/list-public-accounts": "POST", "/api/v3/get-public-account": "GET",
 	"/api/v3/list-applications": "GET", "/api/v3/get-application": "GET",
 	"/api/v3/list-namespaces": "GET", "/api/v3/get-namespace": "GET",
@@ -26,7 +26,8 @@ var cleanupReadPaths = map[string]string{
 }
 
 func cleanupRead(c *authingapi.Client, path, method string, arg any) (json.RawMessage, int, string) {
-	if cleanupReadPaths[path] != method {
+	want, allowed := cleanupReadPaths[path]
+	if !allowed || want != method {
 		return nil, 0, "guard"
 	}
 	body, err := c.SendHttpRequest(path, method, arg)
@@ -104,6 +105,9 @@ func cleanupInventory(c *authingapi.Client, f cleanupFamily, scope map[string]an
 		}
 		raw, business, state := cleanupRead(c, f.Path, cleanupReadPaths[f.Path], arg)
 		if state != "complete" {
+			if state == "absent" {
+				return nil, "inventory-unavailable"
+			}
 			return nil, state
 		}
 		var d struct {

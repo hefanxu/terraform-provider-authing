@@ -29,6 +29,12 @@ class CleanupInventoryTests(unittest.TestCase):
         for gate in ("inputs.confirm == 'READ_ONLY_SANDBOX'","inputs.read_only_audit == 'cleanup_inventory'",'environment: authing-sandbox','run_cleanup_inventory.py'):
             self.assertIn(gate,job)
         self.assertNotIn('run_live_case.py',job)
+    def test_read_allowlist_matches_official_contract_snapshot(self):
+        contract=json.loads((ROOT/'docs/cleanup/read-contract.json').read_text())['paths']
+        source=(ROOT/'scripts/acceptance/cleanup_inventory_impl_test.go').read_text().split('var cleanupReadPaths',1)[1].split('\n}',1)[0]
+        for path,method in __import__('re').findall(r'"(/api/v3/[a-z-]+)": "(GET|POST)"',source):
+            self.assertIn(path,contract)
+            self.assertIn(method.lower(),contract[path])
     def test_pipeline_uses_published_name_field(self):
         source=(ROOT/'scripts/acceptance/cleanup_inventory_live_test.go').read_text()
         self.assertRegex(source,r'Family: "pipeline_function"[^\n]+Name: "funcName"')
