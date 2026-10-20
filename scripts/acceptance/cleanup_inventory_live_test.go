@@ -210,9 +210,17 @@ func TestReadOnlyCleanupInventory(t *testing.T) {
 		}
 		matches := 0
 		if state == "complete" {
+			for _, known := range cleanupKnownFingerprints[f.Family] {
+				count := 0
+				for _, item := range items {
+					if cleanupHash(cleanupString(item, f.ID)) == known {
+						count++
+					}
+				}
+				emit(cleanupEvent{Kind: "known_fingerprint", Family: f.Family, Hash: known, State: "complete", Authority: "none", Count: count, Total: len(items)})
+			}
 			for _, item := range items {
-				candidate := cleanupCandidate(f, item)
-				if candidate.Code != "" {
+				if cleanupMatchesEvidence(f, item, cleanupKnownFingerprints[f.Family]) {
 					matches++
 					cleanupInspect(c, f, item, emit)
 				}

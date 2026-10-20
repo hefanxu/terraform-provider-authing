@@ -38,6 +38,27 @@ func cleanupRecoverHashes(raw json.RawMessage, want map[string]bool, found map[s
 		}
 	}
 }
+
+var cleanupKnownFingerprints = map[string][]string{
+	"group":          {"154156ffa12ca4cdc4ee92405637c86df8a3e42c3b30e73b1fe328cfb23027be", "f601b67483075a6a7d9680cc5312f975dca12f8034217ee9a1b01684b74e4f26", "58be0915870e79cd39fb7bb1679905791704875e72d7810495ab63d98cbe7b96"},
+	"user":           {"189f388675a6a05c85cecec5041c9ba887558a4d2477724665d156c6b79f99ea"},
+	"public_account": {"2571bc3a6b07d4550a4d221fd22e07039d4d9927ddda714d604ec191bb1afeb9"},
+	"tenant":         {"dc09fe56a1a8400bf17b36a43edfb69eb78428ccee94857bdf3763ab21b2090a"},
+	"organization":   {"9fa54c3ab0e7ed835577131ac44a9e0b44d2c48d51436e75f444ba1132b1cc2a"},
+}
+
+func cleanupMatchesEvidence(f cleanupFamily, item map[string]json.RawMessage, expected []string) bool {
+	if cleanupCandidate(f, item).Code != "" {
+		return true
+	}
+	h := cleanupHash(cleanupString(item, f.ID))
+	for _, known := range expected {
+		if known == h {
+			return true
+		}
+	}
+	return false
+}
 func cleanupRecoverVanishedScopes(c *authingapi.Client, emit func(cleanupEvent)) {
 	tenantHash := "dc09fe56a1a8400bf17b36a43edfb69eb78428ccee94857bdf3763ab21b2090a"
 	orgHash := "9fa54c3ab0e7ed835577131ac44a9e0b44d2c48d51436e75f444ba1132b1cc2a"

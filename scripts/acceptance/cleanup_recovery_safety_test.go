@@ -17,6 +17,14 @@ func TestCleanupAuditRecoveryMatchesOnlyIndependentFullFingerprint(t *testing.T)
 		t.Fatal("unrequested value retained")
 	}
 }
+func TestCleanupKnownFingerprintCannotBeHiddenByRenaming(t *testing.T) {
+	var item map[string]json.RawMessage
+	json.Unmarshal([]byte(`{"userId":"original-user-id","username":"renamed-business-looking-name"}`), &item)
+	f := cleanupFamily{Family: "user", ID: "userId", Name: "username"}
+	if !cleanupMatchesEvidence(f, item, []string{cleanupHash("original-user-id")}) || cleanupMatchesEvidence(f, item, []string{cleanupHash("another-id")}) {
+		t.Fatal("known identity scan depends on mutable name")
+	}
+}
 func TestCleanupAuditRecoveryCannotTreatTruncatedHashAsAuthority(t *testing.T) {
 	got := map[string]string{}
 	cleanupRecoverHashes(json.RawMessage(`{"tenantId":"original-id"}`), map[string]bool{cleanupHash("original-id")[:16]: true}, got, 0)
